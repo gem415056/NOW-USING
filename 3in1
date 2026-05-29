@@ -1679,7 +1679,7 @@
                 color: #EFFCFF;
                 text-align: center;
                 font-size: 12px;
-                font-weight: 700;
+                font-weight: 400;
                 line-height: 100%;
                 margin: 0;
                 padding: 0;
