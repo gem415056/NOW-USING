@@ -1,0 +1,1182 @@
+// ==UserScript==
+// @name         크랙 AI 응답 교정기 (Response Refiner V1.7)
+// @namespace    https://crack.wrtn.ai/
+// @version      1.7.0
+// @description  순정 UI 자동클릭 제어 방식 및 콤팩트 2탭 레이아웃을 채용한 경량화 응답 교정기
+// @author       User & Gemini
+// @match        https://crack.wrtn.ai/*
+// @grant        GM_addStyle
+// @grant        GM_xmlhttpRequest
+// @connect      generativelanguage.googleapis.com
+// @connect      googleapis.com
+// @connect      firebasevertexai.googleapis.com
+// @connect      www.gstatic.com
+// @run-at       document-idle
+// @require      https://cdn.jsdelivr.net/npm/dexie@4.2.1/dist/dexie.min.js
+// ==/UserScript==
+
+(function () {
+    'use strict';
+
+    const SCRIPT_NS = 'crack-response-refiner';
+    const MODAL_ID = `${SCRIPT_NS}-modal`;
+    const ACCENT_COLOR = '#BCD0D7'; // 파스텔 블루그레이
+    const ACCENT_HOVER = '#AEC2C9';
+    const TOAST_ID = `${SCRIPT_NS}-toast`;
+
+    let activeEditorText = '';
+    let isProcessing = false;
+    let lastCheckedMessageId = '';
+    let checkTimer = null;
+
+    // 동적 컷오프(Pruning) 매핑용 규칙별 지문 원본
+    const RULE_TEXTS = {
+        banned: `### 1. FORBIDDEN WORDS & SENSORY UPGRADE
+If any word from [Forbidden Words] (or synonyms of possession/control/obsession/beast/game/toy) is found:
+- Do NOT use abstract conceptual words to describe psychological states. "Show, don't tell."
+- Replace with:
+  - Non-verbal cues: facial expressions, gaze, breathing, physical distance, subtle gestures, physiological reactions.
+  - Silence/Pause: to create subtle tension.
+  - Projection: reflecting emotions onto objects, colors, or sounds.
+  - Creative Metaphors: Avoid cliché tropes (e.g., "like a wild beast" -> "like a viper coiling in the dark"; "beast-like breathing" -> "like parched earth greedily drinking the first rain").`,
+
+        impersonation: `### 2. USER IMPERSONATION & META-COGNITION PREVENTION
+- Do NOT narrate, predict, or decide the user character's actions, dialogue, internal thoughts, emotions, or physical reactions (e.g., moans, expressions) that have not been explicitly input by the user.
+- Do NOT let AI characters meta-cognitively perceive thoughts the user only had internally.
+- Correction: Replace these parts with the actions, observations, or reactions of the AI characters instead.`,
+
+        overfitting: `### 3. OVERFITTING & REPETITION AVOIDANCE
+- Check if [New Speech] replicates or slightly varies sentence structures, specific descriptions, actions, or dialogues from the [Recent Context] (especially the immediate previous turn).
+- Correction: Replace with completely different actions, descriptions, or setups to move the narrative forward. Avoid stagnant pacing.`,
+
+        measurement: `### 4. NO SPECIFIC METRIC MEASUREMENTS
+- Do NOT use precise physical measurements (e.g., cm, kg, cup sizes, specific numbers) to describe characters' bodies or appearances.
+- Correction: Describe through clothing fit, relative comparison to others, physical interactions, or movement.`,
+
+        parroting: `### 5. NO PARROTING
+- Do NOT repeat, summarize, or explicitly cite the user's latest input before responding.
+- Correction: Assume the user's input has already happened. Advance the timeline and describe the AI character's subsequent observation, interpretation, or reaction.`,
+
+        cliche: `### 6. CLICHÉ NARRATIVE CORRECTION (SLOW BURN)
+- If the narrative leans towards a cheap, possessive, or controlling web-novel cliché:
+- Correction: Pivot to realistic, multi-layered emotional interactions.
+  - Relate through emotional interaction, not power dynamics.
+  - Ensure gradual and reasonable character changes (Slow Burn: observation, trust, care, conflict, reconciliation).
+  - Diversify positive emotions (longing, protectiveness, fear of loss, responsibility) and negative emotions (confusion, internal conflict, hesitation).`,
+
+        state: `### 7. STATE CONTRADICTION
+- Check for inconsistencies in characters' physical states (e.g., wounds, clothing status, life/death, location).
+- Example: Putting on clothes that were already removed, or being in a pool but described as dry. Correct these logically.`,
+
+        nsfw: `### 8. NSFW CONTEXT CONTINUITY
+- Ensure character consistency and emotional depth before, during, and after sexual intimacy.
+- Do NOT reset emotional progression, ignore established personalities, or shift attitudes abruptly for the sake of NSFW scenes.
+- Correction: Maintain the established relationship context and personality traits.`,
+
+        unrealistic: `### 9. REALITY & PLAUSIBILITY CHECK
+- Correct events that defy common sense, logical plausibility, or physical reality without a narrative justification (e.g., a high schooler driving a car casually -> rewrite to show they are driving unlicensed consciously, or using a chauffeur/public transport).`,
+
+        factual: `### 10. FACT CONTRADICTION
+- Ensure [New Speech] does not contradict facts explicitly stated in [Lore] or [Summaries].`,
+
+        promise: `### 11. PROMISE & CONTRACT VIOLATION
+- Ensure characters do not violate established promises, rules, or contracts between them unless it is a deliberate narrative choice with visible conflict.`,
+
+        nickname: `### 12. VOCATIVE & TITLE CONTINUITY
+- Ensure naming conventions, nicknames, or titles match the current relationship status and context.`,
+
+        presence: `### 13. PRESENCE/ABSENCE CONTRADICTION
+- Ensure characters who are not in the current location do not suddenly appear or act without a logical entry scene.`,
+
+        reunion: `### 14. REUNION VIOLATION
+- Characters who already know each other (per [Lore] or [Summaries]) must not behave as strangers (e.g., formal self-introductions, "Nice to meet you").`,
+
+        foreigner: `### 15. FOREIGN DIALOGUE FORMAT
+- When a foreign character speaks their native tongue (e.g., English), use the format: "English (Korean translation)" (e.g., "Goodbye. (안녕)").
+- Exception: This rule does not apply if the foreign character is intentionally attempting to speak Korean.`
+    };
+
+    // 검수용 시스템 프롬프트 헤더 및 바디 뼈대
+    const DEFAULT_SYSTEM_PROMPT = `You are an RP Continuity and Quality Corrector.
+RATE: PG-13 ~ NC-21
+
+## Scope
+You receive:
+- [Forbidden Words]: Dynamic list of words to avoid and replace.
+- [Lore]: Partial character/world data.
+- [Summaries]: Memory snapshots.
+- [Recent Context]: Last N turns of dialogue.
+- [New Speech]: The latest AI-generated RP response to check and correct.
+
+## Core Rule
+Review [New Speech] against the active Correction Criteria below. If any violation is found, rewrite the violating parts of [New Speech] to maintain high-quality, realistic, and consistent roleplay. 
+
+---
+
+## Active Correction Criteria & Guidelines
+{ACTIVE_RULES_BLOCK}
+
+---
+
+## Output Format
+- "reason" MUST be written in Korean.
+- No markdown code fences in the JSON output.
+
+If NO issues/repairs are needed:
+{passWord}
+
+If issues are found:
+{"reason":"교정 이유 (어떤 규칙을 위반했는지 구체적으로 설명)","replacements":[{"from":"원문의 정확한 부분","to":"수정본"}]}
+
+[Forbidden Words]:
+{forbidden_words}
+
+[Lore]:
+{lore}
+
+[Summaries]:
+{memory}
+
+[Recent Context]:
+{context}
+
+[New Speech]:
+{message}`;
+
+    // Dexie 로어 데이터베이스 인스턴스 초기화
+    const loreDb = new Dexie("lore-injector");
+    loreDb.version(1).stores({ entries: "++id, name, type, packName, *triggers" });
+    loreDb.version(2).stores({ entries: "++id, name, type, packName, project, *triggers" });
+    loreDb.version(3).stores({ entries: "++id, name, type, packName, project, *triggers" });
+    loreDb.version(4).stores({ entries: "++id, name, type, packName, project, *triggers" });
+    loreDb.version(5).stores({ entries: "++id, name, type, packName, project, *triggers" });
+    loreDb.version(6).stores({ entries: "++id, name, type, packName, project, rootId, isCurrentArc, *triggers" });
+    loreDb.version(7).stores({ entries: "++id, name, type, packName, project, rootId, isCurrentArc, *triggers" });
+    loreDb.version(8).stores({ entries: "++id, name, type, packName, model, field, sourceHash, entryUpdatedAt, schemaVersion, &[entryId+field]" });
+    loreDb.version(9).stores({ entries: "++id, name, type, packName, project, rootId, isCurrentArc, createdTurn, updatedTurn, lastMentionedTurn, eventTurn, sceneId, arcId, realTimestamp, *entities, *subjects, *objects, *locations, *promises, *triggers" });
+
+    const DEFAULT_SETTINGS = {
+        enabled: true,
+        turns: 5,
+        userName: '',
+        model: 'gemini-3.5-flash',
+        mode: 'manual', // manual: 수동 승인 팝업, auto: 자동 반영
+        provider: 'google',
+        apiKey: '',
+        firebaseScript: '',
+        bannedWords: '소유/통제/지배/정복/주도권/집착/숭배/경배/짐승/맹수/사냥/포식자/먹잇감/게임/유리/장난감/전리품',
+        rules: {
+            factual: false,
+            presence: false,
+            nickname: false,
+            state: false,
+            promise: false,
+            reunion: false,
+            unrealistic: false,
+            foreigner: false,
+            impersonation: false,
+            parroting: false,
+            overfitting: false,
+            measurement: false,
+            cliche: false,
+            banned: false,
+            nsfw: false
+        }
+    };
+
+    function loadSettings() {
+        try {
+            const saved = localStorage.getItem(`${SCRIPT_NS}-settings`);
+            if (saved) {
+                const parsed = JSON.parse(saved);
+                return { ...DEFAULT_SETTINGS, ...parsed, rules: { ...DEFAULT_SETTINGS.rules, ...parsed.rules } };
+            }
+        } catch (e) {}
+        return { ...DEFAULT_SETTINGS };
+    }
+
+    function saveSettings(config) {
+        localStorage.setItem(`${SCRIPT_NS}-settings`, JSON.stringify(config));
+    }
+
+    function getSafeMainInput() {
+        const inputs = document.querySelectorAll('textarea[placeholder*="메시지"], div.__chat_input_textarea, .tiptap.ProseMirror');
+        for (const el of inputs) {
+            if (el.closest('div[data-message-group-id]')) continue;
+            if (el.closest(".flex.w-full.flex-col")) return el;
+        }
+        return null;
+    }
+
+    function getChatRoomId() {
+        let m = location.pathname.match(/\/(?:chats|chat|episodes)\/[a-f0-9]+\/([a-f0-9]+)/);
+        if (m) return m[1];
+        let m2 = location.pathname.match(/\/(?:chats|chat|episodes)\/([a-f0-9]+)/);
+        if (m2) return m2[1];
+        return null;
+    }
+
+    function showToast(message, type = 'info', ms = 3000) {
+        let box = document.getElementById(TOAST_ID);
+        if (box) box.remove();
+
+        box = document.createElement("div");
+        box.id = TOAST_ID;
+        box.style.cssText = `
+            position: fixed;
+            top: calc(50% - 101px);
+            left: 50%;
+            transform: translate(-50%, -50%) scale(0.9);
+            opacity: 0;
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.2), opacity 0.15s ease;
+            z-index: 2147483647 !important;
+            pointer-events: none;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        `;
+
+        const containerNode = document.createElement("div");
+        containerNode.style.cssText = `
+            background-color: #23343A;
+            border: 1.5px solid ${ACCENT_COLOR};
+            padding: 9px 14px;
+            border-radius: 9999px;
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+            box-sizing: border-box;
+        `;
+
+        const textNode = document.createElement("p");
+        textNode.textContent = message;
+        textNode.style.cssText = `
+            color: #EFFCFF;
+            text-align: center;
+            font-size: 12px;
+            font-weight: 700;
+            line-height: 100%;
+            margin: 0;
+            padding: 0;
+            white-space: nowrap;
+            user-select: none;
+        `;
+
+        containerNode.append(textNode);
+        box.append(containerNode);
+        document.body.appendChild(box);
+
+        setTimeout(() => {
+            box.style.transform = "translate(-50%, -50%) scale(1)";
+            box.style.opacity = "1";
+        }, 20);
+
+        setTimeout(() => {
+            if (document.body.contains(box)) {
+                box.style.transform = "translate(-50%, -50%) scale(0.93)";
+                box.style.opacity = "0";
+                setTimeout(() => { if (document.body.contains(box)) box.remove(); }, 200);
+            }
+        }, ms);
+    }
+
+    // ==========================================
+    // UI 자동화 에디터 입력 및 전송 엔진
+    // ==========================================
+    function getReactProps(el) {
+        const key = Object.keys(el).find(k => k.startsWith('__reactProps'));
+        return key ? el[key] : null;
+    }
+
+    function firePointerClick(el) {
+        const opts = { bubbles: true, cancelable: true };
+        el.dispatchEvent(new PointerEvent('pointerover', opts));
+        el.dispatchEvent(new PointerEvent('pointerenter', opts));
+        el.dispatchEvent(new MouseEvent('mouseenter', opts));
+        el.dispatchEvent(new PointerEvent('pointerdown', opts));
+        el.dispatchEvent(new PointerEvent('pointerup', opts));
+        el.click();
+    }
+
+    async function executeUiRefinement(container, correctedText) {
+        return new Promise((resolve, reject) => {
+            const trigger = container.querySelector('div[aria-haspopup="menu"]');
+            if (!trigger) {
+                reject(new Error("메시지 제어 메뉴를 찾지 못했습니다."));
+                return;
+            }
+
+            const style = document.createElement('style');
+            style.textContent = `[data-radix-popper-content-wrapper], [role="menu"] { opacity: 0 !important; pointer-events: none !important; }`;
+            document.head.appendChild(style);
+
+            firePointerClick(trigger);
+
+            const start = Date.now();
+            const findMenuTimer = setInterval(() => {
+                const item = Array.from(document.querySelectorAll('div[role="menuitem"]')).find(el => el.textContent.includes('수정'));
+                if (item) {
+                    clearInterval(findMenuTimer);
+                    const props = getReactProps(item);
+                    if (props?.onSelect) props.onSelect();
+                    else firePointerClick(item);
+                    
+                    setTimeout(() => style.remove(), 100);
+                    
+                    const editorStart = Date.now();
+                    const findEditorTimer = setInterval(() => {
+                        const textarea = container.querySelector('textarea');
+                        if (textarea) {
+                            clearInterval(findEditorTimer);
+                            
+                            textarea.value = correctedText;
+                            textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                            textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                            
+                            setTimeout(() => {
+                                const saveBtn = Array.from(container.querySelectorAll('button')).find(btn => btn.textContent.includes('수정 완료'));
+                                if (saveBtn) {
+                                    saveBtn.click();
+                                    resolve(true);
+                                } else {
+                                    reject(new Error("수정 완료 버튼을 찾지 못했습니다."));
+                                }
+                            }, 100);
+                        } else if (Date.now() - editorStart > 3000) {
+                            clearInterval(findEditorTimer);
+                            reject(new Error("텍스트 입력 창 로딩 시간 초과"));
+                        }
+                    }, 50);
+                } else if (Date.now() - start > 1500) {
+                    clearInterval(findMenuTimer);
+                    style.remove();
+                    reject(new Error("수정 권한 확인 메뉴 로딩 실패"));
+                }
+            }, 30);
+        });
+    }
+
+    // ==========================================
+    // 검수용 백그라운드 API 통신 (로어 인젝터 오리지널 4종 병합 동기화 엔진)
+    // ==========================================
+    async function fetchSummaries(chatId) {
+        const token = document.cookie.match(/(^| )access_token=([^;]+)/)?.[2];
+        if (!token) return '메모리 없음.';
+        const headers = { 'Authorization': 'Bearer ' + token };
+        const result = { goal: [], shortTerm: [], relationship: [], longTerm: [] };
+        
+        try {
+            const endpoints = [
+                { key: 'goal', url: `https://contents-api.wrtn.ai/character-chat/v3/chats/${chatId}/summaries?limit=10`, hasTitle: false },
+                { key: 'shortTerm', url: `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/summaries?limit=10&type=shortTerm&orderBy=newest`, hasTitle: true },
+                { key: 'relationship', url: `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/summaries?limit=10&type=relationship&orderBy=newest`, hasTitle: true },
+                { key: 'longTerm', url: `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/summaries?limit=10&type=longTerm&orderBy=newest&filter=all`, hasTitle: true }
+            ];
+
+            const fetches = endpoints.map(ep => 
+                fetch(ep.url, { headers })
+                    .then(res => res.ok ? res.json() : null)
+                    .then(json => {
+                        const list = json?.data?.summaries || [];
+                        result[ep.key] = list.map(s => ep.hasTitle ? `${s.title}: ${s.summary}` : s.summary);
+                    })
+                    .catch(() => {})
+            );
+            
+            await Promise.all(fetches);
+
+            const lines = [];
+            if (result.goal.length) lines.push("[상황 요약]\n" + result.goal.map(s => `- ${s}`).join('\n'));
+            if (result.shortTerm.length) lines.push("[단기 기억]\n" + result.shortTerm.map(s => `- ${s}`).join('\n'));
+            if (result.relationship.length) lines.push("[관계 변화]\n" + result.relationship.map(s => `- ${s}`).join('\n'));
+            if (result.longTerm.length) lines.push("[장기 기억]\n" + result.longTerm.map(s => `- ${s}`).join('\n'));
+
+            return lines.length ? lines.join('\n\n') : '메모리 없음.';
+        } catch (e) {
+            return '메모리 없음.';
+        }
+    }
+
+    async function fetchRecentMessages(chatId, limit) {
+        const token = document.cookie.match(/(^| )access_token=([^;]+)/)?.[2];
+        if (!token) return '';
+        try {
+            const url = `https://contents-api.wrtn.ai/character-chat/v3/chats/${chatId}/messages?limit=${limit}`;
+            const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+            if (res.ok) {
+                const json = await res.json();
+                const msgs = json?.data?.messages || [];
+                return msgs.reverse().map(m => {
+                    const role = m.role === 'user' ? 'User' : 'Character';
+                    return `${role}: ${m.content}`;
+                }).join('\n\n');
+            }
+        } catch(e) {}
+        return '';
+    }
+
+    async function loadActiveLoreText() {
+        try {
+            const activePacks = JSON.parse(localStorage.getItem('lore-injector-v5'))?.urlPacks?.[location.pathname] || [];
+            if (activePacks.length === 0) return '활성화된 로어 없음.';
+            
+            const entries = await loreDb.entries.where('packName').anyOf(activePacks).toArray();
+            return entries.map(e => `[${e.type}] ${e.name}: ${e.summary?.compact || e.summary || ''}`).join('\n');
+        } catch (e) {
+            return '로어 로드 오류';
+        }
+    }
+
+    function compilePrompt(config) {
+        const activeRules = [];
+        const keysInOrder = [
+            'banned', 'impersonation', 'overfitting', 'measurement', 'parroting',
+            'cliche', 'state', 'nsfw', 'unrealistic', 'factual',
+            'promise', 'nickname', 'presence', 'reunion', 'foreigner'
+        ];
+        
+        keysInOrder.forEach(k => {
+            if (config.rules[k] && RULE_TEXTS[k]) {
+                activeRules.push(RULE_TEXTS[k]);
+            }
+        });
+
+        const activeRulesBlock = activeRules.length > 0 
+            ? activeRules.join('\n\n') 
+            : "No active rules selected. General consistency verification only.";
+
+        return DEFAULT_SYSTEM_PROMPT.replace('{ACTIVE_RULES_BLOCK}', activeRulesBlock);
+    }
+
+    async function processRefiner(assistantText, container, messageId, isManual = false) {
+        if (isProcessing) return;
+        isProcessing = true;
+        showToast("🫧 에리가 응답 검수 중", "info", 1500);
+
+        const config = loadSettings();
+        if (!config.enabled && !isManual) { isProcessing = false; return; } // 수동일 때는 ON/OFF 무관 강제 가동
+
+        const chatId = getChatRoomId();
+        if (!chatId) { isProcessing = false; return; }
+
+        try {
+            const contextText = await fetchRecentMessages(chatId, config.turns);
+            const loreText = await loadActiveLoreText();
+            const memoryText = await fetchSummaries(chatId);
+            const systemPrompt = compilePrompt(config);
+
+            const prompt = systemPrompt
+                .replace('{lore}', loreText)
+                .replace('{context}', contextText)
+                .replace('{message}', assistantText)
+                .replace('{memory}', memoryText)
+                .replace('{forbidden_words}', config.bannedWords || 'None')
+                .replace('{passWord}', 'PASS');
+
+            let responseText = '';
+            if (config.provider === 'google') {
+                if (!config.apiKey) throw new Error("API Key가 설정되어 있지 않습니다.");
+                const url = `https://generativelanguage.googleapis.com/v1beta/models/${config.model}:generateContent?key=${config.apiKey}`;
+                const payload = { contents: [{ role: "user", parts: [{ text: prompt }] }] };
+                
+                const res = await fetch(url, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+                if (!res.ok) throw new Error("Gemini API 전송 오류");
+                const data = await res.json();
+                responseText = data.candidates[0].content.parts[0].text;
+            } else {
+                if (!config.firebaseScript) throw new Error("Firebase 스크립트가 설정되어 있지 않습니다.");
+                const parseFirebase = (scriptStr) => {
+                    const match = scriptStr.match(/firebaseConfig\s*=\s*(\{[\s\S]*?\});/);
+                    if (match && match[1]) return new Function("return " + match[1])();
+                    return null;
+                };
+                const fbConfig = parseFirebase(config.firebaseScript);
+                if (!fbConfig) throw new Error("Firebase Config 파싱 실패");
+
+                const { initializeApp } = await import("https://www.gstatic.com/firebasejs/12.8.0/firebase-app.js");
+                const { getAI, getGenerativeModel, VertexAIBackend, HarmBlockThreshold, HarmCategory } = await import("https://www.gstatic.com/firebasejs/12.8.0/firebase-ai.js");
+
+                const app = initializeApp(fbConfig, "crack-refiner-" + Date.now());
+                const ai = getAI(app, { backend: new VertexAIBackend('global') });
+                const safety = [
+                    { category: HarmCategory.HARM_CATEGORY_HATE_SPEECH, threshold: HarmBlockThreshold.OFF },
+                    { category: HarmCategory.HARM_CATEGORY_SEXUALLY_EXPLICIT, threshold: HarmBlockThreshold.OFF },
+                    { category: HarmCategory.HARM_CATEGORY_HARASSMENT, threshold: HarmBlockThreshold.OFF },
+                    { category: HarmCategory.HARM_CATEGORY_DANGEROUS_CONTENT, threshold: HarmBlockThreshold.OFF }
+                ];
+                const model = getGenerativeModel(ai, { model: config.model, safetySettings: safety });
+                const result = await model.generateContent(prompt);
+                const resp = await result.response;
+                responseText = resp.text();
+            }
+
+            const cleanResponse = responseText.trim();
+            if (cleanResponse === 'PASS' || cleanResponse.includes('PASS') && cleanResponse.length < 15) {
+                showToast("🫧 이상 없음 (통과)", "success", 1500);
+                isProcessing = false;
+                return;
+            }
+
+            let parsed = null;
+            try {
+                const rawJson = cleanResponse.replace(/^```json\s*/i, "").replace(/\s*```$/i, "").trim();
+                parsed = JSON.parse(rawJson);
+            } catch (e) {
+                showToast("🫧 검수 해석 실패 (패스)", "info", 1500);
+                isProcessing = false;
+                return;
+            }
+
+            if (parsed && (parsed.replacements || parsed.refined_text)) {
+                let correctedText = assistantText;
+                const replacements = parsed.replacements || [];
+                if (replacements.length > 0) {
+                    for (const r of replacements) {
+                        if (r.from && r.to !== undefined) {
+                            correctedText = correctedText.replace(r.from, r.to);
+                        }
+                    }
+                } else if (parsed.refined_text) {
+                    correctedText = parsed.refined_text;
+                }
+
+                if (correctedText === assistantText) {
+                    showToast("🫧 교정 해당사항 없음", "success", 1500);
+                    isProcessing = false;
+                    return;
+                }
+
+                const applyAction = async (finalText) => {
+                    showToast("🫧 교정 적용 중...", "info", 1500);
+                    try {
+                        await executeUiRefinement(container, finalText);
+                        showToast("🫧 교정 적용 완료!", "success", 2000);
+                    } catch (err) {
+                        showToast(`❌ 적용 실패: ${err.message}`, "info", 3000);
+                    } finally {
+                        isProcessing = false;
+                    }
+                };
+
+                if (config.mode === 'auto') {
+                    await applyAction(correctedText);
+                } else {
+                    showConfirmModal(parsed.reason, correctedText, applyAction, () => { isProcessing = false; });
+                }
+            } else {
+                isProcessing = false;
+            }
+
+        } catch (e) {
+            showToast(`❌ 교정 실패: ${e.message}`, "info", 3000);
+            isProcessing = false;
+        }
+    }
+
+    function showConfirmModal(reason, suggestedText, onConfirm, onCancel) {
+        const overlay = document.createElement('div');
+        overlay.className = 'crr-overlay';
+        overlay.id = `${SCRIPT_NS}-confirm-overlay`;
+
+        overlay.innerHTML = `
+            <div class="crr-modal" style="height: auto; max-height: 85vh;">
+                <div class="crr-header">
+                    <h3>🫧 응답 교정 승인</h3>
+                </div>
+                <div class="crr-body">
+                    <label class="crr-label">교정 이유</label>
+                    <div class="crr-reason-box">
+                        ${escapeHtml(reason)}
+                    </div>
+                    <label class="crr-label">교정 적용본 (수정 가능)</label>
+                    <textarea id="ce-ref-edit-text" class="crr-textarea" style="height: 160px; flex:none;">${escapeHtml(suggestedText)}</textarea>
+                </div>
+                <div class="crr-footer" style="margin-top: 16px;">
+                    <button class="crr-btn" id="ce-ref-cancel">유지하기</button>
+                    <button class="crr-btn crr-btn-p" id="ce-ref-confirm">교정 변경</button>
+                </div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+
+        overlay.querySelector('#ce-ref-cancel').onclick = () => { overlay.remove(); onCancel(); };
+        overlay.querySelector('#ce-ref-confirm').onclick = () => {
+            const finalVal = overlay.querySelector('#ce-ref-edit-text').value;
+            overlay.remove();
+            onConfirm(finalVal);
+        };
+    }
+
+    // ==========================================
+    // UI: 메인 설정창 팝업 모듈 (V1.3.5 실시간 자동 저장 및 단일 푸터 제어)
+    // ==========================================
+    function showSettingsModal() {
+        if (document.getElementById(MODAL_ID)) return;
+
+        const overlay = document.createElement('div');
+        overlay.id = MODAL_ID;
+        overlay.className = 'crr-overlay';
+
+        overlay.innerHTML = `
+            <div class="crr-modal">
+                <div class="crr-header">
+                    <h3>🫧 응답 교정 설정</h3>
+                    <button class="crr-close-btn" data-close>✕</button>
+                </div>
+                <div class="crr-tabs-container">
+                    <div class="crr-tabs">
+                        <button class="crr-tab active" data-tab="rules">교정 항목</button>
+                        <button class="crr-tab" data-tab="settings">설정</button>
+                    </div>
+                </div>
+
+                <div class="crr-body" style="flex:1; overflow-y:auto; min-height:0;">
+                    <!-- 1번 교정 항목 탭 -->
+                    <div class="crr-pane-content" data-pane="rules" style="display:flex; flex-direction:column; gap:10px; height:100%;">
+                        <div style="display:flex; flex-direction:column; gap:8px; overflow-y:auto; padding-right:4px;">
+                            <div class="crr-rule-card" data-target-rule="banned" style="flex-direction:column; align-items:stretch; gap:0;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                                    <div class="crr-card-left">
+                                        <span class="crr-card-title">1. 금지 단어 & 묘사 우회</span>
+                                        <span class="crr-card-desc">특정 금지 단어 사용을 억제하고 감각적인 행위적 묘사로 대체</span>
+                                    </div>
+                                    <input type="checkbox" data-rule="banned" id="chk-banned" class="crr-checkbox">
+                                </div>
+                                <div id="banned-input-container" class="crr-banned-input-box">
+                                    <input type="text" id="banned-words" class="crr-input" style="margin-top:10px;" placeholder="통제/소유/짐승/유리 (슬래시(/)로 구분)">
+                                </div>
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="impersonation">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">2. 유저 사칭 & 메타인지 방지</span>
+                                    <span class="crr-card-desc">AI가 플레이어 감정/행동을 대신 결정하거나 속마음을 읽는 현상 교정</span>
+                                </div>
+                                <input type="checkbox" data-rule="impersonation" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="overfitting">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">3. 오버피팅 & 패턴 반복 방지</span>
+                                    <span class="crr-card-desc">직전 턴에 나온 서술 구조, 행동, 대사 패턴의 자가복제 방지</span>
+                                </div>
+                                <input type="checkbox" data-rule="overfitting" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="measurement">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">4. 외형 수치 묘사 금지</span>
+                                    <span class="crr-card-desc">cm, kg, 컵 등의 무미건조한 단위 표기를 시각적 묘사로 전환</span>
+                                </div>
+                                <input type="checkbox" data-rule="measurement" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="parroting">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">5. 앵무새짓 방지</span>
+                                    <span class="crr-card-desc">사용자 입력 대사를 답변 서두에서 무의미하게 요약/인용하는 버릇 차단</span>
+                                </div>
+                                <input type="checkbox" data-rule="parroting" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="cliche">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">6. 클리셰 서사 교정 (Slow Burn)</span>
+                                    <span class="crr-card-desc">웹소설식 뻔한 소유/집착 대신 다층적이고 점진적인 심리 전개 유도</span>
+                                </div>
+                                <input type="checkbox" data-rule="cliche" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="state">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">7. 상태 모순</span>
+                                    <span class="crr-card-desc">인물의 상처, 옷 상태, 젖은 정도 등 물리적 연속성 불일치 교정</span>
+                                </div>
+                                <input type="checkbox" data-rule="state" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="nsfw">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">8. NSFW 서사 연속성</span>
+                                    <span class="crr-card-desc">밀접한 씬 진입 전후로 캐릭터의 성격/태도가 갑자기 리셋되지 않게 유지</span>
+                                </div>
+                                <input type="checkbox" data-rule="nsfw" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="unrealistic">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">9. 현실성 오류 검수</span>
+                                    <span class="crr-card-desc">개연성이 없거나 물리적 상식에 명백히 어긋나는 어색한 전개 정정</span>
+                                </div>
+                                <input type="checkbox" data-rule="unrealistic" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="factual">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">10. 사실 모순 검수</span>
+                                    <span class="crr-card-desc">로어 및 기억 장치(Summaries) 속 보존 데이터와 충돌하는 설정 오류 정정</span>
+                                </div>
+                                <input type="checkbox" data-rule="factual" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="promise">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">11. 약속 모순</span>
+                                    <span class="crr-card-desc">캐릭터 간의 언약, 비밀 계약, 강제 규칙 위반 사실 추적</span>
+                                </div>
+                                <input type="checkbox" data-rule="promise" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="nickname">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">12. 호칭 불일치/연속성</span>
+                                    <span class="crr-card-desc">관계 변화 흐름이나 설정된 별명에 어긋나는 호칭 검출</span>
+                                </div>
+                                <input type="checkbox" data-rule="nickname" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="presence">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">13. 존재/부재 모순</span>
+                                    <span class="crr-card-desc">현 장소에 없는 캐릭터가 묘사 없이 불쑥 개입하는 설정 오류 제거</span>
+                                </div>
+                                <input type="checkbox" data-rule="presence" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="reunion">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">14. 재회 위반</span>
+                                    <span class="crr-card-desc">서로 구면인 상태임에도 처음 본 이방인처럼 소개하는 작위적 연출 제어</span>
+                                </div>
+                                <input type="checkbox" data-rule="reunion" class="crr-checkbox">
+                            </div>
+                            <div class="crr-rule-card" data-target-rule="foreigner">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">15. 외국인 대사 포맷</span>
+                                    <span class="crr-card-desc">이방인 캐릭터 대화 시 반드시 "영어 (한국어 의역)" 형태로 일치화</span>
+                                </div>
+                                <input type="checkbox" data-rule="foreigner" class="crr-checkbox">
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2번 설정 탭 (API 통합 및 너비 단일화 완료) -->
+                    <div class="crr-pane-content" data-pane="settings" style="display:none; flex-direction:column; gap:12px; height:100%;">
+                        <div class="crr-input-group" style="flex-direction:row; align-items:center; gap:10px; border-bottom:1px dashed rgba(128,128,128,0.15); padding-bottom:8px; margin-bottom:12px; width:100%;">
+                            <span class="crr-label" style="margin:0;">응답 교정 기능 활성화</span>
+                            <label class="crr-switch">
+                                <input type="checkbox" id="set-enabled" class="crr-switch-input">
+                                <span class="crr-switch-slider"></span>
+                            </label>
+                        </div>
+                        <div class="crack-flex-ai-row" style="gap:16px;">
+                            <div class="fg" style="flex:1;">
+                                <label class="crr-label">유저 이름</label>
+                                <input type="text" id="set-username" class="crr-input" placeholder="유저 캐릭터명 입력">
+                            </div>
+                            <div class="fg" style="flex:1;">
+                                <label class="crr-label">참조 턴 수</label>
+                                <input type="number" id="set-turns" class="crr-input" min="1" max="20">
+                            </div>
+                        </div>
+                        <div class="crack-flex-ai-row" style="gap:16px;">
+                            <div class="fg" style="flex:1;">
+                                <label class="crr-label">검수 모델</label>
+                                <select id="set-model" class="crr-select">
+                                    <option value="gemini-3.1-flash-lite-preview">3.1 Flash-Lite</option>
+                                    <option value="gemini-3.5-flash">3.5 Flash</option>
+                                    <option value="gemini-3.1-pro-preview">3.1 Pro Preview</option>
+                                    <option value="gemini-2.5-pro">2.5 Pro</option>
+                                    <option value="gemini-2.5-flash">2.5 Flash</option>
+                                </select>
+                            </div>
+                            <div class="fg" style="flex:1;">
+                                <label class="crr-label">교정 모드</label>
+                                <select id="set-mode" class="crr-select">
+                                    <option value="manual">수동 교정 (확인 팝업)</option>
+                                    <option value="auto">자동 교정 (즉시 반영)</option>
+                                </select>
+                            </div>
+                        </div>
+                        <div class="crr-input-group">
+                            <label class="crr-label">API Provider</label>
+                            <select id="api-provider" class="crr-select">
+                                <option value="google">Google API Key</option>
+                                <option value="firebase">Firebase Script</option>
+                            </select>
+                        </div>
+                        <div class="crr-input-group" id="api-key-box">
+                            <label class="crr-label">Google API Key</label>
+                            <input type="password" id="api-key" class="crr-input" placeholder="AIzaSy...">
+                        </div>
+                        <div class="crr-input-group" id="api-firebase-box" style="display:none;">
+                            <label class="crr-label">Firebase 스크립트</label>
+                            <textarea id="api-firebase-script" class="crr-textarea" style="height:162px; resize:none;" placeholder="const firebaseConfig = { ... };"></textarea>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="crr-footer" style="display:flex; justify-content:center !important; align-items:center; width:100%;">
+                    <button class="crr-btn crr-btn-p" id="ce-ref-manual-trigger" style="width: auto; padding: 0 12px;">마지막 응답 교정</button>
+                </div>
+            </div>
+        `;
+
+        document.body.appendChild(overlay);
+
+        const config = loadSettings();
+
+        // 탭 전환 시스템
+        const tabs = overlay.querySelectorAll('.crr-tab');
+        tabs.forEach(tab => {
+            tab.onclick = () => {
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                overlay.querySelectorAll('.crr-pane-content').forEach(pane => {
+                    pane.style.display = pane.dataset.pane === tab.dataset.tab ? 'flex' : 'none';
+                });
+            };
+        });
+
+        // 1번 교정 항목 탭 데이터 주입 및 이벤트 바인딩
+        Object.keys(config.rules).forEach(k => {
+            const chk = overlay.querySelector(`[data-rule="${k}"]`);
+            if (chk) {
+                chk.checked = !!config.rules[k];
+                chk.closest('.crr-rule-card').classList.toggle('active', chk.checked);
+            }
+        });
+
+        // 실시간 전역 자동 저장 프로세서
+        const saveCurrentState = () => {
+            config.enabled = overlay.querySelector('#set-enabled').checked;
+            config.turns = parseInt(overlay.querySelector('#set-turns').value, 10) || 5;
+            config.userName = overlay.querySelector('#set-username').value.trim();
+            config.mode = overlay.querySelector('#set-mode').value;
+            config.model = overlay.querySelector('#set-model').value;
+            config.provider = apiProv.value;
+            config.apiKey = inpKey.value.trim();
+            config.firebaseScript = txtFb.value.trim();
+
+            overlay.querySelectorAll('[data-rule]').forEach(chk => {
+                const k = chk.dataset.rule;
+                if (k) config.rules[k] = chk.checked;
+            });
+            config.bannedWords = inpBanned.value.trim();
+
+            saveSettings(config);
+        };
+
+        // 교정 항목 카드 클릭 시 하위 체크박스 전파 및 테두리(active) 실시간 토글 피드백
+        overlay.querySelectorAll('.crr-rule-card').forEach(card => {
+            const chk = card.querySelector('input[type="checkbox"]');
+            
+            card.onclick = (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.id === 'banned-words') return;
+                if (chk) {
+                    chk.checked = !chk.checked;
+                    chk.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            };
+
+            if (chk) {
+                chk.addEventListener('change', () => {
+                    card.classList.toggle('active', chk.checked);
+                    saveCurrentState();
+                });
+            }
+        });
+
+        const chkBanned = overlay.querySelector('#chk-banned');
+        const bannedBox = overlay.querySelector('#banned-input-container');
+        const inpBanned = overlay.querySelector('#banned-words');
+        const bannedCard = chkBanned.closest('.crr-rule-card');
+        inpBanned.value = config.bannedWords;
+
+        const syncBannedDisplay = (isInitial = false) => {
+            const active = chkBanned.checked;
+            bannedCard.classList.toggle('active', active);
+            
+            if (active) {
+                bannedBox.classList.add('open');
+                if (!isInitial) {
+                    setTimeout(() => {
+                        inpBanned.focus();
+                        inpBanned.select();
+                    }, 180);
+                }
+            } else {
+                bannedBox.classList.remove('open');
+            }
+        };
+        chkBanned.onchange = () => {
+            syncBannedDisplay(false);
+            saveCurrentState();
+        };
+        syncBannedDisplay(true);
+
+        // 2번 설정 탭 데이터 주입 및 이벤트 바인딩 (입력 순간 즉시 자동저장 적용)
+        overlay.querySelector('#set-enabled').checked = !!config.enabled;
+        overlay.querySelector('#set-turns').value = config.turns;
+        overlay.querySelector('#set-username').value = config.userName;
+        overlay.querySelector('#set-mode').value = config.mode;
+        overlay.querySelector('#set-model').value = config.model;
+
+        overlay.querySelector('#set-enabled').addEventListener('change', saveCurrentState);
+        overlay.querySelector('#set-turns').addEventListener('input', saveCurrentState);
+        overlay.querySelector('#set-username').addEventListener('input', saveCurrentState);
+        overlay.querySelector('#set-mode').addEventListener('change', saveCurrentState);
+        overlay.querySelector('#set-model').addEventListener('change', saveCurrentState);
+
+        const apiProv = overlay.querySelector('#api-provider');
+        const keyBox = overlay.querySelector('#api-key-box');
+        const fbBox = overlay.querySelector('#api-firebase-box');
+        const inpKey = overlay.querySelector('#api-key');
+        const txtFb = overlay.querySelector('#api-firebase-script');
+
+        apiProv.value = config.provider;
+        inpKey.value = config.apiKey;
+        txtFb.value = config.firebaseScript;
+
+        const syncApiDisplay = () => {
+            if (apiProv.value === 'google') {
+                keyBox.style.display = 'flex';
+                fbBox.style.display = 'none';
+            } else {
+                keyBox.style.display = 'none';
+                fbBox.style.display = 'flex';
+            }
+        };
+        
+        apiProv.addEventListener('change', () => {
+            syncApiDisplay();
+            saveCurrentState();
+        });
+        inpKey.addEventListener('input', saveCurrentState);
+        txtFb.addEventListener('input', saveCurrentState);
+        inpBanned.addEventListener('input', saveCurrentState);
+
+        syncApiDisplay();
+
+        const closeModal = () => overlay.remove();
+        overlay.querySelectorAll('[data-close]').forEach(btn => btn.onclick = closeModal);
+        overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
+
+        // 수동 검수 강제 트리거 단추 바인딩 (정중앙 배치)
+        overlay.querySelector('#ce-ref-manual-trigger').onclick = async () => {
+            closeModal();
+            const chatId = getChatRoomId();
+            if (!chatId) return showToast("❌ 대화방을 찾을 수 없습니다.", "info");
+
+            showToast("🫧 수동 검수 강제 호출 중...", "info", 1500);
+            try {
+                const token = document.cookie.match(/(^| )access_token=([^;]+)/)?.[2];
+                if (!token) return;
+
+                const url = `https://contents-api.wrtn.ai/character-chat/v3/chats/${chatId}/messages?limit=1`;
+                const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+                if (!res.ok) return;
+
+                const json = await res.json();
+                const lastMsg = json?.data?.messages?.[0];
+                if (lastMsg && lastMsg.role === 'assistant') {
+                    const messageId = lastMsg._id || lastMsg.id;
+                    const text = lastMsg.content || '';
+
+                    // 중복 무시 및 수동 즉시 교정 돌입 (수동 호출은 config.enabled 여부와 상관없이 무조건 가동)
+                    isProcessing = false;
+                    const groups = Array.from(document.querySelectorAll('div[data-message-group-id]'));
+                    const targetGroup = groups.find(g => g.getAttribute('data-message-group-id') === messageId);
+                    if (targetGroup) {
+                        await processRefiner(text, targetGroup, messageId, true);
+                    }
+                } else {
+                    showToast("❌ 교정할 마지막 AI 응답이 없습니다.", "info");
+                }
+            } catch (e) {
+                showToast(`❌ 수동 교정 에러: ${e.message}`, "info");
+            }
+        };
+    }
+
+    // ==========================================
+    // 툴바 4번째 빈자리(spacers[3]) 마운트 엔진
+    // ==========================================
+    function injectRefinerButton() {
+        const toolWrapper = document.getElementById('custom-rp-tools');
+        if (!toolWrapper) return;
+
+        const divs = Array.from(toolWrapper.children);
+        const spacers = divs.filter(el => el.tagName === 'DIV' && el.style.width === '28px' && !el.classList.contains('custom-rp-divider'));
+
+        // 하단 툴바의 네 번째 물리 빈 공간(spacers[3])을 할당
+        if (spacers.length < 4) return;
+
+        const targetContainer = spacers[3];
+        if (targetContainer.querySelector('.crr-toolbar-btn')) return;
+
+        const btn = document.createElement('button');
+        btn.className = 'crr-toolbar-btn relative inline-flex items-center justify-center rounded-full text-sm font-medium transition-colors border border-border bg-card text-line-gray-1 hover:bg-secondary p-0 size-7';
+        btn.innerHTML = `<span style="font-size:15px; font-weight:normal; color:${ACCENT_COLOR};">♥</span>`;
+        btn.title = '응답 교정 설정';
+        btn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); showSettingsModal(); });
+
+        targetContainer.appendChild(btn);
+    }
+
+    // ==========================================
+    // AI 메시지 안정화 관측 시스템
+    // ==========================================
+    let lastLength = 0;
+    let idleCounter = 0;
+
+    async function checkLatestAssistantMessage() {
+        const config = loadSettings();
+        if (!config.apiKey && !config.firebaseScript) return; // API 미지정 시 스캔 보류
+
+        const chatId = getChatRoomId();
+        if (!chatId) return;
+
+        try {
+            const token = document.cookie.match(/(^| )access_token=([^;]+)/)?.[2];
+            if (!token) return;
+
+            const url = `https://contents-api.wrtn.ai/character-chat/v3/chats/${chatId}/messages?limit=1`;
+            const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
+            if (!res.ok) return;
+
+            const json = await res.json();
+            const lastMsg = json?.data?.messages?.[0];
+            if (!lastMsg || lastMsg.role !== 'assistant') {
+                lastLength = 0; idleCounter = 0;
+                return;
+            }
+
+            const messageId = lastMsg._id || lastMsg.id;
+            const text = lastMsg.content || '';
+            const curLength = text.length;
+
+            if (messageId !== lastCheckedMessageId) {
+                lastCheckedMessageId = messageId;
+                lastLength = curLength;
+                idleCounter = 0;
+                return;
+            }
+
+            if (curLength === lastLength && curLength > 0) {
+                idleCounter++;
+                if (idleCounter >= 2) {
+                    const fingerprints = JSON.parse(localStorage.getItem(`${SCRIPT_NS}-fingerprints`) || "[]");
+                    if (!fingerprints.includes(messageId)) {
+                        fingerprints.push(messageId);
+                        localStorage.setItem(`${SCRIPT_NS}-fingerprints`, JSON.stringify(fingerprints.slice(-50)));
+                        
+                        const groups = Array.from(document.querySelectorAll('div[data-message-group-id]'));
+                        const targetGroup = groups.find(g => g.getAttribute('data-message-group-id') === messageId);
+                        if (targetGroup) {
+                            await processRefiner(text, targetGroup, messageId);
+                        }
+                    }
+                }
+            } else {
+                lastLength = curLength;
+                idleCounter = 0;
+            }
+
+        } catch (e) {}
+    }
+
+    function initRefinerSystem() {
+        // 유저 맞춤형 전용 CSS 테마 선언 (클래스 덮어쓰기 전면 차단)
+        GM_addStyle(`
+            /* 오버레이 및 모달 베이스 */
+            .crr-overlay { background: rgba(0,0,0,0.5); z-index: 2147483647; display: flex; align-items: center; justify-content: center; position: fixed; inset: 0; pointer-events: auto !important; }
+            .crr-modal { background: #fff !important; border-radius: 16px; padding: 28px; width: 600px; max-width: 90vw; height: calc(66vh - 20px); max-height: calc(66vh - 20px); display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,0.2); pointer-events: auto !important; color: #222 !important; box-sizing: border-box; }
+            .crr-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-shrink: 0; }
+            .crr-header h3 { margin: 0; color: #222 !important; font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+            .crr-close-btn { background: none; border: none; font-size: 14px; cursor: pointer; padding: 4px 8px; border-radius: 6px; color: #666; transition: 0.2s; font-weight: bold; line-height: 1; }
+            .crr-close-btn:hover { background: #eee; color: #222; }
+
+            /* 탭 레이아웃 */
+            .crr-tabs-container { display: flex; justify-content: flex-start !important; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 6px !important; margin-bottom: 12px; flex-shrink: 0; }
+            .crr-tabs { display: flex; gap: 17px !important; margin-bottom: -7px !important; }
+            .crr-tab { background: none; border: none; font-size: 14px; font-weight: 600; color: #888; padding: 0 4px 6px 4px !important; cursor: pointer; border-bottom: 2px solid transparent; transition: 0.2s; }
+            .crr-tab.active { color: #111 !important; border-bottom: 2px solid ${ACCENT_COLOR} !important; }
+            .crr-tab:hover { color: #111; }
+
+            /* 카드 컴포넌트 (북마크 카드 디자인 경량화 이식) */
+            .crr-rule-card {
+                background: #f9f9f9 !important; border: 1px solid #eee !important; border-radius: 8px; 
+                padding: 12px; margin-bottom: 5px; cursor: pointer; transition: all 0.2s ease;
+                display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
+            }
+            .crr-rule-card:hover { border-color: ${ACCENT_COLOR} !important; background: #fafafa !important; }
+            .crr-rule-card.active { border: 2px solid ${ACCENT_COLOR} !important; background: rgba(188, 208, 213, 0.08) !important; }
+            
+            .crr-card-left { display: flex; flex-direction: column; gap: 4px; text-align: left; }
+            .crr-card-title { font-weight: 700; font-size: 13px; color: #333 !important; line-height: 1.2; }
+            .crr-card-desc { font-size: 11px; color: #666 !important; line-height: 1.4; }
+            .crr-checkbox { accent-color: ${ACCENT_COLOR}; cursor: pointer; width: 16px; height: 16px; flex-shrink: 0; }
+
+            /* 알약 모양 토글 스위치 */
+            .crr-switch { position: relative; display: inline-block; width: 38px; height: 20px; flex-shrink: 0; }
+            .crr-switch-input { opacity: 0; width: 0; height: 0; }
+            .crr-switch-slider { position: absolute; cursor: pointer; inset: 0; background-color: #ccc; border-radius: 20px; transition: .2s; }
+            .crr-switch-slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .2s; }
+            .crr-switch-input:checked + .crr-switch-slider { background-color: ${ACCENT_COLOR} !important; }
+            .crr-switch-input:checked + .crr-switch-slider:before { transform: translateX(18px); }
+
+            /* 금지단어 확장 애니메이션 슬롯 */
+            .crr-banned-input-box {
+                max-height: 0; overflow: hidden; opacity: 0;
+                transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+            }
+            .crr-banned-input-box.open { max-height: 60px; opacity: 1; }
+
+            /* 균형 잡힌 설정창 입력 폼 그룹 */
+            .crr-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding-right: 4px; }
+            .crr-input-group { display: flex; flex-direction: column; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+            .crr-label { font-size: 13px; font-weight: 600; margin-bottom: 5px; color: #333 !important; display: block; text-align: left; }
+            
+            /* 모든 입력 폼의 너비와 디자인 규격 단일화 */
+            .crr-input, .crr-select { width: 100%; height: 36px; padding: 0 10px; border: 1px solid #ddd !important; border-radius: 8px; font-size: 13px; box-sizing: border-box; background-color: #fafafa !important; color: #222 !important; display: block; margin: 0; }
+            .crr-textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd !important; border-radius: 8px; font-size: 13px; box-sizing: border-box; font-family: inherit; background-color: #fafafa !important; color: #222 !important; display: block; margin: 0; }
+            
+            .crr-input:focus, .crr-select:focus, .crr-textarea:focus { outline: 1.5px solid ${ACCENT_COLOR} !important; background-color: #fff !important; }
+
+            /* 푸터 및 공용 버튼 */
+            .crr-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 16px; flex-shrink: 0; }
+            .crr-footer-right { display: flex; gap: 8px; }
+            .crr-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #ddd !important; background: #eee !important; color: #333 !important; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; text-align: center; height: 36px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+            .crr-btn:hover { background: #ddd !important; }
+            .crr-btn-p { background: ${ACCENT_COLOR} !important; color: #333 !important; border-color: #ddd !important; }
+            .crr-btn-p:hover { background: ${ACCENT_HOVER} !important; }
+
+            /* 수동 승인 팝업 이유 박스 */
+            .crr-reason-box { background: rgba(188,208,215,0.08); border: 1.5px solid ${ACCENT_COLOR}; padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #222 !important; box-sizing: border-box; line-height: 1.5; text-align: left; }
+
+            /* 요약 알리미 중앙 101px 스타일 연동 및 충돌 완전 격리형 토스트 CSS */
+            .crr-toast-wrap { position: fixed; top: calc(50% - 101px); left: 50%; transform: translate(-50%, -50%) scale(0.9); opacity: 0; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.2), opacity 0.15s ease; z-index: 2147483647 !important; pointer-events: none; display: flex; justify-content: center; align-items: center; }
+            .crr-toast-container { background-color: #23343A !important; border: 1.5px solid ${ACCENT_COLOR} !important; padding: 9px 14px !important; border-radius: 9999px !important; display: inline-flex !important; justify-content: center !important; align-items: center !important; box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important; box-sizing: border-box !important; }
+            .crr-toast-text { color: #EFFCFF !important; text-align: center !important; font-size: 12px !important; font-weight: 500 !important; line-height: 100% !important; margin: 0 !important; padding: 0 !important; white-space: nowrap !important; user-select: none !important; }
+
+            /* 다크 테마 완벽 지원 */
+            body[data-theme="dark"] .crr-modal { background: #242321 !important; color: #F0EFEB !important; }
+            body[data-theme="dark"] .crr-header h3, body[data-theme="dark"] .crr-label { color: #F0EFEB !important; }
+            body[data-theme="dark"] .crr-close-btn { color: #aaa; }
+            body[data-theme="dark"] .crr-close-btn:hover { background: #333; color: #fff; }
+            body[data-theme="dark"] .crr-tabs-container { border-bottom-color: #42413D; }
+            body[data-theme="dark"] .crr-tab.active { color: #fff !important; }
+            body[data-theme="dark"] .crr-rule-card { background: #1a1918 !important; border-color: #42413D !important; }
+            body[data-theme="dark"] .crr-rule-card:hover { border-color: ${ACCENT_COLOR} !important; background: #21201e !important; }
+            body[data-theme="dark"] .crr-rule-card.active { background: rgba(188, 208, 213, 0.04) !important; border-color: ${ACCENT_COLOR} !important; }
+            body[data-theme="dark"] .crr-card-title { color: #F0EFEB !important; }
+            body[data-theme="dark"] .crr-card-desc { color: #aaa !important; }
+            body[data-theme="dark"] .crr-input, body[data-theme="dark"] .crr-select, body[data-theme="dark"] .crr-textarea { background-color: #141413 !important; border-color: #42413D !important; color: #F0EFEB !important; }
+            body[data-theme="dark"] .crr-btn { background: #333 !important; color: #eee !important; border-color: #42413D !important; }
+            body[data-theme="dark"] .crr-btn:hover { background: #444 !important; }
+            body[data-theme="dark"] .crr-btn-p { background: ${ACCENT_COLOR} !important; border-color: ${ACCENT_COLOR} !important; color: #333 !important; }
+            body[data-theme="dark"] .crr-btn-p:hover { background: ${ACCENT_HOVER} !important; border-color: ${ACCENT_HOVER} !important; }
+            body[data-theme="dark"] .crr-reason-box { background: rgba(188,208,215,0.04); color: #F0EFEB !important; }
+            body[data-theme="dark"] .crr-switch-slider { background-color: #444; }
+        `);
+
+        checkTimer = setInterval(checkLatestAssistantMessage, 1500);
+        setInterval(injectRefinerButton, 1000);
+    }
+
+    initRefinerSystem();
+
+})();
