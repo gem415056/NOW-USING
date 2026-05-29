@@ -1021,7 +1021,7 @@
                 <div class="ckw-kw-item" id="ckw-always-item" data-id="always">
                     <div class="ckw-kw-head">
                         <span class="ckw-caret">></span>
-                        <span class="ckw-kw-name">유저노트</span>
+                        <span class="ckw-kw-name">베이스 노트</span>
                     </div>
                     <div class="ckw-kw-body">
                         <textarea id="ckw-always-ta" class="ckw-ta" placeholder="키워드가 없을 때 상시로 들어갈 내용"></textarea>
