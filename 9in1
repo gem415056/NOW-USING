@@ -2150,8 +2150,8 @@
                 divider1.style.margin = '0 4px';
                 toolWrapper.appendChild(divider1);
 
-                // 4, 5, 6. 빈자리 3칸 예약 처리 (마진 감안하여 28px 너비 빈공간 확보)
-                for (let i = 0; i < 3; i++) {
+                // 4, 5, 6, 7. 빈자리 4칸 예약 처리 (마진 감안하여 28px 너비 빈공간 확보)
+                for (let i = 0; i < 4; i++) {
                     const spacer = document.createElement('div');
                     spacer.style.width = '28px';
                     spacer.style.height = '28px';
