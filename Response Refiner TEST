@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         크랙 AI 응답 교정기 (Response Refiner V1.1)
+// @name         크랙 AI 응답 교정기 (Response Refiner V1.2)
 // @namespace    https://crack.wrtn.ai/
-// @version      1.1.0
+// @version      1.2.0
 // @description  순정 UI 자동클릭 제어 방식 및 콤팩트 2탭 레이아웃을 채용한 경량화 응답 교정기
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -489,7 +489,7 @@ Issues found (no markdown code fences):
     }
 
     // ==========================================
-    // UI: 메인 설정창 팝업 모듈 (V1.1 개선 구조)
+    // UI: 메인 설정창 팝업 모듈 (V1.2 개선 통합 구조)
     // ==========================================
     function showSettingsModal() {
         if (document.getElementById(MODAL_ID)) return;
@@ -623,33 +623,37 @@ Issues found (no markdown code fences):
 
                     <!-- 2번 설정 탭 (API 통합 및 너비 단일화 완료) -->
                     <div class="crr-pane-content" data-pane="settings" style="display:none; flex-direction:column; gap:12px; height:100%;">
-                        <div class="crr-input-group">
-                            <label class="crr-label">참조 대화 턴 수</label>
-                            <input type="number" id="set-turns" class="crr-input" min="1" max="20">
+                        <div class="crack-flex-ai-row" style="gap:16px;">
+                            <div class="fg" style="flex:1;">
+                                <label class="crr-label">유저 이름</label>
+                                <input type="text" id="set-username" class="crr-input" placeholder="유저 캐릭터명 입력">
+                            </div>
+                            <div class="fg" style="flex:1;">
+                                <label class="crr-label">참조 턴 수</label>
+                                <input type="number" id="set-turns" class="crr-input" min="1" max="20">
+                            </div>
+                        </div>
+                        <div class="crack-flex-ai-row" style="gap:16px;">
+                            <div class="fg" style="flex:1;">
+                                <label class="crr-label">검수 모델</label>
+                                <select id="set-model" class="crr-select">
+                                    <option value="gemini-3.1-flash-lite-preview">3.1 Flash-Lite</option>
+                                    <option value="gemini-3.5-flash">3.5 Flash</option>
+                                    <option value="gemini-3.1-pro-preview">3.1 Pro Preview</option>
+                                    <option value="gemini-2.5-pro">2.5 Pro</option>
+                                    <option value="gemini-2.5-flash">2.5 Flash</option>
+                                </select>
+                            </div>
+                            <div class="fg" style="flex:1;">
+                                <label class="crr-label">교정 모드</label>
+                                <select id="set-mode" class="crr-select">
+                                    <option value="manual">수동 교정 (확인 팝업)</option>
+                                    <option value="auto">자동 교정 (즉시 반영)</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="crr-input-group">
-                            <label class="crr-label">유저 이름 (사칭 차단용)</label>
-                            <input type="text" id="set-username" class="crr-input" placeholder="유저의 이름을 입력해 주세요">
-                        </div>
-                        <div class="crr-input-group">
-                            <label class="crr-label">교정 작동 모드</label>
-                            <select id="set-mode" class="crr-select">
-                                <option value="manual">수동 교정 (확인 팝업 노출)</option>
-                                <option value="auto">자동 교정 (배경 즉시 반영)</option>
-                            </select>
-                        </div>
-                        <div class="crr-input-group">
-                            <label class="crr-label">검수용 Gemini 모델</label>
-                            <select id="set-model" class="crr-select">
-                                <option value="gemini-3.1-flash-lite-preview">3.1 Flash-Lite</option>
-                                <option value="gemini-3.5-flash">3.5 Flash</option>
-                                <option value="gemini-3.1-pro-preview">3.1 Pro Preview</option>
-                                <option value="gemini-2.5-pro">2.5 Pro</option>
-                                <option value="gemini-2.5-flash">2.5 Flash</option>
-                            </select>
-                        </div>
-                        <div class="crr-input-group">
-                            <label class="crr-label">연결 방식 (API Provider)</label>
+                            <label class="crr-label">API Provider</label>
                             <select id="api-provider" class="crr-select">
                                 <option value="google">Google API Key</option>
                                 <option value="firebase">Firebase Script</option>
@@ -662,10 +666,6 @@ Issues found (no markdown code fences):
                         <div class="crr-input-group" id="api-firebase-box" style="display:none;">
                             <label class="crr-label">Firebase 스크립트</label>
                             <textarea id="api-firebase-script" class="crr-textarea" style="height:162px; resize:none;" placeholder="const firebaseConfig = { ... };"></textarea>
-                        </div>
-                        <div class="crr-input-group" style="margin-top: 4px;">
-                            <label class="crr-label">시스템 프롬프트</label>
-                            <textarea id="ce-ai-prompt" class="crr-textarea" style="height:80px; resize:vertical;"></textarea>
                         </div>
                     </div>
                 </div>
@@ -701,12 +701,11 @@ Issues found (no markdown code fences):
             const chk = overlay.querySelector(`[data-rule="${k}"]`);
             if (chk) {
                 chk.checked = !!config.rules[k];
-                // 카드에 액티브 테두리 연출 적용
                 chk.closest('.crr-rule-card').classList.toggle('active', chk.checked);
             }
         });
 
-        // 교정 항목 카드 클릭 시 하위 체크박스 전파 (UX 향상)
+        // 교정 항목 카드 클릭 시 하위 체크박스 전파
         overlay.querySelectorAll('.crr-rule-card').forEach(card => {
             card.onclick = (e) => {
                 if (e.target.tagName === 'INPUT' || e.target.id === 'banned-words') return;
@@ -724,7 +723,6 @@ Issues found (no markdown code fences):
         const bannedCard = chkBanned.closest('.crr-rule-card');
         inpBanned.value = config.bannedWords;
 
-        // 금지 단어 활성화 시 스르륵 연출 및 오토포커스
         const syncBannedDisplay = (isInitial = false) => {
             const active = chkBanned.checked;
             bannedCard.classList.toggle('active', active);
@@ -734,7 +732,7 @@ Issues found (no markdown code fences):
                 if (!isInitial) {
                     setTimeout(() => {
                         inpBanned.focus();
-                        inpBanned.select(); // 기존 글자 자동 선택 처리로 빠른 수정 지원
+                        inpBanned.select();
                     }, 180);
                 }
             } else {
@@ -744,7 +742,7 @@ Issues found (no markdown code fences):
         chkBanned.onchange = () => syncBannedDisplay(false);
         syncBannedDisplay(true);
 
-        // 2번 설정 탭 데이터 주입 및 규격화 바인딩
+        // 2번 설정 탭 데이터 주입
         overlay.querySelector('#set-turns').value = config.turns;
         overlay.querySelector('#set-username').value = config.userName;
         overlay.querySelector('#set-mode').value = config.mode;
@@ -755,12 +753,10 @@ Issues found (no markdown code fences):
         const fbBox = overlay.querySelector('#api-firebase-box');
         const inpKey = overlay.querySelector('#api-key');
         const txtFb = overlay.querySelector('#api-firebase-script');
-        const txtPrompt = overlay.querySelector('#ce-ai-prompt');
 
         apiProv.value = config.provider;
         inpKey.value = config.apiKey;
         txtFb.value = config.firebaseScript;
-        txtPrompt.value = config.promptText || '프롬프트';
 
         const syncApiDisplay = () => {
             if (apiProv.value === 'google') {
@@ -774,7 +770,6 @@ Issues found (no markdown code fences):
         apiProv.onchange = syncApiDisplay;
         syncApiDisplay();
 
-        // 닫기 및 저장 제어
         const closeModal = () => overlay.remove();
         overlay.querySelectorAll('[data-close]').forEach(btn => btn.onclick = closeModal);
         overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
@@ -794,7 +789,6 @@ Issues found (no markdown code fences):
             config.provider = apiProv.value;
             config.apiKey = inpKey.value.trim();
             config.firebaseScript = txtFb.value.trim();
-            config.promptText = txtPrompt.value.trim();
 
             saveSettings(config);
             showToast("🫧 설정이 반영되었습니다.", "success", 1500);
@@ -909,12 +903,12 @@ Issues found (no markdown code fences):
 
             /* 카드 컴포넌트 (북마크 카드 디자인 경량화 이식) */
             .crr-rule-card {
-                background: #f9f9f9 !important; border: 1.5px solid #eee !important; border-radius: 8px; 
-                padding: 12px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s ease;
+                background: #f9f9f9 !important; border: 1px solid #eee !important; border-radius: 8px; 
+                padding: 12px; margin-bottom: 5px; cursor: pointer; transition: all 0.2s ease;
                 display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
             }
             .crr-rule-card:hover { border-color: ${ACCENT_COLOR} !important; background: #fafafa !important; }
-            .crr-rule-card.active { border-color: ${ACCENT_COLOR} !important; background: rgba(188, 208, 213, 0.08) !important; }
+            .crr-rule-card.active { border: 1.5px solid ${ACCENT_COLOR} !important; background: rgba(188, 208, 213, 0.08) !important; }
             
             .crr-card-left { display: flex; flex-direction: column; gap: 4px; text-align: left; }
             .crr-card-title { font-weight: 700; font-size: 13px; color: #333 !important; line-height: 1.2; }
@@ -957,9 +951,9 @@ Issues found (no markdown code fences):
             body[data-theme="dark"] .crr-close-btn:hover { background: #333; color: #fff; }
             body[data-theme="dark"] .crr-tabs-container { border-bottom-color: #42413D; }
             body[data-theme="dark"] .crr-tab.active { color: #fff !important; }
-            body[data-theme="dark"] .crr-rule-card { background: #1a1918 !important; border-color: #42413D !important; }
+            body[data-theme="dark"] .crr-rule-card { background: #1a1918 !important; border-color: #42413D !important; border-width: 1px !important; }
             body[data-theme="dark"] .crr-rule-card:hover { border-color: ${ACCENT_COLOR} !important; background: #21201e !important; }
-            body[data-theme="dark"] .crr-rule-card.active { background: rgba(188, 208, 213, 0.04) !important; border-color: ${ACCENT_COLOR} !important; }
+            body[data-theme="dark"] .crr-rule-card.active { background: rgba(188, 208, 213, 0.04) !important; border: 1.5px solid ${ACCENT_COLOR} !important; }
             body[data-theme="dark"] .crr-card-title { color: #F0EFEB !important; }
             body[data-theme="dark"] .crr-card-desc { color: #aaa !important; }
             body[data-theme="dark"] .crr-input, body[data-theme="dark"] .crr-select, body[data-theme="dark"] .crr-textarea { background-color: #141413 !important; border-color: #42413D !important; color: #F0EFEB !important; }
