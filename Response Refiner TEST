@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         크랙 AI 응답 교정기 (Response Refiner V1.0)
+// @name         크랙 AI 응답 교정기 (Response Refiner V1.1)
 // @namespace    https://crack.wrtn.ai/
-// @version      1.0.0
-// @description  UI 자동 클릭 방식을 사용하는 고성능/경량화 AI 응답 검수 및 교정기
+// @version      1.1.0
+// @description  순정 UI 자동클릭 제어 방식 및 콤팩트 2탭 레이아웃을 채용한 경량화 응답 교정기
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
 // @grant        GM_addStyle
@@ -20,7 +20,7 @@
 
     const SCRIPT_NS = 'crack-response-refiner';
     const MODAL_ID = `${SCRIPT_NS}-modal`;
-    const ACCENT_COLOR = '#BCD0D7'; // 지정하신 파스텔 블루그레이
+    const ACCENT_COLOR = '#BCD0D7'; // 파스텔 블루그레이
     const ACCENT_HOVER = '#AEC2C9';
     const TOAST_ID = `${SCRIPT_NS}-toast`;
 
@@ -28,9 +28,8 @@
     let isProcessing = false;
     let lastCheckedMessageId = '';
     let checkTimer = null;
-    let observer = null;
 
-    // Dexie를 통해 기존 로어 인젝터 DB("lore-injector")에 접근하여 로어팩 데이터를 읽어옵니다.
+    // Dexie 로어 데이터베이스 인스턴스 초기화
     const loreDb = new Dexie("lore-injector");
     loreDb.version(1).stores({ entries: "++id, name, type, packName, *triggers" });
     loreDb.version(2).stores({ entries: "++id, name, type, packName, project, *triggers" });
@@ -42,7 +41,6 @@
     loreDb.version(8).stores({ entries: "++id, name, type, packName, model, field, sourceHash, entryUpdatedAt, schemaVersion, &[entryId+field]" });
     loreDb.version(9).stores({ entries: "++id, name, type, packName, project, rootId, isCurrentArc, createdTurn, updatedTurn, lastMentionedTurn, eventTurn, sceneId, arcId, realTimestamp, *entities, *subjects, *objects, *locations, *promises, *triggers" });
 
-    // 기본 설정값 정의
     const DEFAULT_SETTINGS = {
         turns: 5,
         userName: '',
@@ -52,7 +50,7 @@
         apiKey: '',
         firebaseScript: '',
         bannedWords: '통제/소유/짐승/맹수/유리',
-        promptText: '프롬프트', // 사용자가 직접 채워나갈 커스텀 공간
+        promptText: '프롬프트', // 수동 관리 가능한 기본 영역
         rules: {
             factual: true,
             presence: true,
@@ -71,7 +69,6 @@
         }
     };
 
-    // 로컬 스토리지에서 설정을 로드합니다.
     function loadSettings() {
         try {
             const saved = localStorage.getItem(`${SCRIPT_NS}-settings`);
@@ -87,7 +84,6 @@
         localStorage.setItem(`${SCRIPT_NS}-settings`, JSON.stringify(config));
     }
 
-    // [도움함수] 메인 입력창 탐색
     function getSafeMainInput() {
         const inputs = document.querySelectorAll('textarea[placeholder*="메시지"], div.__chat_input_textarea, .tiptap.ProseMirror');
         for (const el of inputs) {
@@ -105,7 +101,6 @@
         return null;
     }
 
-    // 알림 토스트 (중앙 101px 위 배치 스타일 상속)
     function showToast(message, type = 'info', ms = 3000) {
         let box = document.getElementById(TOAST_ID);
         if (box) box.remove();
@@ -172,7 +167,7 @@
     }
 
     // ==========================================
-    // 핵심 동작: UI 자동 수정 파이프라인
+    // UI 자동화 에디터 입력 및 전송 엔진
     // ==========================================
     function getReactProps(el) {
         const key = Object.keys(el).find(k => k.startsWith('__reactProps'));
@@ -189,7 +184,6 @@
         el.click();
     }
 
-    // 순정 UI 자동 클릭 교정 반영 엔진
     async function executeUiRefinement(container, correctedText) {
         return new Promise((resolve, reject) => {
             const trigger = container.querySelector('div[aria-haspopup="menu"]');
@@ -198,7 +192,6 @@
                 return;
             }
 
-            // 메뉴 레이아웃 숨김 처리하여 덜 산만하게 연출
             const style = document.createElement('style');
             style.textContent = `[data-radix-popper-content-wrapper], [role="menu"] { opacity: 0 !important; pointer-events: none !important; }`;
             document.head.appendChild(style);
@@ -216,19 +209,16 @@
                     
                     setTimeout(() => style.remove(), 100);
                     
-                    // 에디터 열림 및 전송 단계 돌입
                     const editorStart = Date.now();
                     const findEditorTimer = setInterval(() => {
                         const textarea = container.querySelector('textarea');
                         if (textarea) {
                             clearInterval(findEditorTimer);
                             
-                            // 텍스트 주입 및 React 강제 트리거
                             textarea.value = correctedText;
                             textarea.dispatchEvent(new Event('input', { bubbles: true }));
                             textarea.dispatchEvent(new Event('change', { bubbles: true }));
                             
-                            // "수정 완료" 전송 버튼 클릭
                             setTimeout(() => {
                                 const saveBtn = Array.from(container.querySelectorAll('button')).find(btn => btn.textContent.includes('수정 완료'));
                                 if (saveBtn) {
@@ -253,16 +243,14 @@
     }
 
     // ==========================================
-    // 검수 비동기 처리 파이프라인
+    // 검수용 백그라운드 API 통신
     // ==========================================
     async function fetchRecentMessages(chatId, limit) {
         const token = document.cookie.match(/(^| )access_token=([^;]+)/)?.[2];
         if (!token) return '';
         try {
             const url = `https://contents-api.wrtn.ai/character-chat/v3/chats/${chatId}/messages?limit=${limit}`;
-            const res = await fetch(url, {
-                headers: { 'Authorization': 'Bearer ' + token }
-            });
+            const res = await fetch(url, { headers: { 'Authorization': 'Bearer ' + token } });
             if (res.ok) {
                 const json = await res.json();
                 const msgs = json?.data?.messages || [];
@@ -275,7 +263,6 @@
         return '';
     }
 
-    // 기존 데이터베이스에서 활성 로어팩 텍스트 취합
     async function loadActiveLoreText() {
         try {
             const activePacks = JSON.parse(localStorage.getItem('lore-injector-v5'))?.urlPacks?.[location.pathname] || [];
@@ -288,7 +275,6 @@
         }
     }
 
-    // 규칙 기반 동적 프롬프트 구성
     function compilePrompt(config) {
         const rules = [];
         if (config.rules.factual) rules.push("1. EXPLICIT FACTUAL CONTRADICTION: [Lore] 및 장기 기억 속 명시된 정보와 모순되는 내용을 교정하시오.");
@@ -379,7 +365,6 @@ Issues found (no markdown code fences):
                 const data = await res.json();
                 responseText = data.candidates[0].content.parts[0].text;
             } else {
-                // Firebase SDK 통신
                 if (!config.firebaseScript) throw new Error("Firebase 스크립트가 설정되어 있지 않습니다.");
                 const parseFirebase = (scriptStr) => {
                     const match = scriptStr.match(/firebaseConfig\s*=\s*(\{[\s\S]*?\});/);
@@ -457,7 +442,6 @@ Issues found (no markdown code fences):
                 if (config.mode === 'auto') {
                     await applyAction(correctedText);
                 } else {
-                    // 수동 승인 팝업 노출 (3in1 AI 요약 스타일의 수동 다이얼로그 박스)
                     showConfirmModal(parsed.reason, correctedText, applyAction, () => { isProcessing = false; });
                 }
             } else {
@@ -470,30 +454,27 @@ Issues found (no markdown code fences):
         }
     }
 
-    // ==========================================
-    // UI: 수동 승인 다이얼로그 팝업창
-    // ==========================================
     function showConfirmModal(reason, suggestedText, onConfirm, onCancel) {
         const overlay = document.createElement('div');
-        overlay.className = 'crack-ext-ai-overlay';
+        overlay.className = 'crr-overlay';
         overlay.id = `${SCRIPT_NS}-confirm-overlay`;
 
         overlay.innerHTML = `
-            <div class="crack-ext-ai-modal" style="height: auto; max-height: 85vh;">
-                <div class="crack-ext-ai-modal-header">
+            <div class="crr-modal" style="height: auto; max-height: 85vh;">
+                <div class="crr-header">
                     <h3>🫧 응답 교정 승인</h3>
                 </div>
-                <div class="ce-ai-body">
-                    <label>교정 이유</label>
-                    <div style="background: rgba(188,208,215,0.1); border: 1.5px solid ${ACCENT_COLOR}; padding: 12px; border-radius: 8px; font-size: 13px; font-weight:600; margin-bottom: 12px; color: #222 !important; box-sizing: border-box; line-height:1.5;">
+                <div class="crr-body">
+                    <label class="crr-label">교정 이유</label>
+                    <div class="crr-reason-box">
                         ${escapeHtml(reason)}
                     </div>
-                    <label>교정 적용본 (수정 가능)</label>
-                    <textarea id="ce-ref-edit-text" class="ce-ai-ta" style="height: 160px; flex:none;">${escapeHtml(suggestedText)}</textarea>
+                    <label class="crr-label">교정 적용본 (수정 가능)</label>
+                    <textarea id="ce-ref-edit-text" class="crr-textarea" style="height: 160px; flex:none;">${escapeHtml(suggestedText)}</textarea>
                 </div>
-                <div class="ce-ai-footer" style="margin-top: 16px;">
-                    <button class="crack-ext-ai-mbtn" id="ce-ref-cancel">유지하기</button>
-                    <button class="crack-ext-ai-mbtn crack-ext-ai-mbtn-p" id="ce-ref-confirm">교정 변경</button>
+                <div class="crr-footer" style="margin-top: 16px;">
+                    <button class="crr-btn" id="ce-ref-cancel">유지하기</button>
+                    <button class="crr-btn crr-btn-p" id="ce-ref-confirm">교정 변경</button>
                 </div>
             </div>
         `;
@@ -508,155 +489,192 @@ Issues found (no markdown code fences):
     }
 
     // ==========================================
-    // UI: 메인 설정창 팝업 모듈 (3탭 방식 구조)
+    // UI: 메인 설정창 팝업 모듈 (V1.1 개선 구조)
     // ==========================================
     function showSettingsModal() {
         if (document.getElementById(MODAL_ID)) return;
 
         const overlay = document.createElement('div');
         overlay.id = MODAL_ID;
-        overlay.className = 'crack-ext-ai-overlay';
+        overlay.className = 'crr-overlay';
 
         overlay.innerHTML = `
-            <div class="crack-ext-ai-modal">
-                <div class="crack-ext-ai-modal-header">
+            <div class="crr-modal">
+                <div class="crr-header">
                     <h3>🫧 응답 교정 설정</h3>
-                    <button class="ce-ai-close-btn" data-close>✕</button>
+                    <button class="crr-close-btn" data-close>✕</button>
                 </div>
-                <div class="crm-tabs-container">
-                    <div class="crm-tabs">
-                        <button class="crm-tab active" data-tab="settings">설정</button>
-                        <button class="crm-tab" data-tab="rules">교정 항목</button>
-                        <button class="crm-tab" data-tab="api">API</button>
+                <div class="crr-tabs-container">
+                    <div class="crr-tabs">
+                        <button class="crr-tab active" data-tab="rules">교정 항목</button>
+                        <button class="crr-tab" data-tab="settings">설정</button>
                     </div>
                 </div>
 
-                <div class="ce-ai-body" style="flex:1; overflow-y:auto; min-height:0;">
-                    <!-- 1번 설정 탭 -->
-                    <div class="crm-pane-content" data-pane="settings" style="display:flex; flex-direction:column; gap:12px; height:100%;">
-                        <div class="crack-flex-ai-row">
-                            <div class="fg" style="flex:1;">
-                                <label>참조 대화 턴 수</label>
-                                <input type="number" id="set-turns" class="ce-ai-input" min="1" max="20">
-                            </div>
-                            <div class="fg" style="flex:1;">
-                                <label>유저 이름</label>
-                                <input type="text" id="set-username" class="ce-ai-input" placeholder="사칭 필터용 유저명">
-                            </div>
-                        </div>
-                        <div class="crack-flex-ai-row">
-                            <div class="fg" style="flex:1.2;">
-                                <label>교정 모드</label>
-                                <select id="set-mode" class="ce-ai-select">
-                                    <option value="manual">수동 교정 (확인 팝업)</option>
-                                    <option value="auto">자동 교정 (즉시 반영)</option>
-                                </select>
-                            </div>
-                            <div class="fg" style="flex:1;">
-                                <label>모델 선택</label>
-                                <select id="set-model" class="ce-ai-select">
-                                    <option value="gemini-3.1-flash-lite-preview">3.1 Flash-Lite</option>
-                                    <option value="gemini-3.5-flash">3.5 Flash</option>
-                                    <option value="gemini-3.1-pro-preview">3.1 Pro Preview</option>
-                                    <option value="gemini-2.5-pro">2.5 Pro</option>
-                                    <option value="gemini-2.5-flash">2.5 Flash</option>
-                                </select>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 2번 교정 항목 탭 -->
-                    <div class="crm-pane-content" data-pane="rules" style="display:none; flex-direction:column; gap:10px; height:100%;">
+                <div class="crr-body" style="flex:1; overflow-y:auto; min-height:0;">
+                    <!-- 1번 교정 항목 탭 -->
+                    <div class="crr-pane-content" data-pane="rules" style="display:flex; flex-direction:column; gap:10px; height:100%;">
                         <div style="display:flex; flex-direction:column; gap:8px; overflow-y:auto; padding-right:4px;">
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="factual"> 사실 모순 검수</label>
-                                <span class="chk-desc">로어 및 기억 장치와 대치되는 사실 오류 검출</span>
+                            <div class="crr-rule-card" data-target-rule="factual">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">사실 모순 검수</span>
+                                    <span class="crr-card-desc">로어 및 기억 장치와 대치되는 사실 오류 검출</span>
+                                </div>
+                                <input type="checkbox" data-rule="factual" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="presence"> 존재/부재 모순</label>
-                                <span class="chk-desc">현재 장소에 없는 캐릭터가 갑자기 등장하는 오류 검출</span>
+                            <div class="crr-rule-card" data-target-rule="presence">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">존재/부재 모순</span>
+                                    <span class="crr-card-desc">현재 장소에 없는 캐릭터가 갑자기 등장하는 오류 검출</span>
+                                </div>
+                                <input type="checkbox" data-rule="presence" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="nickname"> 호칭 불일치/연속성</label>
-                                <span class="chk-desc">지정된 애칭이나 상황 흐름에 어긋나는 호칭 검출</span>
+                            <div class="crr-rule-card" data-target-rule="nickname">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">호칭 불일치/연속성</span>
+                                    <span class="crr-card-desc">지정된 애칭이나 상황 흐름에 어긋나는 호칭 검출</span>
+                                </div>
+                                <input type="checkbox" data-rule="nickname" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="state"> 상태 모순</label>
-                                <span class="chk-desc">인물의 상처, 생사 상태 모순 검출</span>
+                            <div class="crr-rule-card" data-target-rule="state">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">상태 모순</span>
+                                    <span class="crr-card-desc">인물의 상처, 생사 상태 모순 검출</span>
+                                </div>
+                                <input type="checkbox" data-rule="state" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="promise"> 약속 모순</label>
-                                <span class="chk-desc">캐릭터 간의 계약이나 했던 약속 위반 검출</span>
+                            <div class="crr-rule-card" data-target-rule="promise">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">약속 모순</span>
+                                    <span class="crr-card-desc">캐릭터 간의 계약이나 했던 약속 위반 검출</span>
+                                </div>
+                                <input type="checkbox" data-rule="promise" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="reunion"> 재회 위반</label>
-                                <span class="chk-desc">구면임에도 초면인 것처럼 통성명하는 오류 제어</span>
+                            <div class="crr-rule-card" data-target-rule="reunion">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">재회 위반</span>
+                                    <span class="crr-card-desc">구면임에도 초면인 것처럼 통성명하는 오류 제어</span>
+                                </div>
+                                <input type="checkbox" data-rule="reunion" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="unrealistic"> 현실성 오류 검수</label>
-                                <span class="chk-desc">개연성이 없거나 현실 상식에 어긋나는 전개 교정</span>
+                            <div class="crr-rule-card" data-target-rule="unrealistic">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">현실성 오류 검수</span>
+                                    <span class="crr-card-desc">개연성이 없거나 현실 상식에 어긋나는 전개 교정</span>
+                                </div>
+                                <input type="checkbox" data-rule="unrealistic" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="foreigner"> 외국인 대사 포맷</label>
-                                <span class="chk-desc">외국 캐릭터 대사에 "영어 (한국어 의역)" 포맷 적용</span>
+                            <div class="crr-rule-card" data-target-rule="foreigner">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">외국인 대사 포맷</span>
+                                    <span class="crr-card-desc">외국 캐릭터 대사에 "영어 (한국어 의역)" 포맷 적용</span>
+                                </div>
+                                <input type="checkbox" data-rule="foreigner" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="impersonation"> 유저 사칭 방지</label>
-                                <span class="chk-desc">AI가 유저 캐릭터의 생각과 대사를 임의로 조작하는 것 차단</span>
+                            <div class="crr-rule-card" data-target-rule="impersonation">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">유저 사칭 방지</span>
+                                    <span class="crr-card-desc">AI가 유저 캐릭터의 생각과 대사를 임의로 조작하는 것 차단</span>
+                                </div>
+                                <input type="checkbox" data-rule="impersonation" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="parroting"> 앵무새짓 방지</label>
-                                <span class="chk-desc">유저의 대사를 무의미하게 그대로 따라하는 문장 검출</span>
+                            <div class="crr-rule-card" data-target-rule="parroting">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">앵무새짓 방지</span>
+                                    <span class="crr-card-desc">유저의 대사를 무의미하게 그대로 따라하는 문장 검출</span>
+                                </div>
+                                <input type="checkbox" data-rule="parroting" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="overfitting"> 오버피팅 방지</label>
-                                <span class="chk-desc">이전 턴에서 묘사한 단어, 문체, 대사 양식의 자가복제 방지</span>
+                            <div class="crr-rule-card" data-target-rule="overfitting">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">오버피팅 방지</span>
+                                    <span class="crr-card-desc">이전 턴에서 묘사한 단어, 문체, 대사 양식의 자가복제 방지</span>
+                                </div>
+                                <input type="checkbox" data-rule="overfitting" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="measurement"> 외형 수치 묘사 교정</label>
-                                <span class="chk-desc">cm, kg, 컵 사이즈 등 기계적 스펙 서술 배제</span>
+                            <div class="crr-rule-card" data-target-rule="measurement">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">외형 수치 묘사 교정</span>
+                                    <span class="crr-card-desc">cm, kg, 컵 사이즈 등 기계적 스펙 서술 배제</span>
+                                </div>
+                                <input type="checkbox" data-rule="measurement" class="crr-checkbox">
                             </div>
-                            <div class="chk-group">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="cliche"> 클리셰 서사 교정</label>
-                                <span class="chk-desc">웹소설식 작위적인 소유/통제 집착 전개 필터링 및 서사 교정</span>
+                            <div class="crr-rule-card" data-target-rule="cliche">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">클리셰 서사 교정</span>
+                                    <span class="crr-card-desc">웹소설식 작위적인 집착/소유 전개 차단 및 서사 교정</span>
+                                </div>
+                                <input type="checkbox" data-rule="cliche" class="crr-checkbox">
                             </div>
-                            <div class="chk-group" style="border-bottom:none; padding-bottom:0;">
-                                <label class="chk-lbl"><input type="checkbox" data-rule="banned" id="chk-banned"> 금지단어 피하기</label>
-                                <span class="chk-desc">특정 단어들을 걸러내어 보다 문학적인 우회 묘사로 교정</span>
-                                <div id="banned-input-container" style="display:none; margin-top:6px;">
-                                    <input type="text" id="banned-words" class="ce-ai-input" placeholder="통제/소유/짐승/유리 (슬래시(/)로 구분)">
+                            <div class="crr-rule-card crr-banned-card-wrapper" data-target-rule="banned" style="flex-direction:column; align-items:stretch; gap:0;">
+                                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                                    <div class="crr-card-left">
+                                        <span class="crr-card-title">금지단어 피하기</span>
+                                        <span class="crr-card-desc">특정 단어들을 걸러내어 자연스러운 우회 묘사로 교정</span>
+                                    </div>
+                                    <input type="checkbox" data-rule="banned" id="chk-banned" class="crr-checkbox">
+                                </div>
+                                <div id="banned-input-container" class="crr-banned-input-box">
+                                    <input type="text" id="banned-words" class="crr-input" style="margin-top:10px;" placeholder="통제/소유/짐승/유리 (슬래시(/)로 구분)">
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    <!-- 3번 API 탭 -->
-                    <div class="crm-pane-content" data-pane="api" style="display:none; flex-direction:column; gap:12px; height:100%;">
-                        <div class="fg">
-                            <label>연결 방식</label>
-                            <select id="api-provider" class="ce-ai-select">
+                    <!-- 2번 설정 탭 (API 통합 및 너비 단일화 완료) -->
+                    <div class="crr-pane-content" data-pane="settings" style="display:none; flex-direction:column; gap:12px; height:100%;">
+                        <div class="crr-input-group">
+                            <label class="crr-label">참조 대화 턴 수</label>
+                            <input type="number" id="set-turns" class="crr-input" min="1" max="20">
+                        </div>
+                        <div class="crr-input-group">
+                            <label class="crr-label">유저 이름 (사칭 차단용)</label>
+                            <input type="text" id="set-username" class="crr-input" placeholder="유저의 이름을 입력해 주세요">
+                        </div>
+                        <div class="crr-input-group">
+                            <label class="crr-label">교정 작동 모드</label>
+                            <select id="set-mode" class="crr-select">
+                                <option value="manual">수동 교정 (확인 팝업 노출)</option>
+                                <option value="auto">자동 교정 (배경 즉시 반영)</option>
+                            </select>
+                        </div>
+                        <div class="crr-input-group">
+                            <label class="crr-label">검수용 Gemini 모델</label>
+                            <select id="set-model" class="crr-select">
+                                <option value="gemini-3.1-flash-lite-preview">3.1 Flash-Lite</option>
+                                <option value="gemini-3.5-flash">3.5 Flash</option>
+                                <option value="gemini-3.1-pro-preview">3.1 Pro Preview</option>
+                                <option value="gemini-2.5-pro">2.5 Pro</option>
+                                <option value="gemini-2.5-flash">2.5 Flash</option>
+                            </select>
+                        </div>
+                        <div class="crr-input-group">
+                            <label class="crr-label">연결 방식 (API Provider)</label>
+                            <select id="api-provider" class="crr-select">
                                 <option value="google">Google API Key</option>
                                 <option value="firebase">Firebase Script</option>
                             </select>
                         </div>
-                        <div class="fg" id="api-key-box">
-                            <label>Google API Key</label>
-                            <input type="password" id="api-key" class="ce-ai-input" placeholder="AIzaSy...">
+                        <div class="crr-input-group" id="api-key-box">
+                            <label class="crr-label">Google API Key</label>
+                            <input type="password" id="api-key" class="crr-input" placeholder="AIzaSy...">
                         </div>
-                        <div class="fg" id="api-firebase-box" style="display:none;">
-                            <label>Firebase 스크립트</label>
-                            <textarea id="api-firebase-script" class="ce-ai-ta" style="height:120px; resize:none;" placeholder="const firebaseConfig = { ... };"></textarea>
+                        <div class="crr-input-group" id="api-firebase-box" style="display:none;">
+                            <label class="crr-label">Firebase 스크립트</label>
+                            <textarea id="api-firebase-script" class="crr-textarea" style="height:162px; resize:none;" placeholder="const firebaseConfig = { ... };"></textarea>
+                        </div>
+                        <div class="crr-input-group" style="margin-top: 4px;">
+                            <label class="crr-label">시스템 프롬프트</label>
+                            <textarea id="ce-ai-prompt" class="crr-textarea" style="height:80px; resize:vertical;"></textarea>
                         </div>
                     </div>
                 </div>
 
-                <div class="ce-ai-footer">
-                    <div>
-                        <span style="font-size:11px; opacity:0.6; font-weight:600;">Refiner V1.0</span>
-                    </div>
-                    <div class="ce-ai-footer-right">
-                        <button class="crack-ext-ai-mbtn" data-close>취소</button>
-                        <button class="crack-ext-ai-mbtn crack-ext-ai-mbtn-p" id="ce-ref-save-settings">저장</button>
+                <div class="crr-footer">
+                    <div></div>
+                    <div class="crr-footer-right">
+                        <button class="crr-btn" data-close>취소</button>
+                        <button class="crr-btn crr-btn-p" id="ce-ref-save-settings">저장</button>
                     </div>
                 </div>
             </div>
@@ -666,94 +684,126 @@ Issues found (no markdown code fences):
 
         const config = loadSettings();
 
-        // 탭 제어 연출
-        const tabs = overlay.querySelectorAll('.crm-tab');
+        // 탭 전환 시스템
+        const tabs = overlay.querySelectorAll('.crr-tab');
         tabs.forEach(tab => {
             tab.onclick = () => {
                 tabs.forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
-                overlay.querySelectorAll('.crm-pane-content').forEach(pane => {
+                overlay.querySelectorAll('.crr-pane-content').forEach(pane => {
                     pane.style.display = pane.dataset.pane === tab.dataset.tab ? 'flex' : 'none';
                 });
             };
         });
 
-        // 1번 탭 데이터 바인딩
-        overlay.querySelector('#set-turns').value = config.turns;
-        overlay.querySelector('#set-username').value = config.userName;
-        overlay.querySelector('#set-mode').value = config.mode;
-        overlay.querySelector('#set-model').value = config.model;
-
-        // 2번 탭 데이터 바인딩
+        // 1번 교정 항목 탭 데이터 주입 및 이벤트 바인딩
         Object.keys(config.rules).forEach(k => {
             const chk = overlay.querySelector(`[data-rule="${k}"]`);
-            if (chk) chk.checked = !!config.rules[k];
+            if (chk) {
+                chk.checked = !!config.rules[k];
+                // 카드에 액티브 테두리 연출 적용
+                chk.closest('.crr-rule-card').classList.toggle('active', chk.checked);
+            }
+        });
+
+        // 교정 항목 카드 클릭 시 하위 체크박스 전파 (UX 향상)
+        overlay.querySelectorAll('.crr-rule-card').forEach(card => {
+            card.onclick = (e) => {
+                if (e.target.tagName === 'INPUT' || e.target.id === 'banned-words') return;
+                const chk = card.querySelector('input[type="checkbox"]');
+                if (chk) {
+                    chk.checked = !chk.checked;
+                    chk.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            };
         });
 
         const chkBanned = overlay.querySelector('#chk-banned');
         const bannedBox = overlay.querySelector('#banned-input-container');
         const inpBanned = overlay.querySelector('#banned-words');
+        const bannedCard = chkBanned.closest('.crr-rule-card');
         inpBanned.value = config.bannedWords;
 
-        const syncBannedDisplay = () => {
-            bannedBox.style.display = chkBanned.checked ? 'block' : 'none';
+        // 금지 단어 활성화 시 스르륵 연출 및 오토포커스
+        const syncBannedDisplay = (isInitial = false) => {
+            const active = chkBanned.checked;
+            bannedCard.classList.toggle('active', active);
+            
+            if (active) {
+                bannedBox.classList.add('open');
+                if (!isInitial) {
+                    setTimeout(() => {
+                        inpBanned.focus();
+                        inpBanned.select(); // 기존 글자 자동 선택 처리로 빠른 수정 지원
+                    }, 180);
+                }
+            } else {
+                bannedBox.classList.remove('open');
+            }
         };
-        chkBanned.onchange = syncBannedDisplay;
-        syncBannedDisplay();
+        chkBanned.onchange = () => syncBannedDisplay(false);
+        syncBannedDisplay(true);
 
-        // 3번 탭 데이터 바인딩
+        // 2번 설정 탭 데이터 주입 및 규격화 바인딩
+        overlay.querySelector('#set-turns').value = config.turns;
+        overlay.querySelector('#set-username').value = config.userName;
+        overlay.querySelector('#set-mode').value = config.mode;
+        overlay.querySelector('#set-model').value = config.model;
+
         const apiProv = overlay.querySelector('#api-provider');
         const keyBox = overlay.querySelector('#api-key-box');
         const fbBox = overlay.querySelector('#api-firebase-box');
         const inpKey = overlay.querySelector('#api-key');
         const txtFb = overlay.querySelector('#api-firebase-script');
+        const txtPrompt = overlay.querySelector('#ce-ai-prompt');
 
         apiProv.value = config.provider;
         inpKey.value = config.apiKey;
         txtFb.value = config.firebaseScript;
+        txtPrompt.value = config.promptText || '프롬프트';
 
         const syncApiDisplay = () => {
             if (apiProv.value === 'google') {
-                keyBox.style.display = 'block';
+                keyBox.style.display = 'flex';
                 fbBox.style.display = 'none';
             } else {
                 keyBox.style.display = 'none';
-                fbBox.style.display = 'block';
+                fbBox.style.display = 'flex';
             }
         };
         apiProv.onchange = syncApiDisplay;
         syncApiDisplay();
 
-        // 모달 닫기
+        // 닫기 및 저장 제어
         const closeModal = () => overlay.remove();
         overlay.querySelectorAll('[data-close]').forEach(btn => btn.onclick = closeModal);
         overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
 
-        // 설정 저장
         overlay.querySelector('#ce-ref-save-settings').onclick = () => {
             config.turns = parseInt(overlay.querySelector('#set-turns').value, 10) || 5;
             config.userName = overlay.querySelector('#set-username').value.trim();
             config.mode = overlay.querySelector('#set-mode').value;
             config.model = overlay.querySelector('#set-model').value;
 
-            Object.keys(config.rules).forEach(k => {
-                const chk = overlay.querySelector(`[data-rule="${k}"]`);
-                if (chk) config.rules[k] = chk.checked;
+            overlay.querySelectorAll('[data-rule]').forEach(chk => {
+                const k = chk.dataset.rule;
+                if (k) config.rules[k] = chk.checked;
             });
 
             config.bannedWords = inpBanned.value.trim();
             config.provider = apiProv.value;
             config.apiKey = inpKey.value.trim();
             config.firebaseScript = txtFb.value.trim();
+            config.promptText = txtPrompt.value.trim();
 
             saveSettings(config);
-            showToast("🫧 설정이 저장되었습니다.", "success", 1500);
+            showToast("🫧 설정이 반영되었습니다.", "success", 1500);
             closeModal();
         };
     }
 
     // ==========================================
-    // 진입로: 하단 툴바 3번째 슬롯 연동
+    // 툴바 4번째 빈자리(spacers[3]) 마운트 엔진
     // ==========================================
     function injectRefinerButton() {
         const toolWrapper = document.getElementById('custom-rp-tools');
@@ -762,14 +812,15 @@ Issues found (no markdown code fences):
         const divs = Array.from(toolWrapper.children);
         const spacers = divs.filter(el => el.tagName === 'DIV' && el.style.width === '28px' && !el.classList.contains('custom-rp-divider'));
 
-        if (spacers.length < 3) return;
+        // 하단 툴바의 네 번째 물리 빈 공간(spacers[3])을 할당
+        if (spacers.length < 4) return;
 
-        const targetContainer = spacers[2]; // 기획서 상 3번째 물리 빈 공간
-        if (targetContainer.querySelector('.crack-ext-refiner-btn')) return;
+        const targetContainer = spacers[3];
+        if (targetContainer.querySelector('.crr-toolbar-btn')) return;
 
         const btn = document.createElement('button');
-        btn.className = 'crack-ext-refiner-btn relative inline-flex items-center justify-center rounded-full text-sm font-medium transition-colors border border-border bg-card text-line-gray-1 hover:bg-secondary p-0 size-7';
-        btn.innerHTML = `<span style="font-size:15px; font-weight:normal; color:${ACCENT_COLOR};">🫧</span>`;
+        btn.className = 'crr-toolbar-btn relative inline-flex items-center justify-center rounded-full text-sm font-medium transition-colors border border-border bg-card text-line-gray-1 hover:bg-secondary p-0 size-7';
+        btn.innerHTML = `<span style="font-size:15px; font-weight:normal; color:${ACCENT_COLOR};">♥</span>`;
         btn.title = '응답 교정 설정';
         btn.addEventListener('click', (e) => { e.stopPropagation(); e.preventDefault(); showSettingsModal(); });
 
@@ -777,13 +828,15 @@ Issues found (no markdown code fences):
     }
 
     // ==========================================
-    // 관측 엔진: AI 메시지 출력 안정화 스캔
+    // AI 메시지 안정화 관측 시스템
     // ==========================================
     let lastLength = 0;
     let idleCounter = 0;
 
     async function checkLatestAssistantMessage() {
         const config = loadSettings();
+        if (!config.apiKey && !config.firebaseScript) return; // API 미지정 시 스캔 보류
+
         const chatId = getChatRoomId();
         if (!chatId) return;
 
@@ -807,24 +860,20 @@ Issues found (no markdown code fences):
             const curLength = text.length;
 
             if (messageId !== lastCheckedMessageId) {
-                // 새로운 메시지가 출력되기 시작함
                 lastCheckedMessageId = messageId;
                 lastLength = curLength;
                 idleCounter = 0;
                 return;
             }
 
-            // 안정화(출력 완료) 감지 단계
             if (curLength === lastLength && curLength > 0) {
                 idleCounter++;
-                // 3초 이상 텍스트 변화가 없고 처리되지 않은 경우
                 if (idleCounter >= 2) {
                     const fingerprints = JSON.parse(localStorage.getItem(`${SCRIPT_NS}-fingerprints`) || "[]");
                     if (!fingerprints.includes(messageId)) {
                         fingerprints.push(messageId);
                         localStorage.setItem(`${SCRIPT_NS}-fingerprints`, JSON.stringify(fingerprints.slice(-50)));
                         
-                        // 안정화 완료 ➔ 교정 파이프라인 작동
                         const groups = Array.from(document.querySelectorAll('div[data-message-group-id]'));
                         const targetGroup = groups.find(g => g.getAttribute('data-message-group-id') === messageId);
                         if (targetGroup) {
@@ -840,72 +889,91 @@ Issues found (no markdown code fences):
         } catch (e) {}
     }
 
-    function startRefinerSystem() {
-        // 공통 스타일 테마 주입
+    function initRefinerSystem() {
+        // 유저 맞춤형 전용 CSS 테마 선언 (클래스 덮어쓰기 전면 차단)
         GM_addStyle(`
-            .crm-tabs {
-                display: flex;
-                gap: 17px !important;
-                margin-bottom: -13px !important;
-            }
-            .crm-tab {
-                background: none;
-                border: none;
-                font-size: 14px;
-                font-weight: 600;
-                color: #888;
-                padding: 0 4px 12px 4px !important;
-                cursor: pointer;
-                border-bottom: 2px solid transparent;
-                transition: 0.2s;
-            }
-            .crm-tab.active {
-                color: #111 !important;
-                border-bottom-color: ${ACCENT_COLOR} !important;
-            }
-            .crm-tab:hover {
-                color: #111;
-            }
+            /* 오버레이 및 모달 베이스 */
+            .crr-overlay { background: rgba(0,0,0,0.5); z-index: 2147483647; display: flex; align-items: center; justify-content: center; position: fixed; inset: 0; pointer-events: auto !important; }
+            .crr-modal { background: #fff !important; border-radius: 16px; padding: 28px; width: 600px; max-width: 90vw; height: calc(66vh - 20px); max-height: calc(66vh - 20px); display: flex; flex-direction: column; box-shadow: 0 8px 40px rgba(0,0,0,0.2); pointer-events: auto !important; color: #222 !important; box-sizing: border-box; }
+            .crr-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; flex-shrink: 0; }
+            .crr-header h3 { margin: 0; color: #222 !important; font-size: 17px; font-weight: 700; display: flex; align-items: center; gap: 6px; }
+            .crr-close-btn { background: none; border: none; font-size: 14px; cursor: pointer; padding: 4px 8px; border-radius: 6px; color: #666; transition: 0.2s; font-weight: bold; line-height: 1; }
+            .crr-close-btn:hover { background: #eee; color: #222; }
 
-            .chk-group {
-                display: flex;
-                flex-direction: column;
-                padding-bottom: 8px;
-                border-bottom: 1px dashed rgba(128,128,128,0.15);
-            }
-            .chk-lbl {
-                display: flex;
-                align-items: center;
-                gap: 8px;
-                font-size: 13px !important;
-                font-weight: 700 !important;
-                color: inherit !important;
-                cursor: pointer;
-                margin-bottom: 2px !important;
-            }
-            .chk-lbl input {
-                accent-color: ${ACCENT_COLOR};
-                cursor: pointer;
-            }
-            .chk-desc {
-                font-size: 11px;
-                opacity: 0.65;
-                line-height: 1.4;
-                padding-left: 22px;
-            }
+            /* 탭 레이아웃 */
+            .crr-tabs-container { display: flex; justify-content: flex-start !important; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 6px !important; margin-bottom: 12px; flex-shrink: 0; }
+            .crr-tabs { display: flex; gap: 17px !important; margin-bottom: -7px !important; }
+            .crr-tab { background: none; border: none; font-size: 14px; font-weight: 600; color: #888; padding: 0 4px 6px 4px !important; cursor: pointer; border-bottom: 2px solid transparent; transition: 0.2s; }
+            .crr-tab.active { color: #111 !important; border-bottom: 2px solid ${ACCENT_COLOR} !important; }
+            .crr-tab:hover { color: #111; }
 
-            body[data-theme="dark"] .crm-tab.active {
-                color: #fff !important;
+            /* 카드 컴포넌트 (북마크 카드 디자인 경량화 이식) */
+            .crr-rule-card {
+                background: #f9f9f9 !important; border: 1.5px solid #eee !important; border-radius: 8px; 
+                padding: 12px; margin-bottom: 10px; cursor: pointer; transition: all 0.2s ease;
+                display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
             }
+            .crr-rule-card:hover { border-color: ${ACCENT_COLOR} !important; background: #fafafa !important; }
+            .crr-rule-card.active { border-color: ${ACCENT_COLOR} !important; background: rgba(188, 208, 213, 0.08) !important; }
+            
+            .crr-card-left { display: flex; flex-direction: column; gap: 4px; text-align: left; }
+            .crr-card-title { font-weight: 700; font-size: 13px; color: #333 !important; line-height: 1.2; }
+            .crr-card-desc { font-size: 11px; color: #666 !important; line-height: 1.4; }
+            .crr-checkbox { accent-color: ${ACCENT_COLOR}; cursor: pointer; width: 16px; height: 16px; flex-shrink: 0; }
+
+            /* 금지단어 확장 애니메이션 슬롯 */
+            .crr-banned-input-box {
+                max-height: 0; overflow: hidden; opacity: 0;
+                transition: max-height 0.25s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.2s ease;
+            }
+            .crr-banned-input-box.open { max-height: 60px; opacity: 1; }
+
+            /* 균형 잡힌 설정창 입력 폼 그룹 */
+            .crr-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; padding-right: 4px; }
+            .crr-input-group { display: flex; flex-direction: column; width: 100%; box-sizing: border-box; margin-bottom: 10px; }
+            .crr-label { font-size: 13px; font-weight: 600; margin-bottom: 5px; color: #333 !important; display: block; text-align: left; }
+            
+            /* 모든 입력 폼의 너비와 디자인 규격 단일화 */
+            .crr-input, .crr-select { width: 100%; height: 36px; padding: 0 10px; border: 1px solid #ddd !important; border-radius: 8px; font-size: 13px; box-sizing: border-box; background-color: #fafafa !important; color: #222 !important; display: block; margin: 0; }
+            .crr-textarea { width: 100%; padding: 10px 12px; border: 1px solid #ddd !important; border-radius: 8px; font-size: 13px; box-sizing: border-box; font-family: inherit; background-color: #fafafa !important; color: #222 !important; display: block; margin: 0; }
+            
+            .crr-input:focus, .crr-select:focus, .crr-textarea:focus { outline: 1.5px solid ${ACCENT_COLOR} !important; background-color: #fff !important; }
+
+            /* 푸터 및 공용 버튼 */
+            .crr-footer { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-top: 16px; flex-shrink: 0; }
+            .crr-footer-right { display: flex; gap: 8px; }
+            .crr-btn { padding: 8px 16px; border-radius: 8px; border: 1px solid #ddd !important; background: #eee !important; color: #333 !important; cursor: pointer; font-size: 13px; font-weight: 600; transition: background 0.2s; text-align: center; height: 36px; display: inline-flex; align-items: center; justify-content: center; box-sizing: border-box; }
+            .crr-btn:hover { background: #ddd !important; }
+            .crr-btn-p { background: ${ACCENT_COLOR} !important; color: #333 !important; border-color: #ddd !important; }
+            .crr-btn-p:hover { background: ${ACCENT_HOVER} !important; }
+
+            /* 수동 승인 팝업 이유 박스 */
+            .crr-reason-box { background: rgba(188,208,215,0.08); border: 1.5px solid ${ACCENT_COLOR}; padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #222 !important; box-sizing: border-box; line-height: 1.5; text-align: left; }
+
+            /* 다크 테마 완벽 지원 */
+            body[data-theme="dark"] .crr-modal { background: #242321 !important; color: #F0EFEB !important; }
+            body[data-theme="dark"] .crr-header h3, body[data-theme="dark"] .crr-label { color: #F0EFEB !important; }
+            body[data-theme="dark"] .crr-close-btn { color: #aaa; }
+            body[data-theme="dark"] .crr-close-btn:hover { background: #333; color: #fff; }
+            body[data-theme="dark"] .crr-tabs-container { border-bottom-color: #42413D; }
+            body[data-theme="dark"] .crr-tab.active { color: #fff !important; }
+            body[data-theme="dark"] .crr-rule-card { background: #1a1918 !important; border-color: #42413D !important; }
+            body[data-theme="dark"] .crr-rule-card:hover { border-color: ${ACCENT_COLOR} !important; background: #21201e !important; }
+            body[data-theme="dark"] .crr-rule-card.active { background: rgba(188, 208, 213, 0.04) !important; border-color: ${ACCENT_COLOR} !important; }
+            body[data-theme="dark"] .crr-card-title { color: #F0EFEB !important; }
+            body[data-theme="dark"] .crr-card-desc { color: #aaa !important; }
+            body[data-theme="dark"] .crr-input, body[data-theme="dark"] .crr-select, body[data-theme="dark"] .crr-textarea { background-color: #141413 !important; border-color: #42413D !important; color: #F0EFEB !important; }
+            body[data-theme="dark"] .crr-btn { background: #333 !important; color: #eee !important; border-color: #42413D !important; }
+            body[data-theme="dark"] .crr-btn:hover { background: #444 !important; }
+            body[data-theme="dark"] .crr-btn-p { background: ${ACCENT_COLOR} !important; border-color: ${ACCENT_COLOR} !important; color: #333 !important; }
+            body[data-theme="dark"] .crr-btn-p:hover { background: ${ACCENT_HOVER} !important; border-color: ${ACCENT_HOVER} !important; }
+            body[data-theme="dark"] .crr-reason-box { background: rgba(188,208,215,0.04); color: #F0EFEB !important; }
         `);
 
-        // 주기적 검사 실행 (1.5초)
         checkTimer = setInterval(checkLatestAssistantMessage, 1500);
-
-        // 툴바 버튼 주입 감시
         setInterval(injectRefinerButton, 1000);
     }
 
-    startRefinerSystem();
+    initRefinerSystem();
 
 })();
