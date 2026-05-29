@@ -908,7 +908,7 @@ Issues found (no markdown code fences):
                 display: flex; justify-content: space-between; align-items: center; box-sizing: border-box;
             }
             .crr-rule-card:hover { border-color: ${ACCENT_COLOR} !important; background: #fafafa !important; }
-            .crr-rule-card.active { border: 1.5px solid ${ACCENT_COLOR} !important; background: rgba(188, 208, 213, 0.08) !important; }
+            .crr-rule-card.active { border: 2px solid ${ACCENT_COLOR} !important; background: rgba(188, 208, 213, 0.08) !important; }
             
             .crr-card-left { display: flex; flex-direction: column; gap: 4px; text-align: left; }
             .crr-card-title { font-weight: 700; font-size: 13px; color: #333 !important; line-height: 1.2; }
@@ -951,9 +951,9 @@ Issues found (no markdown code fences):
             body[data-theme="dark"] .crr-close-btn:hover { background: #333; color: #fff; }
             body[data-theme="dark"] .crr-tabs-container { border-bottom-color: #42413D; }
             body[data-theme="dark"] .crr-tab.active { color: #fff !important; }
-            body[data-theme="dark"] .crr-rule-card { background: #1a1918 !important; border-color: #42413D !important; border-width: 1px !important; }
+            body[data-theme="dark"] .crr-rule-card { background: #1a1918 !important; border-color: #42413D !important; }
             body[data-theme="dark"] .crr-rule-card:hover { border-color: ${ACCENT_COLOR} !important; background: #21201e !important; }
-            body[data-theme="dark"] .crr-rule-card.active { background: rgba(188, 208, 213, 0.04) !important; border: 1.5px solid ${ACCENT_COLOR} !important; }
+            body[data-theme="dark"] .crr-rule-card.active { background: rgba(188, 208, 213, 0.04) !important; border-color: ${ACCENT_COLOR} !important; }
             body[data-theme="dark"] .crr-card-title { color: #F0EFEB !important; }
             body[data-theme="dark"] .crr-card-desc { color: #aaa !important; }
             body[data-theme="dark"] .crr-input, body[data-theme="dark"] .crr-select, body[data-theme="dark"] .crr-textarea { background-color: #141413 !important; border-color: #42413D !important; color: #F0EFEB !important; }
