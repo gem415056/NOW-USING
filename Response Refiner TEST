@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         크랙 AI 응답 교정기 (Response Refiner V1.4)
+// @name         크랙 AI 응답 교정기 (Response Refiner V1.5)
 // @namespace    https://crack.wrtn.ai/
-// @version      1.4.0
+// @version      1.5.0
 // @description  순정 UI 자동클릭 제어 방식 및 콤팩트 2탭 레이아웃을 채용한 경량화 응답 교정기
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
