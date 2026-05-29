@@ -232,6 +232,78 @@
             targetContainer.appendChild(btn);
         }
 
+        function showBookmarkToast(message) {
+            const toastId = "crack-bookmark-toast";
+            const existing = document.getElementById(toastId);
+            if (existing) existing.remove();
+
+            const wrapperNode = document.createElement("div");
+            wrapperNode.id = toastId;
+            wrapperNode.style.cssText = `
+                position: fixed;
+                top: calc(50% - 101px);
+                left: 50%;
+                transform: translate(-50%, -50%) scale(0.9);
+                opacity: 0;
+                transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.2), opacity 0.15s ease;
+                z-index: 999999999 !important;
+                pointer-events: none;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                width: fit-content;
+                height: fit-content;
+            `;
+
+            const containerNode = document.createElement("div");
+            containerNode.style.cssText = `
+                background-color: #23343A;
+                border: 1.5px solid #88B9C8;
+                padding: 9px 14px;
+                border-radius: 9999px;
+                display: inline-flex;
+                justify-content: center;
+                align-items: center;
+                box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+                box-sizing: border-box;
+            `;
+
+            const textNode = document.createElement("p");
+            textNode.textContent = message;
+            textNode.style.cssText = `
+                color: #EFFCFF;
+                text-align: center;
+                font-size: 12px;
+                font-weight: 400;
+                line-height: 100%;
+                margin: 0;
+                padding: 0;
+                white-space: nowrap;
+                user-select: none;
+            `;
+
+            containerNode.append(textNode);
+            wrapperNode.append(containerNode);
+            document.body.appendChild(wrapperNode);
+
+            setTimeout(() => {
+                wrapperNode.style.transform = "translate(-50%, -50%) scale(1)";
+                wrapperNode.style.opacity = "1";
+            }, 20);
+
+            setTimeout(() => {
+                if (document.body.contains(wrapperNode)) {
+                    wrapperNode.style.transform = "translate(-50%, -50%) scale(0.93)";
+                    wrapperNode.style.opacity = "0";
+                    setTimeout(() => {
+                        if (document.body.contains(wrapperNode)) {
+                            wrapperNode.remove();
+                        }
+                    }, 200);
+                }
+            }, 3000);
+        }
+
         function addBookmarkDirect(text, colorHex) {
             if (!text) return;
             const cid = getChatId();
@@ -245,6 +317,7 @@
                 label: '새 북마크', folderId: 'default', timestamp: Date.now()
             });
             saveBookmarks(bms);
+            showBookmarkToast("✨ 북마크가 추가되었습니다.");
         }
 
         function openModal() {
@@ -663,8 +736,8 @@
 
             let maxTries = 15, currentTry = 0;
             const loadingToast = document.createElement('div');
-            loadingToast.innerHTML = '🔄 북마크 위치 탐색 중...';
-            loadingToast.style.cssText = `position:fixed; bottom:30px; left:50%; transform:translateX(-50%); background:${ACCENT_COLOR}; color:#333; padding:10px 20px; border-radius:20px; z-index:2147483647; font-size:13px; font-weight:bold; box-shadow:0 4px 12px rgba(0,0,0,0.3);`;
+            loadingToast.innerHTML = '북마크 위치 탐색 중...';
+            loadingToast.style.cssText = `position:fixed; top:calc(50% - 101px); left:50%; transform:translate(-50%, -50%); background-color:#23343A; border:1.5px solid #88B9C8; color:#EFFCFF; padding:9px 14px; border-radius:9999px; z-index:2147483647; font-size:12px; font-weight:400; box-shadow:0 4px 16px rgba(0,0,0,0.3);`;
             document.body.appendChild(loadingToast);
 
             const searchLoop = setInterval(() => {
