@@ -337,13 +337,32 @@ If issues are found:
                     
                     const editorStart = Date.now();
                     const findEditorTimer = setInterval(() => {
-                        const textarea = container.querySelector('textarea');
+                        // 일반 텍스트상자뿐만 아니라 리치 에디터(ProseMirror)까지 모두 탐색 조준
+                        const textarea = container.querySelector('textarea, .ProseMirror, [contenteditable="true"]');
                         if (textarea) {
                             clearInterval(findEditorTimer);
                             
-                            textarea.value = correctedText;
-                            textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                            textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                            // 타입 분석 후 정밀 주입 처리
+                            if (textarea.tagName === 'TEXTAREA' || textarea.tagName === 'INPUT') {
+                                textarea.value = correctedText;
+                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                                textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                            } else {
+                                // 리치 텍스트 에디터 대응 가상 타이핑 및 입력 이벤트 동기화
+                                textarea.focus();
+                                try {
+                                    const range = document.createRange();
+                                    range.selectNodeContents(textarea);
+                                    const sel = window.getSelection();
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+                                    document.execCommand('delete', false, null);
+                                    document.execCommand('insertText', false, correctedText);
+                                } catch (e) {
+                                    textarea.innerText = correctedText;
+                                }
+                                textarea.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: correctedText }));
+                            }
                             
                             setTimeout(() => {
                                 const saveBtn = Array.from(container.querySelectorAll('button')).find(btn => btn.textContent.includes('수정 완료'));
