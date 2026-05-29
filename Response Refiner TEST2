@@ -143,6 +143,17 @@ If issues are found:
 [New Speech]:
 {message}`;
 
+    // HTML 이스케이프 문자 보안 처리 필터 (에러 유실 차단)
+    function escapeHtml(str) {
+        if (!str) return "";
+        return String(str)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;')
+            .replace(/'/g, '&#39;');
+    }
+
     // Dexie 로어 데이터베이스 인스턴스 초기화
     const loreDb = new Dexie("lore-injector");
     loreDb.version(1).stores({ entries: "++id, name, type, packName, *triggers" });
@@ -255,7 +266,7 @@ If issues are found:
             color: #EFFCFF;
             text-align: center;
             font-size: 12px;
-            font-weight: 700;
+            font-weight: 400;
             line-height: 100%;
             margin: 0;
             padding: 0;
@@ -1150,7 +1161,7 @@ If issues are found:
             /* 요약 알리미 중앙 101px 스타일 연동 및 충돌 완전 격리형 토스트 CSS */
             .crr-toast-wrap { position: fixed; top: calc(50% - 101px); left: 50%; transform: translate(-50%, -50%) scale(0.9); opacity: 0; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.2), opacity 0.15s ease; z-index: 2147483647 !important; pointer-events: none; display: flex; justify-content: center; align-items: center; }
             .crr-toast-container { background-color: #23343A !important; border: 1.5px solid ${ACCENT_COLOR} !important; padding: 9px 14px !important; border-radius: 9999px !important; display: inline-flex !important; justify-content: center !important; align-items: center !important; box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important; box-sizing: border-box !important; }
-            .crr-toast-text { color: #EFFCFF !important; text-align: center !important; font-size: 12px !important; font-weight: 500 !important; line-height: 100% !important; margin: 0 !important; padding: 0 !important; white-space: nowrap !important; user-select: none !important; }
+            .crr-toast-text { color: #EFFCFF !important; text-align: center !important; font-size: 12px !important; font-weight: 400 !important; line-height: 100% !important; margin: 0 !important; padding: 0 !important; white-space: nowrap !important; user-select: none !important; }
 
             /* 다크 테마 완벽 지원 */
             body[data-theme="dark"] .crr-modal { background: #242321 !important; color: #F0EFEB !important; }
