@@ -678,7 +678,7 @@ Issues found (no markdown code fences):
                 </div>
 
                 <div class="crr-footer" style="display:flex; justify-content:center !important; align-items:center; width:100%;">
-                    <button class="crr-btn crr-btn-p" id="ce-ref-manual-trigger" style="width:160px;">마지막 응답 교정</button>
+                    <button class="crr-btn crr-btn-p" id="ce-ref-manual-trigger" style="width: auto; padding: 0 12px;">마지막 응답 교정</button>
                 </div>
             </div>
         `;
