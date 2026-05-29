@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         크랙 AI 응답 교정기 (Response Refiner V1.5)
+// @name         크랙 AI 응답 교정기 (Response Refiner V1.6)
 // @namespace    https://crack.wrtn.ai/
-// @version      1.5.0
+// @version      1.6.0
 // @description  순정 UI 자동클릭 제어 방식 및 콤팩트 2탭 레이아웃을 채용한 경량화 응답 교정기
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -489,7 +489,7 @@ Issues found (no markdown code fences):
     }
 
     // ==========================================
-    // UI: 메인 설정창 팝업 모듈 (V1.2.5 버그 픽스 및 기능 추가)
+    // UI: 메인 설정창 팝업 모듈 (V1.3.5 실시간 자동 저장 및 단일 푸터 제어)
     // ==========================================
     function showSettingsModal() {
         if (document.getElementById(MODAL_ID)) return;
@@ -621,11 +621,14 @@ Issues found (no markdown code fences):
                         </div>
                     </div>
 
-                    <!-- 2번 설정 탭 (API 통합 및 너비 단일화 완료) -->
+                    <!-- 2번 설정 탭 (밀착 배치 알약형 토글 및 단일화 완료) -->
                     <div class="crr-pane-content" data-pane="settings" style="display:none; flex-direction:column; gap:12px; height:100%;">
-                        <div class="crr-input-group" style="flex-direction:row; align-items:center; justify-content:space-between; border-bottom:1px dashed rgba(128,128,128,0.15); padding-bottom:8px; margin-bottom:12px; width:100%;">
+                        <div class="crr-input-group" style="flex-direction:row; align-items:center; gap:10px; border-bottom:1px dashed rgba(128,128,128,0.15); padding-bottom:8px; margin-bottom:12px; width:100%;">
                             <span class="crr-label" style="margin:0;">응답 교정 기능 활성화</span>
-                            <input type="checkbox" id="set-enabled" class="crr-checkbox" style="width:18px; height:18px;">
+                            <label class="crr-switch">
+                                <input type="checkbox" id="set-enabled" class="crr-switch-input">
+                                <span class="crr-switch-slider"></span>
+                            </label>
                         </div>
                         <div class="crack-flex-ai-row" style="gap:16px;">
                             <div class="fg" style="flex:1;">
@@ -674,14 +677,8 @@ Issues found (no markdown code fences):
                     </div>
                 </div>
 
-                <div class="crr-footer">
-                    <div>
-                        <button class="crr-btn crr-btn-p" id="ce-ref-manual-trigger" style="width:auto; padding:0 14px;">마지막 응답 교정</button>
-                    </div>
-                    <div class="crr-footer-right">
-                        <button class="crr-btn" data-close>취소</button>
-                        <button class="crr-btn" id="ce-ref-save-settings">저장</button>
-                    </div>
+                <div class="crr-footer" style="display:flex; justify-content:center !important; align-items:center; width:100%;">
+                    <button class="crr-btn crr-btn-p" id="ce-ref-manual-trigger" style="width:160px;">마지막 응답 교정</button>
                 </div>
             </div>
         `;
@@ -711,6 +708,26 @@ Issues found (no markdown code fences):
             }
         });
 
+        // 실시간 전역 자동 저장 프로세서
+        const saveCurrentState = () => {
+            config.enabled = overlay.querySelector('#set-enabled').checked;
+            config.turns = parseInt(overlay.querySelector('#set-turns').value, 10) || 5;
+            config.userName = overlay.querySelector('#set-username').value.trim();
+            config.mode = overlay.querySelector('#set-mode').value;
+            config.model = overlay.querySelector('#set-model').value;
+            config.provider = apiProv.value;
+            config.apiKey = inpKey.value.trim();
+            config.firebaseScript = txtFb.value.trim();
+
+            overlay.querySelectorAll('[data-rule]').forEach(chk => {
+                const k = chk.dataset.rule;
+                if (k) config.rules[k] = chk.checked;
+            });
+            config.bannedWords = inpBanned.value.trim();
+
+            saveSettings(config);
+        };
+
         // 교정 항목 카드 클릭 시 하위 체크박스 전파 및 테두리(active) 실시간 토글 피드백
         overlay.querySelectorAll('.crr-rule-card').forEach(card => {
             const chk = card.querySelector('input[type="checkbox"]');
@@ -726,6 +743,7 @@ Issues found (no markdown code fences):
             if (chk) {
                 chk.addEventListener('change', () => {
                     card.classList.toggle('active', chk.checked);
+                    saveCurrentState();
                 });
             }
         });
@@ -752,15 +770,24 @@ Issues found (no markdown code fences):
                 bannedBox.classList.remove('open');
             }
         };
-        chkBanned.onchange = () => syncBannedDisplay(false);
+        chkBanned.onchange = () => {
+            syncBannedDisplay(false);
+            saveCurrentState();
+        };
         syncBannedDisplay(true);
 
-        // 2번 설정 탭 데이터 주입
+        // 2번 설정 탭 데이터 주입 및 이벤트 바인딩 (입력 순간 즉시 자동저장 적용)
         overlay.querySelector('#set-enabled').checked = !!config.enabled;
         overlay.querySelector('#set-turns').value = config.turns;
         overlay.querySelector('#set-username').value = config.userName;
         overlay.querySelector('#set-mode').value = config.mode;
         overlay.querySelector('#set-model').value = config.model;
+
+        overlay.querySelector('#set-enabled').addEventListener('change', saveCurrentState);
+        overlay.querySelector('#set-turns').addEventListener('input', saveCurrentState);
+        overlay.querySelector('#set-username').addEventListener('input', saveCurrentState);
+        overlay.querySelector('#set-mode').addEventListener('change', saveCurrentState);
+        overlay.querySelector('#set-model').addEventListener('change', saveCurrentState);
 
         const apiProv = overlay.querySelector('#api-provider');
         const keyBox = overlay.querySelector('#api-key-box');
@@ -781,14 +808,22 @@ Issues found (no markdown code fences):
                 fbBox.style.display = 'flex';
             }
         };
-        apiProv.onchange = syncApiDisplay;
+        
+        apiProv.addEventListener('change', () => {
+            syncApiDisplay();
+            saveCurrentState();
+        });
+        inpKey.addEventListener('input', saveCurrentState);
+        txtFb.addEventListener('input', saveCurrentState);
+        inpBanned.addEventListener('input', saveCurrentState);
+
         syncApiDisplay();
 
         const closeModal = () => overlay.remove();
         overlay.querySelectorAll('[data-close]').forEach(btn => btn.onclick = closeModal);
         overlay.onclick = (e) => { if (e.target === overlay) closeModal(); };
 
-        // 수동 검수 강제 트리거 단추 바인딩
+        // 수동 검수 강제 트리거 단추 바인딩 (정중앙 배치)
         overlay.querySelector('#ce-ref-manual-trigger').onclick = async () => {
             closeModal();
             const chatId = getChatRoomId();
@@ -822,28 +857,6 @@ Issues found (no markdown code fences):
             } catch (e) {
                 showToast(`❌ 수동 교정 에러: ${e.message}`, "info");
             }
-        };
-
-        overlay.querySelector('#ce-ref-save-settings').onclick = () => {
-            config.enabled = overlay.querySelector('#set-enabled').checked;
-            config.turns = parseInt(overlay.querySelector('#set-turns').value, 10) || 5;
-            config.userName = overlay.querySelector('#set-username').value.trim();
-            config.mode = overlay.querySelector('#set-mode').value;
-            config.model = overlay.querySelector('#set-model').value;
-
-            overlay.querySelectorAll('[data-rule]').forEach(chk => {
-                const k = chk.dataset.rule;
-                if (k) config.rules[k] = chk.checked;
-            });
-
-            config.bannedWords = inpBanned.value.trim();
-            config.provider = apiProv.value;
-            config.apiKey = inpKey.value.trim();
-            config.firebaseScript = txtFb.value.trim();
-
-            saveSettings(config);
-            showToast("🫧 설정이 반영되었습니다.", "success", 1500);
-            closeModal();
         };
     }
 
