@@ -614,19 +614,19 @@ If issues are found:
         overlay.id = `${SCRIPT_NS}-confirm-overlay`;
 
         overlay.innerHTML = `
-            <div class="crr-modal" style="height: auto; max-height: 85vh;">
+            <div class="crr-modal">
                 <div class="crr-header">
                     <h3>🫧 응답 교정 승인</h3>
                 </div>
-                <div class="crr-body">
+                <div class="crr-body" style="flex: 1; display: flex; flex-direction: column; min-height: 0;">
                     <label class="crr-label">교정 이유</label>
-                    <div class="crr-reason-box">
+                    <div class="crr-reason-box" style="max-height: 110px; overflow-y: auto; flex-shrink: 0; box-sizing: border-box;">
                         ${escapeHtml(reason)}
                     </div>
-                    <label class="crr-label">교정 적용본 (수정 가능)</label>
-                    <textarea id="ce-ref-edit-text" class="crr-textarea" style="height: 160px; flex:none;">${escapeHtml(suggestedText)}</textarea>
+                    <label class="crr-label" style="margin-top: 8px;">교정 적용본 (수정 가능)</label>
+                    <textarea id="ce-ref-edit-text" class="crr-textarea" style="flex: 1; min-height: 180px; resize: none; box-sizing: border-box;">${escapeHtml(suggestedText)}</textarea>
                 </div>
-                <div class="crr-footer" style="margin-top: 16px;">
+                <div class="crr-footer" style="margin-top: 16px; flex-shrink: 0;">
                     <button class="crr-btn" id="ce-ref-cancel">유지하기</button>
                     <button class="crr-btn crr-btn-p" id="ce-ref-confirm">교정 변경</button>
                 </div>
