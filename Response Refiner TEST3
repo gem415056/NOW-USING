@@ -1188,7 +1188,7 @@ If issues are found:
             }
         }
 
-        // B. 메시지 카드 내부 [리롤] 단추 왼쪽 옆자리 수동 검수용 롱프레스 단축 버튼 주입
+        // B. 메시지 카드 내부 [리롤] 단추 왼쪽 옆자리 수동 검수용 단축 버튼 주입
         const groups = Array.from(document.querySelectorAll('div[data-message-group-id]'));
         groups.forEach(group => {
             const rerollBtn = Array.from(group.querySelectorAll('button, [id="exp-reroll-btn"]')).find(btn => {
@@ -1207,49 +1207,70 @@ If issues are found:
             // 제공해주신 별모양 마술스파크 명사화 SVG 주입 (순정 회색 통일)
             btn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 20 20" width="16px" height="16px" style="pointer-events:none;"><path d="m13.8 2.58 1.1 3.4 3.4 1.09c.23.07.23.38 0 .46l-3.4 1.09-1.1 3.4a.24.24 0 0 1-.45 0l-1.1-3.4-3.4-1.1a.24.24 0 0 1 0-.45l3.4-1.1 1.1-3.4a.24.24 0 0 1 .46 0M7.5 5.25h-5V3.92h5zm0 5.42h-5V9.33h5zm-5 5.41h15v-1.33h-15z"></path></svg>`;
 
-            const HOLD_MS = 500;
-            let holdTimer = null;
-            let isHoldConfirmed = false;
-
-            const cancel = () => {
-                clearTimeout(holdTimer);
-                holdTimer = null;
-                hideRefinerRing();
-            };
-
-            // 짧은 오클릭 클릭 이벤트 무시
-            btn.addEventListener('click', (e) => {
-                e.preventDefault(); e.stopPropagation();
-            });
-
-            const handlePressStart = (e) => {
-                if (e.type === 'touchstart') e.preventDefault();
-                isHoldConfirmed = false;
-                showRefinerRing(btn);
-                holdTimer = setTimeout(async () => {
-                    hideRefinerRing();
-                    isHoldConfirmed = true;
-                    holdTimer = null;
-                    
-                    const msgId = group.getAttribute('data-message-group-id');
-                    const textNode = group.querySelector('.wrtn-markdown');
-                    const text = textNode ? textNode.textContent : '';
-
-                    isProcessing = false; // 중복 락 완전 무력화 및 강제 개방
-                    await processRefiner(text, group, msgId, true); // 수동 강제 가동
-                }, HOLD_MS);
-            };
-
-            btn.addEventListener('mousedown', handlePressStart);
-            btn.addEventListener('mouseup', cancel);
-            btn.addEventListener('mouseleave', cancel);
-            btn.addEventListener('touchstart', handlePressStart, { passive: false });
-            btn.addEventListener('touchend', cancel);
-            btn.addEventListener('touchcancel', cancel);
-
             rerollBtn.insertAdjacentElement('beforebegin', btn);
         });
     }
+
+    // ==========================================
+    // 물리 엔진: 9in1 전송/리롤과 동일한 전역 이벤트 위임 장치 (Re-render에 완전 무적)
+    // ==========================================
+    const HOLD_MS = 500;
+    let holdTimer = null;
+    let isHoldConfirmed = false;
+    let activeHoldingBtn = null;
+
+    function handleGlobalPressStart(e) {
+        const btn = e.target.closest('.crr-card-shortcut-btn');
+        if (!btn) return;
+
+        if (e.type === 'touchstart') e.preventDefault();
+        isHoldConfirmed = false;
+        activeHoldingBtn = btn;
+
+        showRefinerRing(btn);
+
+        holdTimer = setTimeout(async () => {
+            hideRefinerRing();
+            isHoldConfirmed = true;
+            holdTimer = null;
+
+            const group = btn.closest('div[data-message-group-id]');
+            if (group) {
+                const msgId = group.getAttribute('data-message-group-id');
+                const textNode = group.querySelector('.wrtn-markdown');
+                const text = textNode ? textNode.textContent : '';
+
+                isProcessing = false; // 중복 락 해제
+                await processRefiner(text, group, msgId, true); // 강제 수동 기동
+            }
+        }, HOLD_MS);
+    }
+
+    function handleGlobalCancel() {
+        if (!activeHoldingBtn) return;
+        clearTimeout(holdTimer);
+        holdTimer = null;
+        hideRefinerRing();
+        activeHoldingBtn = null;
+    }
+
+    // 전역 이벤트 리스너 등록부 (스크립트 로드 시 최초 1회 수립)
+    document.addEventListener('mousedown', handleGlobalPressStart);
+    document.addEventListener('touchstart', handleGlobalPressStart, { passive: false });
+    document.addEventListener('mouseup', handleGlobalCancel);
+    document.addEventListener('touchend', handleGlobalCancel);
+    document.addEventListener('mouseleave', handleGlobalCancel);
+    document.addEventListener('touchcancel', handleGlobalCancel);
+
+    // 단축버튼 오클릭 튕겨내기 수급 장치
+    document.addEventListener('click', (e) => {
+        const btn = e.target.closest('.crr-card-shortcut-btn');
+        if (btn) {
+            e.preventDefault();
+            e.stopPropagation();
+            e.stopImmediatePropagation();
+        }
+    }, true);
 
     // ==========================================
     // AI 메시지 출력 감지 초경량 DOM 0ms 추적기 (V1.9.0 극강 최적화 완료)
@@ -1309,6 +1330,14 @@ If issues are found:
     }
 
     function initRefinerSystem() {
+        // 백그라운드 하늘색 원 프로그레스 링 마운트 (이벤트 위임과 공조)
+        if (!document.getElementById('crr-progress-ring')) {
+            const ring = document.createElement('div');
+            ring.id = 'crr-progress-ring';
+            ring.innerHTML = `<svg id="crr-svg"><circle class="track"/><circle class="fill"/></svg>`;
+            document.body.appendChild(ring);
+        }
+
         // 유저 맞춤형 전용 CSS 테마 선언 (클래스 덮어쓰기 전면 차단)
         GM_addStyle(`
             /* 오버레이 및 모달 베이스 */
@@ -1427,16 +1456,11 @@ If issues are found:
             body[data-theme="dark"] .crr-btn-p:hover { background: ${ACCENT_HOVER} !important; border-color: ${ACCENT_HOVER} !important; }
             body[data-theme="dark"] .crr-reason-box { background: rgba(188,208,215,0.04); color: #F0EFEB !important; }
             body[data-theme="dark"] .crr-switch-slider { background-color: #444; }
-            
+            body[data-theme="dark"] .crr-card-shortcut-btn { color: #888888 !important; }
+            body[data-theme="dark"] .crr-card-shortcut-btn:hover { color: ${ACCENT_COLOR} !important; }
+
             /* 마지막 응답 교정 버튼의 전용 글자 크기 선언부 (원하는 크기로 수정 가능) */
             #ce-ref-manual-trigger { font-size: 13px !important; }
-        `);
-            body[data-theme="dark"] .crr-card-shortcut-btn {
-                color: #888888 !important;
-            }
-            body[data-theme="dark"] .crr-card-shortcut-btn:hover {
-                color: ${ACCENT_COLOR} !important;
-            }
         `);
 
         checkTimer = setInterval(checkLatestAssistantMessage, 1500);
