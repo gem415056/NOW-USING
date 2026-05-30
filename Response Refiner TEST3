@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         크랙 AI 응답 교정기 (Response Refiner V1.8)
+// @name         크랙 AI 응답 교정기 (Response Refiner V1.9)
 // @namespace    https://crack.wrtn.ai/
-// @version      1.8.0
+// @version      1.9.0
 // @description  순정 UI 자동클릭 제어 방식 및 콤팩트 2탭 레이아웃을 채용한 경량화 응답 교정기
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -1427,6 +1427,10 @@ If issues are found:
             body[data-theme="dark"] .crr-btn-p:hover { background: ${ACCENT_HOVER} !important; border-color: ${ACCENT_HOVER} !important; }
             body[data-theme="dark"] .crr-reason-box { background: rgba(188,208,215,0.04); color: #F0EFEB !important; }
             body[data-theme="dark"] .crr-switch-slider { background-color: #444; }
+            
+            /* 마지막 응답 교정 버튼의 전용 글자 크기 선언부 (원하는 크기로 수정 가능) */
+            #ce-ref-manual-trigger { font-size: 13px !important; }
+        `);
             body[data-theme="dark"] .crr-card-shortcut-btn {
                 color: #888888 !important;
             }
