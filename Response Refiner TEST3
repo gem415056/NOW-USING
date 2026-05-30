@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         크랙 AI 응답 교정기 (Response Refiner V1.7)
+// @name         크랙 AI 응답 교정기 (Response Refiner V1.8)
 // @namespace    https://crack.wrtn.ai/
-// @version      1.7.0
+// @version      1.8.0
 // @description  순정 UI 자동클릭 제어 방식 및 콤팩트 2탭 레이아웃을 채용한 경량화 응답 교정기
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -255,7 +255,7 @@ If issues are found:
         box.id = TOAST_ID;
         box.style.cssText = `
             position: fixed;
-            top: calc(50% - 101px);
+            top: calc(50% + 104px);
             left: 50%;
             transform: translate(-50%, -50%) scale(0.9);
             opacity: 0;
@@ -507,7 +507,7 @@ If issues are found:
         showPersistentToast("🫧 응답 교정 요청중...");
 
         const config = loadSettings();
-        if (!config.enabled && !isManual) { isProcessing = false; return; } // 수동일 때는 ON/OFF 무관 강제 가동
+        if (!config.enabled && !isManual) { isProcessing = false; hidePersistentToast(); return; } // 조기 탈출 시 메모리 락 및 토스트 안전 해제
 
         const chatId = getChatRoomId();
         if (!chatId) { isProcessing = false; return; }
@@ -1126,7 +1126,7 @@ If issues are found:
         };
     }
 
-    // 0.5초 롱프레스 게이지 작동용 링 드로잉 함수
+    // 0.5초 롱프레스 게이지 작동용 링 드로잉 함수 (브라우저 표준 렌더링 준수 패치 완료)
     function showRefinerRing(btn) {
         const rect = btn.getBoundingClientRect();
         const size = Math.max(rect.width, rect.height) + 4;
@@ -1141,15 +1141,17 @@ If issues are found:
         svg.setAttribute('viewBox', `0 0 ${size} ${size}`);
         trackCircle.setAttribute('cx', cx); trackCircle.setAttribute('cy', cy); trackCircle.setAttribute('r', r);
         fillCircle.setAttribute('cx', cx); fillCircle.setAttribute('cy', cy); fillCircle.setAttribute('r', r);
-        fillCircle.style.strokeDasharray  = circumference;
-        fillCircle.style.strokeDashoffset = circumference;
+        
+        // 인라인 스타일 대신 표준 어트리뷰트 설정 적용
+        fillCircle.setAttribute('stroke-dasharray', circumference);
+        fillCircle.setAttribute('stroke-dashoffset', circumference);
 
         ring.style.left = `${rect.left - 2}px`; ring.style.top  = `${rect.top - 2}px`;
         ring.classList.add('active');
 
         requestAnimationFrame(() => {
             fillCircle.style.transition = 'stroke-dashoffset 500ms linear';
-            fillCircle.style.strokeDashoffset = '0';
+            fillCircle.setAttribute('stroke-dashoffset', '0');
         });
     }
 
@@ -1159,7 +1161,9 @@ If issues are found:
             ring.classList.remove('active');
             const fillCircle = ring.querySelector('circle.fill');
             fillCircle.style.transition = 'none';
-            if (fillCircle.style.strokeDasharray) fillCircle.style.strokeDashoffset = fillCircle.style.strokeDasharray;
+            if (fillCircle.hasAttribute('stroke-dasharray')) {
+                fillCircle.setAttribute('stroke-dashoffset', fillCircle.getAttribute('stroke-dasharray'));
+            }
         }
     }
 
@@ -1231,7 +1235,7 @@ If issues are found:
                     const textNode = group.querySelector('.wrtn-markdown');
                     const text = textNode ? textNode.textContent : '';
 
-                    isProcessing = false; // 중복 락 임시 무력화
+                    isProcessing = false; // 중복 락 완전 무력화 및 강제 개방
                     await processRefiner(text, group, msgId, true); // 수동 강제 가동
                 }, HOLD_MS);
             };
@@ -1373,8 +1377,8 @@ If issues are found:
             /* 수동 승인 팝업 이유 박스 (줄 수 2줄 확장 완료) */
             .crr-reason-box { background: rgba(188,208,215,0.08); border: 1.5px solid ${ACCENT_COLOR}; padding: 12px; border-radius: 8px; font-size: 13px; font-weight: 600; margin-bottom: 12px; color: #222 !important; box-sizing: border-box; line-height: 1.5; text-align: left; max-height: 150px; overflow-y: auto; }
 
-            /* 요약 알리미 중앙 101px 스타일 연동 및 충돌 완전 격리형 토스트 CSS */
-            .crr-toast-wrap { position: fixed; top: calc(50% - 101px); left: 50%; transform: translate(-50%, -50%) scale(0.9); opacity: 0; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.2), opacity 0.15s ease; z-index: 2147483647 !important; pointer-events: none; display: flex; justify-content: center; align-items: center; }
+            /* 요약 알리미 중앙 104px 아래 스타일 연동 및 충돌 완전 격리형 토스트 CSS */
+            .crr-toast-wrap { position: fixed; top: calc(50% + 104px); left: 50%; transform: translate(-50%, -50%) scale(0.9); opacity: 0; transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.2), opacity 0.15s ease; z-index: 2147483647 !important; pointer-events: none; display: flex; justify-content: center; align-items: center; }
             .crr-toast-container { background-color: #23343A !important; border: 1.5px solid ${ACCENT_COLOR} !important; padding: 9px 14px !important; border-radius: 9999px !important; display: inline-flex !important; justify-content: center !important; align-items: center !important; box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important; box-sizing: border-box !important; }
             .crr-toast-text { color: #EFFCFF !important; text-align: center !important; font-size: 12px !important; font-weight: 400 !important; line-height: 100% !important; margin: 0 !important; padding: 0 !important; white-space: nowrap !important; user-select: none !important; }
 
@@ -1384,7 +1388,7 @@ If issues are found:
             #crr-progress-ring circle.track { fill: none; stroke: rgba(255,255,255,.15); stroke-width: 3; }
             #crr-progress-ring circle.fill { fill: none; stroke: #88b9c8; stroke-width: 3; stroke-linecap: round; transform: rotate(-90deg); transform-origin: center; transform-box: fill-box; transition: stroke-dashoffset linear; }
 
-            /* 리롤 옆 수동 단축버튼 스타일시트 (순정 UI 무채색 일치화 완료) */
+            /* 리롤 옆 수동 단축버튼 스타일시트 (미세 수직 정렬 어긋남 해결 완료) */
             .crr-card-shortcut-btn {
                 margin-right: 6px !important;
                 color: #737373 !important;
@@ -1394,12 +1398,10 @@ If issues are found:
                 display: inline-flex;
                 align-items: center;
                 justify-content: center;
-                font-size: 16px !important;
-                font-weight: normal !important;
-                padding: 0 !important;
-                width: auto !important;
-                height: auto !important;
+                width: 24px !important;
+                height: 24px !important;
                 transition: 0.2s;
+                align-self: center !important;
             }
             .crr-card-shortcut-btn:hover {
                 color: ${ACCENT_COLOR} !important;
