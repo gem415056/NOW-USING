@@ -1126,7 +1126,7 @@ If issues are found:
         };
     }
 
-    // 0.5초 롱프레스 게이지 작동용 링 드로잉 함수 (브라우저 표준 렌더링 준수 패치 완료)
+    // 0.5초 롱프레스 게이지 작동용 링 드로잉 함수 (스르륵 차오르는 렌더링 완전 복구)
     function showRefinerRing(btn) {
         const rect = btn.getBoundingClientRect();
         const size = Math.max(rect.width, rect.height) + 4;
@@ -1142,16 +1142,20 @@ If issues are found:
         trackCircle.setAttribute('cx', cx); trackCircle.setAttribute('cy', cy); trackCircle.setAttribute('r', r);
         fillCircle.setAttribute('cx', cx); fillCircle.setAttribute('cy', cy); fillCircle.setAttribute('r', r);
         
-        // 인라인 스타일 대신 표준 어트리뷰트 설정 적용
-        fillCircle.setAttribute('stroke-dasharray', circumference);
-        fillCircle.setAttribute('stroke-dashoffset', circumference);
+        // CSS 트랜지션을 작동시키기 위해 .style 객체로 스타일 설정 적용
+        fillCircle.style.strokeDasharray = circumference;
+        fillCircle.style.strokeDashoffset = circumference;
 
         ring.style.left = `${rect.left - 2}px`; ring.style.top  = `${rect.top - 2}px`;
+        
+        // 강제 리플로우(Reflow)를 발생시켜 브라우저가 "비어있는 최초 상태"를 확실히 인지하도록 속임
+        fillCircle.getBoundingClientRect();
+
         ring.classList.add('active');
 
         requestAnimationFrame(() => {
             fillCircle.style.transition = 'stroke-dashoffset 500ms linear';
-            fillCircle.setAttribute('stroke-dashoffset', '0');
+            fillCircle.style.strokeDashoffset = '0';
         });
     }
 
@@ -1161,8 +1165,8 @@ If issues are found:
             ring.classList.remove('active');
             const fillCircle = ring.querySelector('circle.fill');
             fillCircle.style.transition = 'none';
-            if (fillCircle.hasAttribute('stroke-dasharray')) {
-                fillCircle.setAttribute('stroke-dashoffset', fillCircle.getAttribute('stroke-dasharray'));
+            if (fillCircle.style.strokeDasharray) {
+                fillCircle.style.strokeDashoffset = fillCircle.style.strokeDasharray;
             }
         }
     }
