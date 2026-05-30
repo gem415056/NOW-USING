@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         크랙 AI 응답 교정기 (Response Refiner V2.2.6)
+// @name         크랙 AI 응답 교정기 (Response Refiner V2.2.7)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.2.6
+// @version      2.2.7
 // @description  팁탭 입력창에 과도하게 엔터가 입력되는 현상 수정
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -343,22 +343,18 @@ If issues are found:
 
     // 텍스트를 팁탭 규격에 맞게 안전한 HTML 구조로 변환하는 헬퍼 함수
     function plainTextToSafeHtml(text) {
-        // 1. 개행 표준화 및 기본 HTML 특수문자 이스케이프 (인용구 자동 변환 방지)
         let escaped = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
             .replace(/&/g, '&amp;')
             .replace(/</g, '&lt;')
             .replace(/>/g, '&gt;');
 
-        // 2. 더블 엔터(문단 구분) 기준으로 쪼갬
         const paragraphs = escaped.split(/\n{2,}/);
 
-        // 3. 각 문단 내부의 싱글 엔터는 <br>로 치환하고 각각 <p> 태그로 묶음
         const htmlParagraphs = paragraphs.map(p => {
             const withBreaks = p.replace(/\n/g, '<br>');
             return `<p>${withBreaks}</p>`;
         });
 
-        // 4. 합쳐서 완전한 HTML 반환
         return htmlParagraphs.join('');
     }
 
@@ -400,21 +396,51 @@ If issues are found:
                                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
                                 textarea.dispatchEvent(new Event('change', { bubbles: true }));
                             } else {
+                                // 어떤 경로로 실행되든 기존 본문을 100% 완전히 비워내는 하이브리드 삭제 엔진 정의
+                                const clearEditor = (el) => {
+                                    // [1단계] ProseMirror Native Clear (선택 영역 제어를 거치지 않는 코어 레벨 삭제)
+                                    try {
+                                        const view = el.pmView || el.closest('.ProseMirror')?.pmView;
+                                        if (view && view.state && view.dispatch) {
+                                            const state = view.state;
+                                            const tr = state.tr.delete(0, state.doc.content.size);
+                                            view.dispatch(tr);
+                                            return true;
+                                        }
+                                    } catch (err) {}
+                                    
+                                    // [2단계] Selection API 백업 (노드 정밀 지정 삭제)
+                                    try {
+                                        el.focus();
+                                        const range = document.createRange();
+                                        range.selectNodeContents(el);
+                                        const sel = window.getSelection();
+                                        sel.removeAllRanges();
+                                        sel.addRange(range);
+                                        document.execCommand('delete', false, null);
+                                        return true;
+                                    } catch (err) {}
+                                    
+                                    // [3단계] 최후의 보루 selectAll + delete 백업
+                                    try {
+                                        document.execCommand('selectAll', false, null);
+                                        document.execCommand('delete', false, null);
+                                        return true;
+                                    } catch (err) {}
+                                    
+                                    return false;
+                                };
+
                                 textarea.focus();
                                 
                                 try {
-                                    // 1. 에디터 내부 전체 영역 정밀 선택 및 완전 삭제 (교체 작동)
-                                    const range = document.createRange();
-                                    range.selectNodeContents(textarea);
-                                    const sel = window.getSelection();
-                                    sel.removeAllRanges();
-                                    sel.addRange(range);
-                                    document.execCommand('delete', false, null);
+                                    // 하이브리드 삭제 엔진 가동 (기존 본문 완전 초기화)
+                                    clearEditor(textarea);
                                     
-                                    // 2. 구조화된 HTML 생성 (HUD 다닥다닥 붙이기 + 인용구 벌어짐 우회)
+                                    // 구조화된 HTML 생성 (HUD 다닥다닥 붙이기 + 인용구 벌어짐 우회)
                                     const safeHtml = plainTextToSafeHtml(normalizedText);
                                     
-                                    // 3. 가상 paste 이벤트에 HTML 데이터 형식을 명시하여 주입
+                                    // 가상 paste 이벤트에 HTML 데이터 형식을 명시하여 주입
                                     const dataTransfer = new DataTransfer();
                                     dataTransfer.setData('text/plain', normalizedText);
                                     dataTransfer.setData('text/html', safeHtml);
@@ -426,7 +452,8 @@ If issues are found:
                                     });
                                     textarea.dispatchEvent(pasteEvent);
                                 } catch (e) {
-                                    // 예외 상황 발생 시 insertText 백업 작동
+                                    // 예외 상황 발생 시 백업 모드에서도 확실히 기존 내용을 비우고 실행 (추가 현상 원천 차단)
+                                    clearEditor(textarea);
                                     document.execCommand('insertText', false, normalizedText);
                                 }
                             }
