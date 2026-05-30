@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         크랙 AI 응답 교정기 (Response Refiner V2.2.8)
+// @name         크랙 AI 응답 교정기 (Response Refiner V2.2.9)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.2.8
+// @version      2.2.9
 // @description  팁탭 입력창에 과도하게 엔터가 입력되는 현상 수정
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -374,69 +374,58 @@ If issues are found:
 
             const start = Date.now();
             const findMenuTimer = setInterval(() => {
-                const item = Array.from(document.querySelectorAll('div[role="menuitem"]')).find(el => el.textContent.includes('수정'));
-                if (item) {
+                const textarea = container.querySelector('textarea, .ProseMirror, [contenteditable="true"]');
+                if (textarea) {
                     clearInterval(findMenuTimer);
-                    const props = getReactProps(item);
-                    if (props?.onSelect) props.onSelect();
-                    else firePointerClick(item);
                     
-                    setTimeout(() => style.remove(), 100);
+                    const normalizedText = correctedText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
                     
-                    const editorStart = Date.now();
-                    const findEditorTimer = setInterval(() => {
-                        const textarea = container.querySelector('textarea, .ProseMirror, [contenteditable="true"]');
-                        if (textarea) {
-                            clearInterval(findEditorTimer);
+                    if (textarea.tagName === 'TEXTAREA' || textarea.tagName === 'INPUT') {
+                        textarea.value = normalizedText;
+                        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                        textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                    } else {
+                        // 관점 전환: 에디터가 감지된 후 100ms 대기하여 
+                        // React와 ProseMirror의 초기 마운트 및 원본 글 삽입 사이클이 완전히 끝나길 기다립니다.
+                        setTimeout(() => {
+                            textarea.focus();
                             
-                            const normalizedText = correctedText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
-                            
-                            if (textarea.tagName === 'TEXTAREA' || textarea.tagName === 'INPUT') {
-                                textarea.value = normalizedText;
-                                textarea.dispatchEvent(new Event('input', { bubbles: true }));
-                                textarea.dispatchEvent(new Event('change', { bubbles: true }));
-                            } else {
-                                textarea.focus();
-                                
-                                // 1. [검증된 성공 공식] 전체 선택 및 삭제로 에디터를 깨끗이 비움
+                            try {
+                                // 에디터가 완전히 안정화된 상태이므로, 전체 선택 및 삭제가 안정적으로 작동해야 합니다.
                                 document.execCommand('selectAll', false, null);
                                 document.execCommand('delete', false, null);
                                 
-                                // 2. [검증된 성공 공식] HUD 벌어짐 우회 및 문단 정규화를 위한 HTML 구조화 변환
+                                // HUD 벌어짐 우회 및 문단 정규화를 위한 HTML 구조화 변환
                                 const safeHtml = plainTextToSafeHtml(normalizedText);
                                 
-                                // 3. 가상 paste 이벤트에 HTML 데이터 형식을 명시하여 주입 (중복 생성 방지)
-                                try {
-                                    const dataTransfer = new DataTransfer();
-                                    dataTransfer.setData('text/plain', normalizedText);
-                                    dataTransfer.setData('text/html', safeHtml);
-                                    
-                                    const pasteEvent = new ClipboardEvent('paste', {
-                                        bubbles: true,
-                                        cancelable: true,
-                                        clipboardData: dataTransfer
-                                    });
-                                    textarea.dispatchEvent(pasteEvent);
-                                } catch (e) {
-                                    // 예외 상황 발생 시에만 강제 insertText 작동
-                                    document.execCommand('insertText', false, normalizedText);
-                                }
+                                // 가상 paste 이벤트에 HTML 데이터 형식을 명시하여 주입
+                                const dataTransfer = new DataTransfer();
+                                dataTransfer.setData('text/plain', normalizedText);
+                                dataTransfer.setData('text/html', safeHtml);
+                                
+                                const pasteEvent = new ClipboardEvent('paste', {
+                                    bubbles: true,
+                                    cancelable: true,
+                                    clipboardData: dataTransfer
+                                });
+                                textarea.dispatchEvent(pasteEvent);
+                            } catch (e) {
+                                // 예외 상황 발생 시 백업 작동
+                                document.execCommand('insertText', false, normalizedText);
                             }
-                            
-                            setTimeout(() => {
-                                const saveBtn = Array.from(container.querySelectorAll('button')).find(btn => btn.textContent.includes('수정 완료'));
-                                if (saveBtn) {
-                                    saveBtn.click();
-                                    resolve(true);
-                                } else {
-                                    reject(new Error("수정 완료 버튼을 찾지 못했습니다."));
-                                }
-                            }, 100);
-                        } else if (Date.now() - editorStart > 3000) {
-                            clearInterval(findEditorTimer);
-                            reject(new Error("텍스트 입력 창 로딩 시간 초과"));
+                        }, 100); // 100ms 지연 시간 설정
+                    }
+                    
+                    setTimeout(() => {
+                        // 수정 완료 버튼 클릭 타이밍도 지연 시간에 맞춰 조정
+                        const saveBtn = Array.from(container.querySelectorAll('button')).find(btn => btn.textContent.includes('수정 완료'));
+                        if (saveBtn) {
+                            saveBtn.click();
+                            resolve(true);
+                        } else {
+                            reject(new Error("수정 완료 버튼을 찾지 못했습니다."));
                         }
-                    }, 50);
+                    }, 250); // 에디터 지연 입력 시간(100ms)을 고려하여 여유 있게 타이밍 확보
                 } else if (Date.now() - start > 1500) {
                     clearInterval(findMenuTimer);
                     style.remove();
