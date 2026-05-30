@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         크랙 AI 응답 교정기 (Response Refiner V2.2.5)
+// @name         크랙 AI 응답 교정기 (Response Refiner V2.2.6)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.2.5
+// @version      2.2.6
 // @description  팁탭 입력창에 과도하게 엔터가 입력되는 현상 수정
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -341,6 +341,27 @@ If issues are found:
         el.click();
     }
 
+    // 텍스트를 팁탭 규격에 맞게 안전한 HTML 구조로 변환하는 헬퍼 함수
+    function plainTextToSafeHtml(text) {
+        // 1. 개행 표준화 및 기본 HTML 특수문자 이스케이프 (인용구 자동 변환 방지)
+        let escaped = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n')
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
+
+        // 2. 더블 엔터(문단 구분) 기준으로 쪼갬
+        const paragraphs = escaped.split(/\n{2,}/);
+
+        // 3. 각 문단 내부의 싱글 엔터는 <br>로 치환하고 각각 <p> 태그로 묶음
+        const htmlParagraphs = paragraphs.map(p => {
+            const withBreaks = p.replace(/\n/g, '<br>');
+            return `<p>${withBreaks}</p>`;
+        });
+
+        // 4. 합쳐서 완전한 HTML 반환
+        return htmlParagraphs.join('');
+    }
+
     async function executeUiRefinement(container, correctedText) {
         return new Promise((resolve, reject) => {
             const trigger = container.querySelector('div[aria-haspopup="menu"]');
@@ -372,7 +393,6 @@ If issues are found:
                         if (textarea) {
                             clearInterval(findEditorTimer);
                             
-                            // 1. 개행 문자 규격 통일 (\r\n -> \n) : 엔터 중복 증식 원천 차단
                             const normalizedText = correctedText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
                             
                             if (textarea.tagName === 'TEXTAREA' || textarea.tagName === 'INPUT') {
@@ -380,33 +400,35 @@ If issues are found:
                                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
                                 textarea.dispatchEvent(new Event('change', { bubbles: true }));
                             } else {
-                                // 에디터에 확실히 포커스를 줍니다.
                                 textarea.focus();
                                 
                                 try {
-                                    // 2. 가상 셀렉션 영역을 노드 기준으로 정밀 지정 (교체 대상 영역 100% 확보)
+                                    // 1. 에디터 내부 전체 영역 정밀 선택 및 완전 삭제 (교체 작동)
                                     const range = document.createRange();
                                     range.selectNodeContents(textarea);
                                     const sel = window.getSelection();
                                     sel.removeAllRanges();
                                     sel.addRange(range);
-                                    
-                                    // 3. 선택된 기존 영역을 확실하게 삭제
                                     document.execCommand('delete', false, null);
                                     
-                                    // 4. 원시 텍스트 주입 (insertText 방식을 사용하여 TipTap의 인용구 블록 마크다운 변환 우회)
-                                    // 이로써 HUD 영역의 > 기호가 문단 분리 여백을 만들지 않고 촘촘하게 입력됩니다.
-                                    document.execCommand('insertText', false, normalizedText);
+                                    // 2. 구조화된 HTML 생성 (HUD 다닥다닥 붙이기 + 인용구 벌어짐 우회)
+                                    const safeHtml = plainTextToSafeHtml(normalizedText);
+                                    
+                                    // 3. 가상 paste 이벤트에 HTML 데이터 형식을 명시하여 주입
+                                    const dataTransfer = new DataTransfer();
+                                    dataTransfer.setData('text/plain', normalizedText);
+                                    dataTransfer.setData('text/html', safeHtml);
+                                    
+                                    const pasteEvent = new ClipboardEvent('paste', {
+                                        bubbles: true,
+                                        cancelable: true,
+                                        clipboardData: dataTransfer
+                                    });
+                                    textarea.dispatchEvent(pasteEvent);
                                 } catch (e) {
-                                    textarea.innerText = normalizedText;
+                                    // 예외 상황 발생 시 insertText 백업 작동
+                                    document.execCommand('insertText', false, normalizedText);
                                 }
-                                
-                                // 5. React 상태 동기화를 위한 이벤트 강제 트리거
-                                textarea.dispatchEvent(new InputEvent('input', { 
-                                    bubbles: true, 
-                                    inputType: 'insertText', 
-                                    data: normalizedText 
-                                }));
                             }
                             
                             setTimeout(() => {
