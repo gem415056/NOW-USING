@@ -111,7 +111,12 @@ If any word from [Forbidden Words] (or synonyms of possession/control/obsession/
         reunion: `### 14. REUNION VIOLATION
 - Characters who already know each other (per [Lore] or [Summaries]) must not behave as strangers (e.g., formal self-introductions, "Nice to meet you").`,
 
-        foreigner: `### 15. FOREIGN DIALOGUE FORMAT
+        syntax: `### 15. FORMATTING & SYNTAX CONSISTENCY
+- Compare the formatting syntax of [New Speech] against the established patterns in [Recent Context].
+- If [New Speech] fails to maintain the formatting rules established in previous turns (e.g., dropping asterisks \`*\` for actions/narration, omitting quotation marks for dialogue, or losing the HUD/status block layout), this is a structural error.
+- Correction: Format the text of [New Speech] to match the exact formatting rules and syntactic style demonstrated in [Recent Context].`,
+
+        foreigner: `### 16. FOREIGN DIALOGUE FORMAT
 - When a foreign character speaks their native tongue (e.g., English), use the format: "English (Korean translation)" (e.g., "Goodbye. (안녕)").
 - Exception: This rule does not apply if the foreign character is intentionally attempting to speak Korean.`
     };
@@ -137,6 +142,11 @@ Review [New Speech] against the active Correction Criteria below. If any violati
 {ACTIVE_RULES_BLOCK}
 
 ---
+
+## Formatting Preservation Rule
+- When providing replacements, you MUST strictly preserve the unique layout, syntax, and formatting style present in the original [New Speech].
+- This includes preserving HUD/status blocks, markdown markers (e.g., asterisks for actions, quotes for dialogue), line breaks, headers, and any custom formatting system currently in use.
+- The aesthetic structure of the text in the "to" field must seamlessly match the surrounding text of [New Speech].
 
 ## Output Format
 - "reason" MUST be written in Korean.
@@ -195,7 +205,7 @@ If issues are found:
         provider: 'google',
         apiKey: '',
         firebaseScript: '',
-        bannedWords: '소유/통제/지배/정복/주도권/집착/숭배/경배/짐승/맹수/사냥/포식자/먹잇감/게임/유리/장난감/전리품',
+        bannedWords: '소유/통제/지배/독점/정복/주도권/집착/숭배/경배/짐승/맹수/사냥/포식자/먹잇감/게임/유리/장난감/전리품',
         rules: {
             factual: false,
             presence: false,
@@ -211,7 +221,8 @@ If issues are found:
             measurement: false,
             cliche: false,
             banned: false,
-            nsfw: false
+            nsfw: false,
+            syntax: false
         }
     };
 
@@ -483,7 +494,7 @@ If issues are found:
         const keysInOrder = [
             'banned', 'impersonation', 'overfitting', 'measurement', 'parroting',
             'cliche', 'state', 'nsfw', 'unrealistic', 'factual',
-            'promise', 'nickname', 'presence', 'reunion', 'foreigner'
+            'promise', 'nickname', 'presence', 'reunion', 'syntax', 'foreigner'
         ];
         
         keysInOrder.forEach(k => {
@@ -877,9 +888,16 @@ If issues are found:
                                 </div>
                                 <input type="checkbox" data-rule="reunion" class="crr-checkbox">
                             </div>
+                            <div class="crr-rule-card" data-target-rule="syntax">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">15. 서식 및 기호 스타일 검수</span>
+                                    <span class="crr-card-desc">이전 턴에서 구축된 지문(*), 대사 따옴표, 가상 상태창 레이아웃 유실 정정</span>
+                                </div>
+                                <input type="checkbox" data-rule="syntax" class="crr-checkbox">
+                            </div>
                             <div class="crr-rule-card" data-target-rule="foreigner">
                                 <div class="crr-card-left">
-                                    <span class="crr-card-title">15. 외국인 대사 포맷</span>
+                                    <span class="crr-card-title">16. 외국인 대사 포맷</span>
                                     <span class="crr-card-desc">이방인 캐릭터 대화 시 반드시 "영어 (한국어 의역)" 형태로 일치화</span>
                                 </div>
                                 <input type="checkbox" data-rule="foreigner" class="crr-checkbox">
@@ -1095,7 +1113,6 @@ If issues are found:
             const chatId = getChatRoomId();
             if (!chatId) return showToast("❌ 대화방을 찾을 수 없습니다.", "info");
 
-            showToast("🫧 수동 검수 강제 호출 중...", "info", 1500);
             try {
                 const token = document.cookie.match(/(^| )access_token=([^;]+)/)?.[2];
                 if (!token) return;
