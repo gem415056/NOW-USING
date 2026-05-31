@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.8-6
+// @version     2.0.8-7
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -1489,12 +1489,13 @@ const DECENTRAL_CSS_VALUES = `
       display: none !important;
     }
 
-    .decentral-modal-title-container {
+    /* 1. 최상단 수동 주입 타이틀 바 스타일만 정밀 매핑 */
+    .decentral-modal-title-container.top-static-title {
       display: flex !important;
       align-items: center !important;
       justify-content: space-between !important;
-      padding: 0px !important; /* 전역 패딩 28px 영역 내부에 위치하므로 중복 패딩 완전 제거 */
-      margin-bottom: 16px !important; /* 교정기 헤더 수직 여백 16px 완전 동기화 */
+      padding: 0px !important; /* 최상단 패딩 28px 내부이므로 제거 */
+      margin-bottom: 16px !important; /* 응답교정기와 동일한 16px 수직 여백 확보 */
       border-bottom: none !important;
       flex-shrink: 0;
       width: 100% !important;
@@ -1502,9 +1503,16 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     .decental-modal-title-text {
-      font-weight: bold;
-      font-size: 17px !important; /* 교정기 헤더 타이틀 크기 동기화 */
+      margin: 0 !important;
+      font-weight: 700 !important;
+      font-size: 17px !important; /* 교정기 🎀 로어 인젝터 타이틀 폰트 크기 동기화 */
       color: var(--decentral-text) !important;
+      line-height: 1.2 !important;
+    }
+
+    /* 2. ContentPanel 내부에 원치 않게 생성되는 중복 타이틀 전역 완벽 삭제 */
+    .decentral-modal-title-container:not(.top-static-title) {
+        display: none !important;
     }
     
     .decentral-modal-button-container {
