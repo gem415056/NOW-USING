@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.5-3
+// @version     2.0.6-1
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -15373,44 +15373,55 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         }
         return opts
     }
+    _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
     _w.__LoreInj.registerSubMenu("extract", function(modal) {
-        modal.createSubMenu("추출/변환 설정", m => {
+        modal.createSubMenu("추출/변환", m => {
             m.replaceContentPanel(panel => {
-                panel.addBoxedField("", "", {
+                
+                // ==========================================
+                // 1. 자동 대화 정리 카드 (addLongBox 개편 및 정밀 테마 이식)
+                // ==========================================
+                panel.addLongBox(true, {
                     onInit: nd => {
-                        C.setFullWidth(nd);
-                        nd.appendChild(C.createToggleRow("자동 대화 정리", "정해진 턴마다 대화를 로어에 추가함.", settings.config.autoExtEnabled, v => {
+                        nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
+                        
+                        nd.appendChild(C.createToggleRow("자동 대화 정리", "정해진 턴마다 대화를 로어에 추가합니다.", settings.config.autoExtEnabled, v => {
                             settings.config.autoExtEnabled = v;
                             settings.save()
                         }));
-                        nd.appendChild(C.createToggleRow("기존 로어 참고", "저장된 로어를 같이 참고해 중복 저장 줄임.", settings.config.autoExtIncludeDb, v => {
+                        nd.appendChild(C.createToggleRow("기존 로어 참고", "저장된 로어를 함께 분석하여 요약 중복을 최소화합니다.", settings.config.autoExtIncludeDb, v => {
                             settings.config.autoExtIncludeDb = v;
                             settings.save()
                         }));
-                        nd.appendChild(C.createToggleRow("변경분만 저장", "기존 로어 전체 대신 바뀐 부분만 받아 출력 토큰 줄임.", settings.config.autoExtPatchMode !== false, v => {
+                        nd.appendChild(C.createToggleRow("변경분만 저장", "바뀐 데이터만 수급해 출력 토큰을 대폭 절약합니다.", settings.config.autoExtPatchMode !== false, v => {
                             settings.config.autoExtPatchMode = v;
                             settings.save()
                         }));
-                        nd.appendChild(C.createToggleRow("페르소나 정보 전송", "추출 시 페르소나 이름을 같이 보내 정확도 올림.", settings.config.autoExtIncludePersona, v => {
+                        nd.appendChild(C.createToggleRow("페르소나 정보 전송", "추출 시 유저 캐릭터명을 동봉해 주입 정확도를 향상합니다.", settings.config.autoExtIncludePersona, v => {
                             settings.config.autoExtIncludePersona = v;
                             settings.save()
                         }));
-                        nd.appendChild(C.createToggleRow("중요 장면 기억하기", "중요 사건/약속을 나중에 떠올릴 수 있게 별도 정리함.", settings.config.temporalExtractEnabled !== false, v => {
+                        nd.appendChild(C.createToggleRow("중요 장면 기억하기", "서사상 가치가 높은 사건/약속을 시간축 설정으로 별도 보존합니다.", settings.config.temporalExtractEnabled !== false, v => {
                             settings.config.temporalExtractEnabled = v;
                             settings.save()
                         }));
+                        
                         const row1 = document.createElement("div");
-                        row1.style.cssText = "display:flex;gap:12px;margin-bottom:8px;align-items:center;";
+                        row1.style.cssText = "display:flex;gap:12px;margin-bottom:8px;align-items:center;width:100%;box-sizing:border-box;";
+                        
+                        // 숫자 인풋 조작기 (라벨: #2c3e50 진회색 / 입력창: 배경 흰색, 테두리 회색, 둥글게 8px)
                         const makeInput = (label, key, defaultVal) => {
                             const f = document.createElement("div");
                             f.style.flex = "1";
+                            f.style.display = "flex";
+                            f.style.flexDirection = "column";
                             const l = document.createElement("div");
                             l.textContent = label;
-                            l.style.cssText = "font-size:12px;color:#888;margin-bottom:4px;";
+                            l.style.cssText = "font-size:11px;color:#2c3e50;margin-bottom:4px;text-align:left;font-weight:bold;";
                             const i = document.createElement("input");
                             i.type = "number";
                             i.value = settings.config[key] !== undefined ? settings.config[key] : defaultVal;
-                            i.style.cssText = "width:100%;padding:6px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:12px;box-sizing:border-box;";
+                            i.style.cssText = "width:100%;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;height:32px;";
                             const saveNum = () => {
                                 const v = parseInt(i.value);
                                 if (!isNaN(v)) {
@@ -15426,40 +15437,26 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         };
                         row1.appendChild(makeInput("자동 정리 주기", "autoExtTurns", 8));
                         row1.appendChild(makeInput("읽을 최근 대화", "autoExtScanRange", 6));
-                        row1.appendChild(makeInput("최근 제외", "autoExtOffset", 5));
-                        row1.appendChild(makeInput("중요 장면 최대", "temporalMaxEventsPerPass", 5));
+                        row1.appendChild(makeInput("최근 제외 턴", "autoExtOffset", 5));
+                        row1.appendChild(makeInput("중요 장면 한계", "temporalMaxEventsPerPass", 5));
                         nd.appendChild(row1);
-                        const injTitle = document.createElement("div");
-                        injTitle.textContent = "삽입 옵션";
-                        injTitle.style.cssText = "font-size:13px;color:#ccc;font-weight:bold;margin:12px 0 6px;padding-top:10px;border-top:1px solid #333;";
-                        nd.appendChild(injTitle);
-                        nd.appendChild(C.createToggleRow("삽입 쿨타임 사용", "같은 로어가 너무 자주 들어가지 않게 막음.", settings.config.cooldownEnabled !== false, v => {
-                            settings.config.cooldownEnabled = v;
-                            settings.save()
-                        }));
-                        nd.appendChild(C.createToggleRow("오래된 정보도 가끔 넣기", "직접 관련이 약해도 중요한 과거 정보를 주기적으로 넣음.", settings.config.periodicRecallEnabled !== false, v => {
-                            settings.config.periodicRecallEnabled = v;
-                            settings.config.decayEnabled = v;
-                            settings.save()
-                        }));
-                        const injRow = document.createElement("div");
-                        injRow.style.cssText = "display:flex;gap:12px;margin:8px 0 12px;align-items:center;";
-                        injRow.appendChild(makeInput("삽입 쿨타임(턴)", "cooldownTurns", 3));
-                        injRow.appendChild(makeInput("한 번에 넣을 로어", "maxEntries", 3));
-                        nd.appendChild(injRow);
+                        
                         const row2 = document.createElement("div");
-                        row2.style.cssText = "display:flex;gap:12px;margin-bottom:12px;align-items:center;";
+                        row2.style.cssText = "display:flex;gap:12px;margin-bottom:12px;align-items:center;width:100%;box-sizing:border-box;";
                         const f3 = document.createElement("div");
                         f3.style.flex = "1";
+                        f3.style.display = "flex";
+                        f3.style.flexDirection = "column";
                         const l3 = document.createElement("div");
                         l3.textContent = "저장할 로어팩";
-                        l3.style.cssText = "font-size:12px;color:#888;margin-bottom:4px;";
+                        l3.style.cssText = "font-size:12px;color:#2c3e50;margin-bottom:4px;text-align:left;font-weight:bold;";
                         const inputWrap = document.createElement("div");
-                        inputWrap.style.cssText = "display:flex;gap:6px;";
+                        inputWrap.style.cssText = "display:flex;gap:6px;width:100%;box-sizing:border-box;";
+                        
                         const i3 = document.createElement("input");
                         i3.type = "text";
                         getAutoExtPackForUrl(C.getCurUrl()).then(name => i3.value = name);
-                        i3.style.cssText = "flex:1;padding:6px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:12px;box-sizing:border-box;";
+                        i3.style.cssText = "flex:1;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;height:32px;";
                         const savePackName = () => {
                             const val = i3.value || "자동추출";
                             settings.config.autoExtPack = val;
@@ -15467,8 +15464,9 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         };
                         i3.oninput = savePackName;
                         i3.onchange = savePackName;
+                        
                         const s3 = document.createElement("select");
-                        s3.style.cssText = "width:100px;padding:6px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:12px;";
+                        s3.style.cssText = "width:100px;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;height:32px;box-sizing:border-box;";
                         db.packs.toArray().then(packs => {
                             const opt = document.createElement("option");
                             opt.value = "";
@@ -15495,11 +15493,13 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         f3.appendChild(inputWrap);
                         row2.appendChild(f3);
                         nd.appendChild(row2);
+                        
+                        // 수동 추출 실행 버튼 (큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #334a52 적용)
                         const btnRun = document.createElement("button");
                         btnRun.textContent = "수동 추출 실행";
-                        btnRun.style.cssText = "padding:8px 16px;font-size:12px;border-radius:4px;cursor:pointer;background:#285;color:#fff;border:none;font-weight:bold;width:100%;margin-top:10px;";
+                        btnRun.style.cssText = "padding:8px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;width:100%;margin-top:10px;height:36px;box-sizing:border-box;border-width:1px;";
                         const btnStatus = document.createElement("div");
-                        btnStatus.style.cssText = "font-size:11px;color:#888;margin-top:6px;text-align:center;line-height:1.4;";
+                        btnStatus.style.cssText = "font-size:11px;color:#555555;margin-top:6px;text-align:center;line-height:1.4;";
                         btnStatus.textContent = "";
                         btnRun.onclick = async () => {
                             if (!confirm("수동 추출 시작?")) return;
@@ -15509,7 +15509,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             const startMs = Date.now();
                             btnRun.textContent = "에리가 추출 중...";
                             btnStatus.textContent = "에리가 대화 분석 중";
-                            btnStatus.style.color = "#4a9";
+                            btnStatus.style.color = "#88b9c8";
                             const tick = setInterval(() => {
                                 const sec = Math.floor((Date.now() - startMs) / 1e3);
                                 btnStatus.textContent = `에리가 대화 분석 중 (${sec}초)`
@@ -15519,14 +15519,12 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 clearInterval(tick);
                                 const sec = Math.floor((Date.now() - startMs) / 1e3);
                                 btnStatus.textContent = `에리: 완료 (${sec}초)`;
-                                btnStatus.style.color = "#4a9";
-                                setTimeout(() => {
-                                    btnStatus.textContent = ""
-                                }, 4e3)
+                                btnStatus.style.color = "#88b9c8";
+                                setTimeout(() => { btnStatus.textContent = "" }, 4000)
                             } catch (e) {
                                 clearInterval(tick);
                                 btnStatus.textContent = "에리: 실패 — " + (e.message || e).slice(0, 50);
-                                btnStatus.style.color = "#d66"
+                                btnStatus.style.color = "#da8"
                             } finally {
                                 btnRun.textContent = origText;
                                 btnRun.disabled = false
@@ -15536,35 +15534,41 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.appendChild(btnStatus)
                     }
                 });
-                panel.addBoxedField("", "", {
+
+                // ==========================================
+                // 2. 과거 장면 불러오기 판단 카드 (addLongBox 개편 및 소제목 적용)
+                // ==========================================
+                panel.addLongBox(true, {
                     onInit: nd => {
-                        C.setFullWidth(nd);
+                        nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
                         const jt = document.createElement("div");
                         jt.textContent = "과거 장면 불러오기 판단";
-                        jt.style.cssText = "font-size:14px;color:#4a9;font-weight:bold;margin-bottom:6px;";
+                        jt.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:6px;text-align:left;width:100%;";
                         nd.appendChild(jt);
                         const jd = document.createElement("div");
-                        jd.textContent = "사용 여부와 호출 범위만 여기서 조절함. 모델/생각 깊이는 API 설정에서 관리함.";
-                        jd.style.cssText = "font-size:11px;color:#888;margin-bottom:10px;line-height:1.4;";
+                        jd.textContent = "사용 여부와 호출 범위만 여기서 조절하며, 모델과 생각 깊이는 API 설정에서 관리합니다.";
+                        jd.style.cssText = "font-size:11px;color:#555555;margin-bottom:10px;line-height:1.4;text-align:left;width:100%;";
                         nd.appendChild(jd);
-                        nd.appendChild(C.createToggleRow("AI로 참고 장면 고르기", "규칙 판단 뒤 AI가 필요한 과거 장면 한 번 더 고름.", settings.config.temporalRecallJudgeEnabled, v => {
+                        nd.appendChild(C.createToggleRow("AI로 참고 장면 고르기", "규칙 판단 뒤 AI가 필요한 과거 장면을 한 번 더 고릅니다.", settings.config.temporalRecallJudgeEnabled, v => {
                             settings.config.temporalRecallJudgeEnabled = v;
                             settings.save()
                         }));
                         const jrow = document.createElement("div");
-                        jrow.style.cssText = "display:flex;gap:12px;margin-top:10px;";
+                        jrow.style.cssText = "display:flex;gap:12px;margin-top:10px;width:100%;box-sizing:border-box;";
                         const jmkNum = (label, key, defaultVal, min, max) => {
                             const f = document.createElement("div");
                             f.style.flex = "1";
+                            f.style.display = "flex";
+                            f.style.flexDirection = "column";
                             const l = document.createElement("div");
                             l.textContent = label;
-                            l.style.cssText = "font-size:11px;color:#999;margin-bottom:4px;";
+                            l.style.cssText = "font-size:11px;color:#2c3e50;margin-bottom:4px;text-align:left;font-weight:bold;";
                             const i = document.createElement("input");
                             i.type = "number";
                             i.value = settings.config[key] !== undefined ? settings.config[key] : defaultVal;
                             if (min !== undefined) i.min = min;
                             if (max !== undefined) i.max = max;
-                            i.style.cssText = "width:100%;padding:6px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:12px;box-sizing:border-box;";
+                            i.style.cssText = "width:100%;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;height:32px;";
                             const save = () => {
                                 const v = parseInt(i.value);
                                 if (!isNaN(v)) {
@@ -15583,30 +15587,36 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.appendChild(jrow)
                     }
                 });
-                panel.addBoxedField("", "", {
+
+                // ==========================================
+                // 3. 전체 로그 일괄 추출 카드 (addLongBox 개편 및 소제목 적용)
+                // ==========================================
+                panel.addLongBox(true, {
                     onInit: nd => {
-                        C.setFullWidth(nd);
+                        nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
                         const bTitle = document.createElement("div");
                         bTitle.textContent = "전체 로그 일괄 추출";
-                        bTitle.style.cssText = "font-size:14px;color:#4a9;font-weight:bold;margin-bottom:8px;";
+                        bTitle.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:8px;text-align:left;width:100%;";
                         nd.appendChild(bTitle);
                         const bDesc = document.createElement("div");
-                        bDesc.textContent = "긴 대화를 배치로 나눠 정리함. API 비용 큼. 초기 정리용.";
-                        bDesc.style.cssText = "font-size:11px;color:#888;margin-bottom:10px;line-height:1.4;";
+                        bDesc.textContent = "이미 쌓인 대화 내용을 청크 단위로 나누어 지식으로 정밀 가공합니다. API 비용이 큽니다.";
+                        bDesc.style.cssText = "font-size:11px;color:#555555;margin-bottom:10px;line-height:1.4;text-align:left;width:100%;";
                         nd.appendChild(bDesc);
                         const bRow = document.createElement("div");
-                        bRow.style.cssText = "display:flex;gap:12px;margin-bottom:8px;align-items:center;";
+                        bRow.style.cssText = "display:flex;gap:12px;margin-bottom:8px;align-items:center;width:100%;box-sizing:border-box;";
                         const mkNum = (label, getter, setter, defaultVal) => {
                             const f = document.createElement("div");
                             f.style.flex = "1";
+                            f.style.display = "flex";
+                            f.style.flexDirection = "column";
                             const l = document.createElement("div");
                             l.textContent = label;
-                            l.style.cssText = "font-size:12px;color:#888;margin-bottom:4px;";
+                            l.style.cssText = "font-size:11px;color:#2c3e50;margin-bottom:4px;text-align:left;font-weight:bold;";
                             const i = document.createElement("input");
                             i.type = "number";
                             const cur = getter();
                             i.value = cur !== undefined && cur !== null ? cur : defaultVal;
-                            i.style.cssText = "width:100%;padding:6px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:12px;box-sizing:border-box;";
+                            i.style.cssText = "width:100%;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;height:32px;";
                             const save = () => {
                                 const v = parseInt(i.value);
                                 if (!isNaN(v)) {
@@ -15622,21 +15632,23 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         };
                         bRow.appendChild(mkNum("배치 크기(턴)", () => settings.config.batchExtTurnsPerBatch, v => settings.config.batchExtTurnsPerBatch = v, 50));
                         bRow.appendChild(mkNum("오버랩(턴)", () => settings.config.batchExtOverlap, v => settings.config.batchExtOverlap = v, 5));
-                        bRow.appendChild(mkNum("재시도", () => settings.config.batchExtMaxAttempts, v => settings.config.batchExtMaxAttempts = v, 3));
+                        bRow.appendChild(mkNum("재시도 한계", () => settings.config.batchExtMaxAttempts, v => settings.config.batchExtMaxAttempts = v, 3));
                         nd.appendChild(bRow);
+                        
+                        // 전체 일괄 추출 실행 버튼 (큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #334a52 적용)
                         const bBtn = document.createElement("button");
                         bBtn.textContent = "전체 일괄 추출 실행";
-                        bBtn.style.cssText = "padding:8px 16px;font-size:12px;border-radius:4px;cursor:pointer;background:#258;color:#fff;border:none;font-weight:bold;width:100%;margin-top:6px;";
+                        bBtn.style.cssText = "padding:8px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;width:100%;margin-top:6px;height:36px;box-sizing:border-box;border-width:1px;";
                         const bStatus = document.createElement("div");
-                        bStatus.style.cssText = "font-size:11px;color:#888;margin-top:6px;text-align:center;line-height:1.5;";
+                        bStatus.style.cssText = "font-size:11px;color:#555555;margin-top:6px;text-align:center;line-height:1.5;width:100%;";
                         bBtn.onclick = async () => {
-                            if (!confirm("전체 로그를 배치로 분석함. API 비용 큼. 계속?")) return;
+                            if (!confirm("전체 로그를 배치로 분석합니다. 계속하시겠습니까?")) return;
                             settings.save();
                             bBtn.disabled = true;
                             const orig = bBtn.textContent;
                             bBtn.textContent = "실행 중...";
                             bStatus.textContent = "전체 로그 가져오는 중";
-                            bStatus.style.color = "#4a9";
+                            bStatus.style.color = "#88b9c8";
                             const start = Date.now();
                             try {
                                 const report = await _w.__LoreInj.runBatchExtract({
@@ -15651,10 +15663,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 const sec = Math.floor((Date.now() - start) / 1e3);
                                 let msg = "완료 (" + sec + "초) — " + report.totalBatches + "개 배치 / 성공 " + report.ok + " / 빈 " + report.empty + " / 실패 " + report.failed + " / 병합 " + report.entriesAdded + "건";
                                 if (report.failed > 0) {
-                                    msg += " ⚠️ 실패 상세는 로그 탭";
+                                    msg += " ⚠️ 실패 내역 로그 확인";
                                     bStatus.style.color = "#da8"
                                 } else {
-                                    bStatus.style.color = "#4a9"
+                                    bStatus.style.color = "#88b9c8"
                                 }
                                 bStatus.textContent = msg
                             } catch (e) {
@@ -15669,42 +15681,53 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.appendChild(bStatus)
                     }
                 });
-                panel.addBoxedField("", "", {
+
+                // ==========================================
+                // 4. 지식 변환 카드 (addLongBox 개편 및 소제목 적용)
+                // ==========================================
+                panel.addLongBox(true, {
                     onInit: nd => {
-                        C.setFullWidth(nd);
-                        const S = "width:100%;padding:6px 8px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:12px;box-sizing:border-box;margin-bottom:8px;";
-                        nd.innerHTML = '<div style="font-size:14px;color:#4a9;font-weight:bold;margin-bottom:8px;">지식 변환 (URL/텍스트 → 로어)</div>';
+                        nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
+                        
+                        const S = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;margin-bottom:8px;height:32px;";
+                        const t2_title = document.createElement("div");
+                        t2_title.textContent = "지식 변환 (URL/텍스트 → 로어)";
+                        t2_title.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:8px;text-align:left;width:100%;";
+                        nd.appendChild(t2_title);
+                        
                         const urlInp = document.createElement("input");
                         urlInp.type = "text";
-                        urlInp.placeholder = "URL 입력";
+                        urlInp.placeholder = "변환할 외부 웹페이지 URL 입력";
                         urlInp.style.cssText = S;
                         nd.appendChild(urlInp);
+                        
                         const nameInp = document.createElement("input");
                         nameInp.type = "text";
-                        nameInp.placeholder = "팩 이름";
+                        nameInp.placeholder = "변환 결과가 귀속될 팩 이름 지정";
                         nameInp.style.cssText = S;
                         nd.appendChild(nameInp);
+                        
                         const rDiv = document.createElement("div");
-                        rDiv.style.cssText = "font-size:12px;color:#888;margin-top:8px;";
+                        rDiv.style.cssText = "font-size:12px;color:#555555;margin-top:4px;text-align:left;width:100%;";
+                        
+                        // URL 변환 버튼 (큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #334a52 적용)
                         const urlBtn = document.createElement("button");
-                        urlBtn.textContent = "URL 변환";
-                        urlBtn.style.cssText = "padding:8px 16px;font-size:12px;border-radius:4px;cursor:pointer;background:#285;color:#fff;border:none;font-weight:bold;";
+                        urlBtn.textContent = "URL 지식 변환 실행";
+                        urlBtn.style.cssText = "padding:8px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;";
                         urlBtn.onclick = async () => {
                             if (!urlInp.value.trim() || !nameInp.value.trim()) {
-                                alert("URL과 팩이름 필요.");
+                                alert("URL과 팩 이름 정보가 모두 필요합니다.");
                                 return
                             }
                             urlBtn.disabled = true;
                             urlBtn.textContent = "변환중...";
                             const startMs = Date.now();
-                            let phaseMsg = "에리가 URL 본문 가져오는 중";
-                            const setBusy = (msg, color = "#4a9") => {
+                            let phaseMsg = "에리가 URL 본문 수급 중";
+                            const setBusy = (msg, color = "#88b9c8") => {
                                 phaseMsg = msg;
                                 rDiv.textContent = msg;
                                 rDiv.style.color = color;
-                                try {
-                                    C.showStatusBadge(msg)
-                                } catch (_) {}
+                                try { C.showStatusBadge(msg) } catch (_) {}
                             };
                             const tick = setInterval(() => {
                                 const sec = Math.floor((Date.now() - startMs) / 1e3);
@@ -15719,95 +15742,81 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     onProgress: ev => {
                                         if (!ev) return;
                                         switch (ev.phase) {
-                                            case "fetch:start":
-                                                setBusy("에리가 URL 본문 가져오는 중");
-                                                break;
+                                            case "fetch:start": setBusy("에리가 URL 본문 가져오는 중"); break;
                                             case "fetch:try": {
-                                                const methodLabel = {
-                                                    "gm-direct": "GM 직접 요청",
-                                                    fetch: "브라우저 fetch",
-                                                    proxy: "공용 프록시"
-                                                } [ev.method] || ev.method;
+                                                const methodLabel = { "gm-direct": "GM 직접 요청", fetch: "브라우저 fetch", proxy: "공용 프록시" }[ev.method] || ev.method;
                                                 const suffix = ev.method === "proxy" ? ` #${ev.attempt}/${ev.total}` : "";
                                                 const sec = Math.max(1, Math.floor((ev.timeoutMs || 15e3) / 1e3));
                                                 setBusy(`에리가 URL 가져오는 중 · ${methodLabel}${suffix} (최대 ${sec}초)`);
                                                 break
                                             }
-                                            case "fetch:done":
-                                                setBusy(`에리가 URL 본문 받음 · ${((ev.bytes||0)/1024).toFixed(1)}KB`);
-                                                break;
-                                            case "parse":
-                                                setBusy("에리가 HTML 정리 중");
-                                                break;
-                                            case "fetch:fail":
-                                                setBusy("URL 가져오기 실패 — 모든 경로 컷", "#d66");
-                                                break;
-                                            case "chunk":
-                                                setBusy(`에리가 URL 내용을 로어로 변환 중: 청크 ${ev.chunk}/${ev.total} · 시도 ${ev.attempt}/${ev.maxAttempts}`);
-                                                break
+                                            case "fetch:done": setBusy(`에리가 URL 본문 수령 · ${((ev.bytes||0)/1024).toFixed(1)}KB`); break;
+                                            case "parse": setBusy("에리가 HTML 정리 중"); break;
+                                            case "fetch:fail": setBusy("가져오기 실패 — 경로 한계", "#da8"); break;
+                                            case "chunk": setBusy(`에리가 로어 변환 분석 중: 청크 ${ev.chunk}/${ev.total} · 시도 ${ev.attempt}/${ev.maxAttempts}`); break;
                                         }
                                     }
                                 });
                                 const rpt = C.__lastImportReport;
-                                let msg = "✅ " + cnt + "개 생성";
+                                let msg = "✅ " + cnt + "개 지식 이관 완료";
                                 if (rpt) {
                                     if (rpt.failed > 0) {
                                         const firstErr = (rpt.chunkResults.find(r => r.status === "failed") || {}).error || "";
-                                        msg += " ⚠️ 청크 " + rpt.failed + "/" + rpt.chunks + " 실패: " + firstErr.slice(0, 80)
-                                    } else if (cnt === 0 && rpt.empty === rpt.chunks) {
-                                        msg = "⚠️ 0개 — 모든 청크(" + rpt.chunks + "개)에서 AI가 추출 가능한 내용 없다고 판단"
+                                        msg += " ⚠️ 일부 팩 오류: " + firstErr.slice(0, 50)
                                     }
                                 }
                                 rDiv.textContent = msg;
-                                rDiv.style.color = cnt > 0 ? "#4a9" : "#da8";
+                                rDiv.style.color = cnt > 0 ? "#88b9c8" : "#da8";
                                 if (cnt > 0) await setPackEnabled(nameInp.value.trim(), true)
                             } catch (e) {
                                 rDiv.textContent = "❌ " + (e.message || String(e));
-                                rDiv.style.color = "#d66"
+                                rDiv.style.color = "#da8"
                             } finally {
                                 clearInterval(tick);
-                                try {
-                                    C.hideStatusBadge()
-                                } catch (_) {}
+                                try { C.hideStatusBadge() } catch (_) {}
                                 urlBtn.textContent = "URL 변환";
                                 urlBtn.disabled = false
                             }
                         };
                         nd.appendChild(urlBtn);
                         nd.appendChild(rDiv);
+                        
                         const t2 = document.createElement("div");
-                        t2.innerHTML = '<div style="font-size:13px;color:#ccc;font-weight:bold;margin-top:16px;margin-bottom:8px;">텍스트 → 로어 팩</div>';
+                        t2.innerHTML = '<div style="font-size:13px;color:#2c3e50;font-weight:bold;margin-top:16px;margin-bottom:8px;text-align:left;width:100%;">직접 서술 텍스트 기입</div>';
                         nd.appendChild(t2);
+                        
                         const ta = document.createElement("textarea");
-                        ta.placeholder = "설정, 소설 텍스트 등";
+                        ta.placeholder = "변환할 세계관 설정 및 소설 텍스트 등을 기입하십시오.";
                         ta.style.cssText = S + "height:100px;resize:vertical;";
                         nd.appendChild(ta);
+                        
                         const nameInp2 = document.createElement("input");
                         nameInp2.type = "text";
-                        nameInp2.placeholder = "팩 이름";
+                        nameInp2.placeholder = "변환 결과가 귀속될 팩 이름 지정";
                         nameInp2.style.cssText = S;
                         nd.appendChild(nameInp2);
+                        
                         const rDiv2 = document.createElement("div");
-                        rDiv2.style.cssText = "font-size:12px;color:#888;margin-top:8px;";
+                        rDiv2.style.cssText = "font-size:12px;color:#555555;margin-top:4px;text-align:left;width:100%;";
+                        
+                        // 텍스트 변환 버튼 (큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #334a52 적용)
                         const tBtn = document.createElement("button");
-                        tBtn.textContent = "텍스트 변환";
-                        tBtn.style.cssText = "padding:8px 16px;font-size:12px;border-radius:4px;cursor:pointer;background:#285;color:#fff;border:none;font-weight:bold;";
+                        tBtn.textContent = "텍스트 지식 변환 실행";
+                        tBtn.style.cssText = "padding:8px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;";
                         tBtn.onclick = async () => {
                             if (!ta.value.trim() || !nameInp2.value.trim()) {
-                                alert("입력값 필요.");
+                                alert("설정 텍스트와 파일 명칭이 모두 필요합니다.");
                                 return
                             }
                             tBtn.disabled = true;
                             tBtn.textContent = "변환중...";
                             const startMs = Date.now();
-                            let phaseMsg = "에리가 텍스트를 로어로 변환 중";
-                            const setBusy = (msg, color = "#4a9") => {
+                            let phaseMsg = "에리가 텍스트 분석 변환 중";
+                            const setBusy = (msg, color = "#88b9c8") => {
                                 phaseMsg = msg;
                                 rDiv2.textContent = msg;
                                 rDiv2.style.color = color;
-                                try {
-                                    C.showStatusBadge(msg)
-                                } catch (_) {}
+                                try { C.showStatusBadge(msg) } catch (_) {}
                             };
                             const tick = setInterval(() => {
                                 const sec = Math.floor((Date.now() - startMs) / 1e3);
@@ -15821,31 +15830,27 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 }), {
                                     onProgress: ev => {
                                         if (ev && ev.phase === "chunk") {
-                                            setBusy(`에리가 텍스트를 로어로 변환 중: 청크 ${ev.chunk}/${ev.total} · 시도 ${ev.attempt}/${ev.maxAttempts}`)
+                                            setBusy(`에리가 텍스트 분석 변환 중: 청크 ${ev.chunk}/${ev.total}`)
                                         }
                                     }
                                 });
                                 const rpt = C.__lastImportReport;
-                                let msg = "✅ " + cnt + "개 생성";
+                                let msg = "✅ " + cnt + "개 지식 추출 완료";
                                 if (rpt) {
                                     if (rpt.failed > 0) {
                                         const firstErr = (rpt.chunkResults.find(r => r.status === "failed") || {}).error || "";
-                                        msg += " ⚠️ 청크 " + rpt.failed + "/" + rpt.chunks + " 실패: " + firstErr.slice(0, 80)
-                                    } else if (cnt === 0 && rpt.empty === rpt.chunks) {
-                                        msg = "⚠️ 0개 — 모든 청크(" + rpt.chunks + "개)에서 AI가 추출 가능한 내용 없다고 판단"
+                                        msg += " ⚠️ 일부 팩 오류: " + firstErr.slice(0, 50)
                                     }
                                 }
                                 rDiv2.textContent = msg;
-                                rDiv2.style.color = cnt > 0 ? "#4a9" : "#da8";
+                                rDiv2.style.color = cnt > 0 ? "#88b9c8" : "#da8";
                                 if (cnt > 0) await setPackEnabled(nameInp2.value.trim(), true)
                             } catch (e) {
                                 rDiv2.textContent = "❌ " + (e.message || String(e));
-                                rDiv2.style.color = "#d66"
+                                rDiv2.style.color = "#da8"
                             } finally {
                                 clearInterval(tick);
-                                try {
-                                    C.hideStatusBadge()
-                                } catch (_) {}
+                                try { C.hideStatusBadge() } catch (_) {}
                                 tBtn.textContent = "텍스트 변환";
                                 tBtn.disabled = false
                             }
@@ -15854,10 +15859,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.appendChild(rDiv2)
                     }
                 })
-            }, "추출/변환 설정")
+            }, "추출/변환")
         })
     });
-    _w.__LoreInj.__subExtractLoaded = true
+    _w.__LoreInj.__subExtractLoaded = true;
 })();
 (async function() {
     const _w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
