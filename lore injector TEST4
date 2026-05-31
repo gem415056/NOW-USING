@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.6-2
+// @version     2.0.6-3
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -14929,6 +14929,8 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         settings: settings,
         setPackEnabled: setPackEnabled
     } = _w.__LoreInj;
+(function() {
+    "use strict";
     _w.__LoreInj.registerMenu = _w.__LoreInj.registerMenu || function() {};
     _w.__LoreInj.registerMenu("file", function(modal) {
         modal.createMenu("로어 관리", m => {
