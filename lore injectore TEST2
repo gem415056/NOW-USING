@@ -13790,817 +13790,6 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         setEntryEnabled: setEntryEnabled
     } = _w.__LoreInj;
     _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
-_w.__LoreInj.registerMenu("lore_active", function(modal) {
-    modal.createMenu("활성 로어", m => {
-        const renderActiveLoreUI = async panel => {
-            const _url = C.getCurUrl();
-            const activePacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(_url) : settings.config.urlPacks?.[_url] || [];
-            
-            // ==========================================
-            // (A) 상단: 활성 로어 목록 파트 렌더링
-            // ==========================================
-            if (!activePacks.length) {
-                panel.addText("활성화된 로어팩이 없습니다. '로어 관리' 탭에서 로어팩을 활성화하세요.");
-            } else {
-                const entries = await db.entries.toArray();
-                const filtered = entries.filter(e => activePacks.includes(e.packName));
-                if (!filtered.length) {
-                    panel.addText("현재 팩에 활성화된 세부 로어 항목이 존재하지 않습니다.");
-                } else {
-                    const byPack = {};
-                    filtered.forEach(e => {
-                        (byPack[e.packName] = byPack[e.packName] || []).push(e)
-                    });
-                    
-                    for (const [pk, items] of Object.entries(byPack)) {
-                        panel.addBoxedField("", "", {
-                            onInit: nd => {
-                                C.setFullWidth(nd);
-                                nd.style.cssText += "background:var(--decentral-switch-background);border:1px solid var(--decentral-text-border);border-radius:8px;margin-bottom:12px;padding:12px;box-sizing:border-box;";
-                                
-                                const headerRow = document.createElement("div");
-                                headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding-bottom:6px;border-bottom:1px solid var(--decentral-border);cursor:pointer;";
-                                
-                                const curUrl = C.getCurUrl();
-                                const disabledEntries = settings.config.urlDisabledEntries?.[curUrl] || [];
-                                const allItemsEnabled = items.every(e => !disabledEntries.includes(e.id));
-                                
-                                // 토글 스위치 ON/OFF 색상 싱크화 (#88b9c8)
-                                const pkSw = document.createElement("div");
-                                pkSw.style.cssText = "width:28px;height:14px;border-radius:7px;background:" + (allItemsEnabled ? "#88b9c8" : "#ccc") + ";position:relative;cursor:pointer;flex-shrink:0;margin-right:8px;";
-                                const pkDot = document.createElement("div");
-                                pkDot.style.cssText = "width:10px;height:10px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (allItemsEnabled ? "16px" : "2px") + ";transition:left .2s;";
-                                pkSw.appendChild(pkDot);
-                                
-                                pkSw.onclick = async ev => {
-                                    ev.stopPropagation();
-                                    const newState = !allItemsEnabled;
-                                    const ud = JSON.parse(JSON.stringify(settings.config.urlDisabledEntries || {}));
-                                    ud[curUrl] = ud[curUrl] || [];
-                                    const itemIds = items.map(e => e.id);
-                                    if (newState) {
-                                        ud[curUrl] = ud[curUrl].filter(id => !itemIds.includes(id))
-                                    } else {
-                                        for (const id of itemIds) {
-                                            if (!ud[curUrl].includes(id)) ud[curUrl].push(id)
-                                        }
-                                    }
-                                    settings.config.urlDisabledEntries = ud;
-                                    settings.save();
-                                    m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
-                                };
-                                
-                                const title = document.createElement("div");
-                                title.style.cssText = "font-size:13px;font-weight:bold;color:var(--decentral-text);flex:1;";
-                                title.textContent = pk + " (" + items.length + "개)";
-                                
-                                const arrow = document.createElement("span");
-                                arrow.textContent = "▼";
-                                arrow.style.cssText = "font-size:11px;color:var(--decentral-text-inactive);";
-                                
-                                headerRow.appendChild(pkSw);
-                                headerRow.appendChild(title);
-                                headerRow.appendChild(arrow);
-                                nd.appendChild(headerRow);
-                                
-                                items.sort((a, b) => (a.type || "").localeCompare(b.type || ""));
-                                const listContainer = document.createElement("div");
-                                listContainer.style.cssText = "display:none;flex-direction:column;gap:0;";
-                                
-                                let isExpanded = false;
-                                headerRow.onclick = () => {
-                                    isExpanded = !isExpanded;
-                                    listContainer.style.display = isExpanded ? "flex" : "none";
-                                    arrow.textContent = isExpanded ? "▲" : "▼"
-                                };
-                                
-                                for (const e of items) {
-                                    const row = document.createElement("div");
-                                    row.style.cssText = "padding:8px 0;border-bottom:1px solid var(--decentral-border);display:flex;flex-direction:column;";
-                                    
-                                    const header = document.createElement("div");
-                                    header.style.cssText = "display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;";
-                                    
-                                    const left = document.createElement("div");
-                                    left.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;min-width:0;";
-                                    
-                                    const isEnabled = isEntryEnabledForUrl(e);
-                                    const swWrap = document.createElement("div");
-                                    swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;background:#334A52;padding:2px 8px;border-radius:12px;border:1px solid #bcd0d7;flex-shrink:0;";
-                                    
-                                    const swLabel = document.createElement("span");
-                                    swLabel.textContent = isEnabled ? "ON" : "OFF";
-                                    swLabel.style.cssText = "font-size:10px;font-weight:bold;width:20px;text-align:center;color:" + (isEnabled ? "#88b9c8" : "#BCD0D7") + ";";
-                                    
-                                    const sw = document.createElement("div");
-                                    sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#88b9c8" : "#ccc") + ";position:relative;";
-                                    
-                                    const dot = document.createElement("div");
-                                    dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (isEnabled ? "14px" : "2px") + ";transition:left .2s;";
-                                    sw.appendChild(dot);
-                                    
-                                    swWrap.appendChild(swLabel);
-                                    swWrap.appendChild(sw);
-                                    
-                                    swWrap.onclick = ev => {
-                                        ev.stopPropagation();
-                                        const ns = !isEntryEnabledForUrl(e);
-                                        setEntryEnabled(e, ns);
-                                        swLabel.textContent = ns ? "ON" : "OFF";
-                                        swLabel.style.color = ns ? "#88b9c8" : "#BCD0D7";
-                                        sw.style.background = ns ? "#88b9c8" : "#ccc";
-                                        dot.style.left = ns ? "14px" : "2px"
-                                    };
-                                    
-                                    const nameSpan = document.createElement("span");
-                                    nameSpan.textContent = "[" + e.type + "] " + e.name;
-                                    nameSpan.style.cssText = "font-size:12px;color:var(--decentral-text);font-weight:bold;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;";
-                                    
-                                    const embStatusSpan = document.createElement("span");
-                                    embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;";
-                                    
-                                    const updateEmbStatus = async () => {
-                                        try {
-                                            const emb = await db.embeddings.where({
-                                                entryId: e.id,
-                                                field: "summary"
-                                            }).first() || await db.embeddings.where("entryId").equals(e.id).first();
-                                            
-                                            if (emb) {
-                                                const ch = C.embeddingSourceHash ? C.embeddingSourceHash(e, emb.field || "summary") : emb.hash || "";
-                                                const targetModel = settings.config.embeddingModel || "gemini-embedding-001";
-                                                if ((emb.sourceHash || emb.hash) === ch && (!emb.packName || emb.packName === e.packName)) {
-                                                    const needsRegen = emb.model && emb.model !== targetModel || emb.schemaVersion && emb.schemaVersion < 2 || emb.taskType !== "RETRIEVAL_DOCUMENT" && targetModel.includes("embedding-001");
-                                                    if (needsRegen) {
-                                                        embStatusSpan.textContent = "재생성";
-                                                        embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;background:#3a3a1a;color:#d96;";
-                                                    } else {
-                                                        embStatusSpan.textContent = "임베딩";
-                                                        embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;background:#88b9c8;color:#141413;font-weight:bold;";
-                                                    }
-                                                } else {
-                                                    embStatusSpan.textContent = "변경됨";
-                                                    embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;background:#3a3a1a;color:#d96;";
-                                                }
-                                            } else {
-                                                embStatusSpan.textContent = "미임베딩";
-                                                embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;background:transparent;border:1px solid var(--decentral-text-border);color:var(--decentral-text-formal);";
-                                            }
-                                        } catch (ex) {}
-                                    };
-                                    updateEmbStatus();
-                                    nameSpan.appendChild(embStatusSpan);
-                                    
-                                    left.appendChild(swWrap);
-                                    left.appendChild(nameSpan);
-                                    
-                                    const right = document.createElement("div");
-                                    right.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;";
-                                    
-                                    // 버튼 양식 통일화 (배경: #334A52, 테두리/글씨: #bcd0d7)
-                                    const B = "font-size:10px;padding:3px 8px;border-radius:4px;background:#334A52;border:1px solid #bcd0d7;color:#bcd0d7;cursor:pointer;font-weight:600;";
-                                    const B_DEL = "font-size:10px;padding:3px 8px;border-radius:4px;background:transparent;border:1px solid #9b4600;color:#9b4600;cursor:pointer;font-weight:600;";
-                                    
-                                    const embGenBtn = document.createElement("button");
-                                    embGenBtn.textContent = "임베딩";
-                                    embGenBtn.style.cssText = B;
-                                    embGenBtn.onclick = async ev => {
-                                        ev.stopPropagation();
-                                        embGenBtn.disabled = true;
-                                        embGenBtn.textContent = "...";
-                                        try {
-                                            await C.ensureEmbedding(e, {
-                                                apiType: settings.config.autoExtApiType || "key",
-                                                key: settings.config.autoExtKey,
-                                                vertexJson: settings.config.autoExtVertexJson,
-                                                vertexLocation: settings.config.autoExtVertexLocation || "global",
-                                                vertexProjectId: settings.config.autoExtVertexProjectId,
-                                                firebaseEmbedKey: settings.config.autoExtFirebaseEmbedKey,
-                                                model: settings.config.embeddingModel || "gemini-embedding-001"
-                                            });
-                                            embGenBtn.textContent = "OK";
-                                            updateEmbStatus()
-                                        } catch (err) {
-                                            embGenBtn.textContent = "X";
-                                            alert("실패:" + err.message)
-                                        }
-                                        setTimeout(() => {
-                                            embGenBtn.textContent = "임베딩";
-                                            embGenBtn.disabled = false
-                                        }, 1500)
-                                    };
-                                    
-                                    const copyBtn = document.createElement("button");
-                                    copyBtn.textContent = "복사";
-                                    copyBtn.style.cssText = B;
-                                    copyBtn.onclick = ev => {
-                                        ev.stopPropagation();
-                                        const clean = { ...e };
-                                        delete clean.id;
-                                        delete clean.packName;
-                                        delete clean.project;
-                                        delete clean.enabled;
-                                        navigator.clipboard.writeText(JSON.stringify(clean, null, 2)).then(() => alert("복사 완료")).catch(() => alert("실패"))
-                                    };
-                                    
-                                    const editBtn = document.createElement("button");
-                                    editBtn.textContent = "수정";
-                                    editBtn.style.cssText = B;
-                                    
-                                    const delBtn = document.createElement("button");
-                                    delBtn.textContent = "삭제";
-                                    delBtn.style.cssText = B_DEL;
-                                    
-                                    const histBtn = document.createElement("button");
-                                    histBtn.textContent = "이력";
-                                    histBtn.style.cssText = B;
-                                    
-                                    const anchorBtn = document.createElement("button");
-                                    const _renderAnchor = () => {
-                                        const on = !!e.anchor;
-                                        anchorBtn.textContent = "앵커";
-                                        anchorBtn.style.cssText = on 
-                                            ? "font-size:10px;padding:3px 8px;border-radius:4px;background:#88b9c8;border:1px solid #88b9c8;color:#141413;cursor:pointer;font-weight:600;"
-                                            : B;
-                                    };
-                                    _renderAnchor();
-                                    anchorBtn.onclick = async ev => {
-                                        ev.stopPropagation();
-                                        e.anchor = !e.anchor;
-                                        try {
-                                            await db.entries.put(e);
-                                            _renderAnchor()
-                                        } catch (err) {
-                                            alert("앵커 전환 실패: " + err.message);
-                                            e.anchor = !e.anchor;
-                                            _renderAnchor()
-                                        }
-                                    };
-                                    
-                                    right.appendChild(embGenBtn);
-                                    right.appendChild(copyBtn);
-                                    right.appendChild(histBtn);
-                                    right.appendChild(anchorBtn);
-                                    right.appendChild(editBtn);
-                                    right.appendChild(delBtn);
-                                    
-                                    header.appendChild(left);
-                                    header.appendChild(right);
-                                    row.appendChild(header);
-                                    
-                                    const historyContainer = document.createElement("div");
-                                    historyContainer.style.cssText = "display:none;margin-top:8px;padding:8px;background:#334A52;border:1px solid #bcd0d7;border-radius:6px;";
-                                    histBtn.onclick = async ev => {
-                                        ev.stopPropagation();
-                                        if (historyContainer.style.display !== "none") {
-                                            historyContainer.style.display = "none";
-                                            return
-                                        }
-                                        historyContainer.innerHTML = '<div style="font-size:11px;color:#BCD0D7;">로딩 중...</div>';
-                                        historyContainer.style.display = "block";
-                                        try {
-                                            const versions = await C.getEntryVersions(e.id);
-                                            if (!versions || !versions.length) {
-                                                historyContainer.innerHTML = '<div style="font-size:11px;color:#BCD0D7;">버전 기록이 존재하지 않습니다.</div>';
-                                                return
-                                            }
-                                            historyContainer.innerHTML = "";
-                                            const hdr = document.createElement("div");
-                                            hdr.textContent = versions.length + "개 버전 이력 (최신순)";
-                                            hdr.style.cssText = "font-size:11px;color:#C1FAFF;margin-bottom:6px;font-weight:bold;";
-                                            historyContainer.appendChild(hdr);
-                                            
-                                            for (const v of versions) {
-                                                const vrow = document.createElement("div");
-                                                vrow.style.cssText = "display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;border-bottom:1px dashed rgba(255,255,255,0.15);gap:8px;";
-                                                const info = document.createElement("div");
-                                                info.style.cssText = "font-size:11px;color:#BCD0D7;flex:1;min-width:0;";
-                                                const sumPrev = v.snapshot && v.snapshot.summary ? String(v.snapshot.summary).slice(0, 80) : "";
-                                                const stPrev = v.snapshot && (v.snapshot.state || v.snapshot.detail?.current_status) ? " / state: " + (v.snapshot.state || v.snapshot.detail?.current_status) : "";
-                                                info.innerHTML = '<span style="color:#fff;font-weight:bold;">' + new Date(v.ts).toLocaleString() + '</span> <span style="color:#C1FAFF;">[' + (v.reason || "auto") + ']</span><br><span style="font-size:10px;color:#BCD0D7;word-break:break-all;">' + sumPrev + stPrev + "</span>";
-                                                
-                                                const vbtns = document.createElement("div");
-                                                vbtns.style.cssText = "display:flex;gap:4px;flex-shrink:0;";
-                                                const resBtn = document.createElement("button");
-                                                resBtn.textContent = "복원";
-                                                resBtn.style.cssText = "padding:3px 8px;font-size:10px;border-radius:4px;background:#88b9c8;color:#141413;border:none;cursor:pointer;font-weight:bold;";
-                                                resBtn.onclick = async ev2 => {
-                                                    ev2.stopPropagation();
-                                                    if (!confirm("이 버전으로 복원하시겠습니까? 현재 상태는 안전하게 이력에 백업됩니다.")) return;
-                                                    try {
-                                                        const restored = await C.restoreEntryVersion(v.id);
-                                                        Object.assign(e, restored);
-                                                        nameSpan.textContent = "[" + e.type + "] " + e.name;
-                                                        nameSpan.appendChild(embStatusSpan);
-                                                        alert("복원 성공");
-                                                        historyContainer.style.display = "none"
-                                                    } catch (err) {
-                                                        alert("실패: " + err.message)
-                                                    }
-                                                };
-                                                vbtns.appendChild(resBtn);
-                                                vrow.appendChild(info);
-                                                vrow.appendChild(vbtns);
-                                                historyContainer.appendChild(vrow)
-                                            }
-                                        } catch (err) {
-                                            historyContainer.innerHTML = '<div style="font-size:11px;color:#d66;">오류: ' + err.message + "</div>"
-                                        }
-                                    };
-                                    row.appendChild(historyContainer);
-                                    
-                                    const editContainer = document.createElement("div");
-                                    editContainer.style.cssText = "display:none;margin-top:8px;flex-direction:column;gap:8px;";
-                                    const ta = document.createElement("textarea");
-                                    ta.style.cssText = "width:100%;height:200px;background:#0a0a0a;color:#ccc;border:1px solid #333;border-radius:6px;padding:8px;font-size:12px;font-family:monospace;resize:vertical;box-sizing:border-box;";
-                                    
-                                    const editableObj = { ...e };
-                                    delete editableObj.id;
-                                    delete editableObj.packName;
-                                    delete editableObj.project;
-                                    delete editableObj.enabled;
-                                    ta.value = JSON.stringify(editableObj, null, 2);
-                                    
-                                    const btnRow = document.createElement("div");
-                                    btnRow.style.cssText = "display:flex;justify-content:flex-end;gap:6px;";
-                                    const saveBtn = document.createElement("button");
-                                    saveBtn.textContent = "저장";
-                                    saveBtn.style.cssText = B + "background:#285;border-color:#285;color:#fff;";
-                                    const cancelBtn = document.createElement("button");
-                                    cancelBtn.textContent = "닫기";
-                                    cancelBtn.style.cssText = B;
-                                    
-                                    btnRow.appendChild(cancelBtn);
-                                    btnRow.appendChild(saveBtn);
-                                    editContainer.appendChild(ta);
-                                    editContainer.appendChild(btnRow);
-                                    row.appendChild(editContainer);
-                                    
-                                    const toggleEdit = () => {
-                                        editContainer.style.display = editContainer.style.display === "none" ? "flex" : "none"
-                                    };
-                                    nameSpan.onclick = toggleEdit;
-                                    editBtn.onclick = toggleEdit;
-                                    cancelBtn.onclick = toggleEdit;
-                                    
-                                    saveBtn.onclick = async () => {
-                                        try {
-                                            const parsed = JSON.parse(ta.value);
-                                            const updated = { ...e, ...parsed };
-                                            await db.entries.put(updated);
-                                            try {
-                                                if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(updated.id)
-                                            } catch (_) {}
-                                            alert("수정 완료");
-                                            Object.assign(e, updated);
-                                            nameSpan.textContent = "[" + updated.type + "] " + updated.name;
-                                            nameSpan.appendChild(embStatusSpan);
-                                            updateEmbStatus();
-                                            toggleEdit()
-                                        } catch (err) {
-                                            alert("JSON 형식 오류: " + err.message)
-                                        }
-                                    };
-                                    
-                                    delBtn.onclick = async () => {
-                                        if (confirm("[" + e.name + "] 항목을 영구 삭제하시겠습니까?")) {
-                                            await db.entries.delete(e.id);
-                                            try {
-                                                await db.embeddings.where("entryId").equals(e.id).delete()
-                                            } catch (ex) {}
-                                            const count = await db.entries.where("packName").equals(e.packName).count();
-                                            if (count <= 0) {
-                                                await db.packs.delete(e.packName);
-                                                row.remove();
-                                                m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
-                                            } else {
-                                                await db.packs.update(e.packName, { entryCount: count });
-                                                row.remove();
-                                                title.textContent = pk + " (" + count + "개)"
-                                            }
-                                        }
-                                    };
-                                    listContainer.appendChild(row)
-                                }
-                                nd.appendChild(listContainer)
-                            }
-                        })
-                    }
-                }
-            }
-
-            // ==========================================
-            // (B) 하단: 중복 로어 병합 파트 렌더링
-            // ==========================================
-            panel.addTitleText("중복 로어 병합", {
-                initializer: node => {
-                    node.style.cssText = "margin-top:20px; font-size:14px; color:#88b9c8;";
-                }
-            });
-
-            const state = _w.__loreMergeState || (_w.__loreMergeState = {
-                threshold: .88,
-                maxChars: 1200,
-                groups: null
-            });
-
-            panel.addBoxedField("", "", {
-                onInit: nd => {
-                    C.setFullWidth(nd);
-                    const d = document.createElement("div");
-                    d.innerHTML = '유사도가 임계치 이상인 동일 분류 로어 후보군을 찾아 수동으로 안전하게 결합시킵니다.<br><span style="color:#d96;">※ 이 탭에서 활성화(ON)된 팩 안의 엔트리들만 후보 계산 대상이 됩니다.</span>';
-                    d.style.cssText = "font-size:11px;color:var(--decentral-text-formal);margin-bottom:10px;line-height:1.5;";
-                    nd.appendChild(d);
-                    
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;gap:12px;margin-bottom:8px;align-items:center;";
-                    
-                    const mk = (label, getter, setter, min, max, step) => {
-                        const f = document.createElement("div");
-                        f.style.flex = "1";
-                        const l = document.createElement("div");
-                        l.textContent = label;
-                        l.style.cssText = "font-size:12px;color:var(--decentral-text-formal);margin-bottom:4px;";
-                        const i = document.createElement("input");
-                        i.type = "number";
-                        i.value = getter();
-                        i.min = min;
-                        i.max = max;
-                        i.step = step;
-                        i.style.cssText = "width:100%;padding:6px;border:1px solid var(--decentral-text-border);border-radius:6px;background:var(--decentral-text-background);color:var(--decentral-text);font-size:12px;box-sizing:border-box;";
-                        i.onchange = () => {
-                            const v = parseFloat(i.value);
-                            if (!isNaN(v)) setter(v)
-                        };
-                        f.appendChild(l);
-                        f.appendChild(i);
-                        return f
-                    };
-                    row.appendChild(mk("유사도 임계값", () => state.threshold, v => state.threshold = v, .7, .99, .01));
-                    row.appendChild(mk("최대 글자수 (summary)", () => state.maxChars, v => state.maxChars = v, 200, 3e3, 50));
-                    nd.appendChild(row);
-                    
-                    // 병합 후보 찾기 버튼 적용 (배경: #88b9c8, 텍스트: #141413)
-                    const runBtn = document.createElement("button");
-                    runBtn.textContent = "병합 후보 찾기";
-                    runBtn.style.cssText = "width:100%;padding:10px;background:#88b9c8;color:#141413;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;";
-                    
-                    const runStatus = document.createElement("div");
-                    runStatus.style.cssText = "font-size:11px;color:var(--decentral-text-formal);margin-top:6px;text-align:center;";
-                    
-                    runBtn.onclick = async () => {
-                        runBtn.disabled = true;
-                        runBtn.textContent = "분석 중...";
-                        try {
-                            const _url = C.getCurUrl();
-                            const activePacks = settings.config.urlPacks?.[_url] || [];
-                            const entries = (await db.entries.toArray()).filter(e => activePacks.includes(e.packName));
-                            if (entries.length < 2) {
-                                runStatus.textContent = "검사 가능한 활성 세부 엔트리가 2개 미만입니다.";
-                                runStatus.style.color = "#d66";
-                                return
-                            }
-                            const embs = await db.embeddings.where("entryId").anyOf(entries.map(e => e.id)).toArray();
-                            const entryById = {};
-                            entries.forEach(e => entryById[e.id] = e);
-                            
-                            const embMap = {};
-                            for (const eb of embs) {
-                                if (eb.field !== "summary") continue;
-                                const ent = entryById[eb.entryId];
-                                if (!ent) continue;
-                                if (eb.packName && eb.packName !== ent.packName) continue;
-                                if (C.embeddingSourceHash && (eb.sourceHash || eb.hash) !== C.embeddingSourceHash(ent, "summary")) continue;
-                                embMap[eb.entryId] = eb.vector
-                            }
-                            
-                            const withEmb = entries.filter(e => embMap[e.id]);
-                            if (withEmb.length < 2) {
-                                runStatus.textContent = "임베딩 준비 상태인 활성 로어가 부족합니다. 파일 탭에서 먼저 임베딩 버튼을 눌러주세요.";
-                                runStatus.style.color = "#d66";
-                                return
-                            }
-                            
-                            const cos = (a, b) => {
-                                let d = 0, na = 0, nb = 0;
-                                const L = Math.min(a.length, b.length);
-                                for (let i = 0; i < L; i++) {
-                                    d += a[i] * b[i];
-                                    na += a[i] * a[i];
-                                    nb += b[i] * b[i]
-                                }
-                                return d / (Math.sqrt(na) * Math.sqrt(nb) || 1)
-                            };
-                            
-                            const parent = {};
-                            const find = x => {
-                                let root = x;
-                                while (parent[root] !== root) root = parent[root];
-                                while (parent[x] !== root) {
-                                    const next = parent[x];
-                                    parent[x] = root;
-                                    x = next
-                                }
-                                return root
-                            };
-                            const uni = (a, b) => { parent[find(a)] = find(b) };
-                            withEmb.forEach(e => parent[e.id] = e.id);
-                            
-                            const pairs = [];
-                            for (let i = 0; i < withEmb.length; i++) {
-                                for (let j = i + 1; j < withEmb.length; j++) {
-                                    if (!typeCompatible(withEmb[i], withEmb[j])) continue;
-                                    const s = cos(embMap[withEmb[i].id], embMap[withEmb[j].id]);
-                                    if (s >= state.threshold) {
-                                        pairs.push({ a: withEmb[i].id, b: withEmb[j].id, sim: s });
-                                        uni(withEmb[i].id, withEmb[j].id)
-                                    }
-                                }
-                            }
-                            
-                            const groupMap = {};
-                            withEmb.forEach(e => {
-                                const r = find(e.id);
-                                (groupMap[r] = groupMap[r] || []).push(e)
-                            });
-                            
-                            const groups = Object.values(groupMap).filter(g => g.length >= 2).map(g => {
-                                const ids = new Set(g.map(e => e.id));
-                                const maxSim = pairs.filter(p => ids.has(p.a) && ids.has(p.b)).reduce((m, p) => Math.max(m, p.sim), 0);
-                                return { entries: g, sim: maxSim }
-                            }).sort((a, b) => b.sim - a.sim);
-                            
-                            state.groups = groups;
-                            runStatus.textContent = groups.length > 0 ? "중복 의심 " + groups.length + "개 그룹 검출 성공" : "임계값 이상의 중복된 로어가 검출되지 않았습니다.";
-                            runStatus.style.color = groups.length > 0 ? "#4a9" : "var(--decentral-text-formal)";
-                            m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
-                        } catch (e) {
-                            runStatus.textContent = "분석 실패: " + e.message;
-                            runStatus.style.color = "#d66"
-                        }
-                        runBtn.textContent = "병합 후보 찾기";
-                        runBtn.disabled = false
-                    };
-                    nd.appendChild(runBtn);
-                    nd.appendChild(runStatus);
-                    
-                    const bulkRow = document.createElement("div");
-                    bulkRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:10px;padding:8px;background:var(--decentral-hover);border:1px solid var(--decentral-text-border);border-radius:6px;";
-                    const bulkLbl = document.createElement("div");
-                    bulkLbl.textContent = "일괄 조치";
-                    bulkLbl.style.cssText = "font-size:11px;color:var(--decentral-text-formal);white-space:nowrap;";
-                    
-                    const bulkSel = document.createElement("select");
-                    bulkSel.style.cssText = "flex:1;padding:6px;border:1px solid var(--decentral-text-border);border-radius:6px;background:var(--decentral-text-background);color:var(--decentral-text);font-size:11px;height:30px;";
-                    [
-                        ["", "-- 모든 그룹 일괄 액션 결정 --"],
-                        ["keep-longest", "가장 긴 항목 유지 + 키워드 합집합 (안전)"],
-                        ["llm-summarize", "LLM 요약 병합 (API 비용 발생, 고지능)"]
-                    ].forEach(([v, l]) => {
-                        const o = document.createElement("option");
-                        o.value = v;
-                        o.textContent = l;
-                        bulkSel.appendChild(o)
-                    });
-                    
-                    bulkSel.onchange = () => {
-                        if (!bulkSel.value) return;
-                        const sels = document.querySelectorAll("select.lore-merge-mode-sel");
-                        sels.forEach(s => { s.value = bulkSel.value });
-                        bulkSel.value = ""
-                    };
-                    bulkRow.appendChild(bulkLbl);
-                    bulkRow.appendChild(bulkSel);
-                    nd.appendChild(bulkRow);
-                    
-                    if (C.__lastMergeUndo && C.__lastMergeUndo.originals && C.__lastMergeUndo.originals.length) {
-                        const undoBtn = document.createElement("button");
-                        undoBtn.textContent = "직전 병합 취소 (" + C.__lastMergeUndo.originals.length + "개 엔트리 전원 복원)";
-                        undoBtn.style.cssText = "width:100%;padding:8px;margin-top:10px;background:transparent;color:#da8;border:1px solid #642;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;";
-                        undoBtn.onclick = async () => {
-                            if (!confirm("직전 병합을 되돌리고 개별 원본 엔트리들을 원상복구 하시겠습니까?")) return;
-                            try {
-                                const undo = C.__lastMergeUndo;
-                                if (undo.mergedId != null) {
-                                    await db.entries.delete(undo.mergedId);
-                                    try { await db.embeddings.where("entryId").equals(undo.mergedId).delete() } catch (_) {}
-                                }
-                                for (const snap of undo.originals) await db.entries.put(snap);
-                                const packs = new Set(undo.originals.map(e => e.packName));
-                                for (const pk of packs) {
-                                    const cnt = await db.entries.where("packName").equals(pk).count();
-                                    await db.packs.update(pk, { entryCount: cnt })
-                                }
-                                C.__lastMergeUndo = null;
-                                alert("이전 병합 상태가 안전하게 취소 및 복원되었습니다.");
-                                m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
-                            } catch (e) {
-                                alert("실패: " + e.message)
-                            }
-                        };
-                        nd.appendChild(undoBtn)
-                    }
-                }
-            });
-
-            // (C) 중복 그룹 카드 출력 제어
-            if (state.groups && state.groups.length > 0) {
-                for (const [gi, grp] of state.groups.entries()) {
-                    panel.addBoxedField("", "", {
-                        onInit: nd => {
-                            C.setFullWidth(nd);
-                            nd.style.cssText += "background:var(--decentral-switch-background);border:1px solid var(--decentral-text-border);border-radius:8px;margin-bottom:12px;padding:12px;box-sizing:border-box;";
-                            
-                            const hdr = document.createElement("div");
-                            hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--decentral-border);";
-                            
-                            const title = document.createElement("div");
-                            title.textContent = "그룹 " + (gi + 1) + " — " + grp.entries.length + "개 / 유사도 " + (grp.sim * 100).toFixed(1) + "%";
-                            title.style.cssText = "font-size:12px;color:var(--decentral-active-item);font-weight:bold;";
-                            
-                            const types = [...new Set(grp.entries.map(e => e.type))];
-                            const typeWarn = types.length > 1 ? "타입 불일치: " + types.join(", ") : "타입: " + types[0];
-                            const warn = document.createElement("div");
-                            warn.textContent = typeWarn;
-                            warn.style.cssText = "font-size:10px;color:" + (types.length > 1 ? "#9b4600" : "var(--decentral-text-formal)") + ";";
-                            
-                            hdr.appendChild(title);
-                            hdr.appendChild(warn);
-                            nd.appendChild(hdr);
-                            
-                            for (const e of grp.entries) {
-                                const row = document.createElement("div");
-                                row.style.cssText = "padding:6px 0;border-bottom:1px dashed var(--decentral-border);font-size:11px;color:var(--decentral-text-formal);";
-                                const safeSum = (summaryValue(e.summary) || "(요약 정보 없음)").slice(0, 150).replace(/</g, "&lt;");
-                                row.innerHTML = '<span style="color:var(--decentral-text);font-weight:bold;">[' + e.type + "] " + e.name + '</span> <span style="color:var(--decentral-text-formal);">(' + e.packName + ")</span>" + (e.anchor ? ' <span style="color:#88b9c8;font-weight:bold;">앵커</span>' : "") + '<br><span>' + safeSum + '</span>';
-                                nd.appendChild(row)
-                            }
-                            
-                            const ctrl = document.createElement("div");
-                            ctrl.style.cssText = "margin-top:10px;display:flex;gap:6px;align-items:center;";
-                            
-                            const modeSel = document.createElement("select");
-                            modeSel.className = "lore-merge-mode-sel";
-                            modeSel.style.cssText = "padding:6px;border:1px solid var(--decentral-text-border);border-radius:6px;background:var(--decentral-text-background);color:var(--decentral-text);font-size:11px;flex:1;height:30px;";
-                            [
-                                ["keep-longest", "가장 긴 항목 유지 + 키워드 합집합 (안전)"],
-                                ["llm-summarize", "LLM 요약 병합 (API 호출, 품질↑)"]
-                            ].forEach(([v, l]) => {
-                                const o = document.createElement("option");
-                                o.value = v;
-                                o.textContent = l;
-                                modeSel.appendChild(o)
-                            });
-                            
-                            const B = "font-size:11px;padding:5px 12px;border-radius:6px;background:#334A52;border:1px solid #bcd0d7;color:#bcd0d7;cursor:pointer;font-weight:600;";
-                            
-                            const previewBtn = document.createElement("button");
-                            previewBtn.textContent = "프리뷰";
-                            previewBtn.style.cssText = B;
-                            
-                            const execBtn = document.createElement("button");
-                            execBtn.textContent = "병합 실행";
-                            execBtn.style.cssText = "padding:5px 12px;font-size:11px;border-radius:6px;background:#88b9c8 !important;border:none;color:#141413 !important;cursor:pointer;font-weight:bold;";
-                            
-                            ctrl.appendChild(modeSel);
-                            ctrl.appendChild(previewBtn);
-                            ctrl.appendChild(execBtn);
-                            nd.appendChild(ctrl);
-                            
-                            const preview = document.createElement("div");
-                            preview.style.cssText = "margin-top:8px;padding:8px;background:var(--decentral-text-background);border:1px solid var(--decentral-text-border);border-radius:6px;font-size:11px;color:var(--decentral-text);display:none;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;";
-                            nd.appendChild(preview);
-                            
-                            let mergedDraft = null;
-                            const mkKeepLongest = entries => {
-                                const sorted = [...entries].sort((a, b) => summaryValue(b.summary).length - summaryValue(a.summary).length);
-                                return mergeDraftWithOriginals(sorted[0] || {}, entries, state.maxChars)
-                            };
-                            const mkLlmMerge = async entries => {
-                                const clean = entries.map(({ id: id, packName: packName, project: project, enabled: enabled, ...rest }) => rest);
-                                const prompt = "다음은 중복으로 판단된 로어 엔트리들이다. 하나의 로어 JSON으로 병합하라.\n" + "원칙:\n1. 핵심 정보는 누락하지 않는다. 각 입력 엔트리를 체크리스트처럼 대조해 이름/관계/상태/약속/사건/원인/미해결 훅을 모두 보존한다\n2. 불필요한 반복·수식어만 제거한다. 서로 다른 사실을 요약 편의상 삭제하지 않는다\n3. summary는 {full, compact, micro} 객체로 병합한다. full은 " + state.maxChars + "자 이내 self-contained, compact는 관계/상태/훅 보존, micro는 안정 회상 핸들+현재 상태\n4. eventHistory/callHistory/callState/timeline/entities/detail은 합집합으로 통합한다. 충돌하는 상태는 최신 timeline/lastUpdated를 우선하되 과거 상태는 eventHistory에 남긴다\n5. embed_text에는 이름/별칭/관계어/사건 원인/이해관계/장소/미해결 훅을 포함한다\n6. triggers는 필수 키워드만 유지하되 양쪽 인물명과 고유명사는 보존한다 (최대 12개)\n7. type은 가장 구체적인 것 유지. 타입이 다르면 summary.full에 각 타입의 역할을 설명한다\n8. 출력은 순수 JSON 객체 하나만. 입력에 없던 설정을 창작하지 않는다.\n\n" + "입력:\n" + JSON.stringify(clean, null, 2);
-                                
-                                const res = await C.callGeminiApi(prompt, {
-                                    apiType: settings.config.autoExtApiType || "key",
-                                    key: settings.config.autoExtKey,
-                                    vertexJson: settings.config.autoExtVertexJson,
-                                    vertexLocation: settings.config.autoExtVertexLocation || "global",
-                                    vertexProjectId: settings.config.autoExtVertexProjectId,
-                                    firebaseScript: settings.config.autoExtFirebaseScript,
-                                    model: settings.config.autoExtModel,
-                                    maxRetries: 2
-                                });
-                                if (!res.text) throw new Error("LLM 응답 실패: " + (res.error || ""));
-                                let txt = res.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-                                const m1 = txt.match(/\{[\s\S]*\}/);
-                                if (m1) txt = m1[0];
-                                const parsed = JSON.parse(txt);
-                                return mergeDraftWithOriginals(parsed, entries, state.maxChars)
-                            };
-                            
-                            const buildPreview = async () => {
-                                preview.style.display = "block";
-                                preview.textContent = "병합 연산 처리 중...";
-                                try {
-                                    if (modeSel.value === "keep-longest") mergedDraft = mkKeepLongest(grp.entries);
-                                    else mergedDraft = await mkLlmMerge(grp.entries);
-                                    const sumLen = summaryValue(mergedDraft.summary).length;
-                                    const over = sumLen > state.maxChars;
-                                    const color = over ? "#9b4600" : "var(--decentral-active-item)";
-                                    preview.innerHTML = '<div style="color:' + color + ';font-weight:bold;margin-bottom:6px;">병합 미리보기 (summary ' + sumLen + "자" + (over ? " — 상한(" + state.maxChars + ") 초과" : "") + ')</div><pre style="white-space:pre-wrap;margin:0;font-size:11px;color:var(--decentral-text);">' + JSON.stringify(mergedDraft, null, 2).replace(/</g, "&lt;") + "</pre>"
-                                } catch (e) {
-                                    preview.textContent = "오류 발생: " + e.message;
-                                    mergedDraft = null
-                                }
-                            };
-                            previewBtn.onclick = buildPreview;
-                            
-                            execBtn.onclick = async () => {
-                                if (!mergedDraft) {
-                                    await buildPreview();
-                                    if (!mergedDraft) return
-                                }
-                                const sumLen = summaryValue(mergedDraft.summary).length;
-                                if (sumLen > state.maxChars) {
-                                    if (!confirm("합쳐진 정보 요약 크기가 " + state.maxChars + "자를 초과합니다. 그래도 병합하시겠습니까?")) return
-                                }
-                                if (types.length > 1) {
-                                    if (!confirm("대분류 타입이 일치하지 않는 로어입니다. 계속 진행하시겠습니까?")) return
-                                }
-                                if (!confirm(grp.entries.length + "개 항목을 하나로 완전히 통합 병합하시겠습니까?")) return;
-                                try {
-                                    const originals = grp.entries.map(e => JSON.parse(JSON.stringify(e)));
-                                    for (const e of grp.entries) {
-                                        try { if (C.saveEntryVersion) await C.saveEntryVersion(e, "pre_merge") } catch (_) {}
-                                    }
-                                    const anchored = grp.entries.find(e => e.anchor);
-                                    const target = anchored || grp.entries[0];
-                                    const toDelete = grp.entries.filter(e => e.id !== target.id);
-                                    const finalEntry = {
-                                        ...mergedDraft,
-                                        id: target.id,
-                                        packName: target.packName,
-                                        project: target.project
-                                    };
-                                    await db.entries.put(finalEntry);
-                                    for (const e of toDelete) {
-                                        await db.entries.delete(e.id);
-                                        try {
-                                            if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(e.id);
-                                            else await db.embeddings.where("entryId").equals(e.id).delete()
-                                        } catch (_) {}
-                                    }
-                                    try {
-                                        if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(target.id);
-                                        else await db.embeddings.where("entryId").equals(target.id).delete()
-                                    } catch (_) {}
-                                    
-                                    const packs = new Set(grp.entries.map(e => e.packName));
-                                    for (const pk of packs) {
-                                        const cnt = await db.entries.where("packName").equals(pk).count();
-                                        await db.packs.update(pk, { entryCount: cnt })
-                                    }
-                                    C.__lastMergeUndo = { mergedId: target.id, originals: originals };
-                                    state.groups = state.groups.filter((_, i) => i !== gi);
-                                    
-                                    let embedMsg = "";
-                                    try {
-                                        const apiType = settings.config.autoExtApiType || "key";
-                                        const apiOpts = {
-                                            apiType: apiType,
-                                            key: settings.config.autoExtKey,
-                                            vertexJson: settings.config.autoExtVertexJson,
-                                            vertexLocation: settings.config.autoExtVertexLocation || "global",
-                                            vertexProjectId: settings.config.autoExtVertexProjectId,
-                                            firebaseEmbedKey: settings.config.autoExtFirebaseEmbedKey,
-                                            model: settings.config.embeddingModel || "gemini-embedding-001"
-                                        };
-                                        const hasApi = apiType === "vertex" ? !!settings.config.autoExtVertexJson : apiType === "firebase" ? !!settings.config.autoExtFirebaseEmbedKey : !!settings.config.autoExtKey;
-                                        if (hasApi) {
-                                            await C.ensureEmbedding(finalEntry, apiOpts);
-                                            embedMsg = " / 병합 본문 임베딩 갱신 완료."
-                                        } else {
-                                            embedMsg = " / API 설정 미완료로 수동 검색 준비 필요."
-                                        }
-                                    } catch (embErr) {
-                                        embedMsg = " / 임베딩 갱신 실패: " + embErr.message
-                                    }
-                                    alert("성공적으로 병합되었습니다." + embedMsg);
-                                    m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
-                                } catch (e) {
-                                    alert("실패: " + e.message)
-                                }
-                            }
-                        }
-                    })
-                }
-            }
-        };
-        m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
-    });
-    _w.__LoreInj.__subLoreLoaded = true;
-    _w.__LoreInj.__subMergeLoaded = true;
-});
 (async function() {
     "use strict";
     if (document.readyState === "loading") await new Promise(r => document.addEventListener("DOMContentLoaded", r));
@@ -15667,6 +14856,923 @@ _w.__LoreInj.registerMenu("lore_active", function(modal) {
         })
     });
     _w.__LoreInj.__subExtractLoaded = true
+})();
+(async function() {
+    "use strict";
+    if (document.readyState === "loading") await new Promise(r => document.addEventListener("DOMContentLoaded", r));
+    const _w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+    const deadline = Date.now() + 15e3;
+    while (!(_w.__LoreInj && _w.__LoreInj.__settingsLoaded) && Date.now() < deadline) await new Promise(r => setTimeout(r, 50));
+    if (!(_w.__LoreInj && _w.__LoreInj.__settingsLoaded)) {
+        console.error("[LoreInj:sub-lore-active] settings 미로드");
+        return
+    }
+    if (_w.__LoreInj.__subLoreActiveLoaded) return;
+    const {
+        C: C,
+        db: db,
+        settings: settings,
+        isEntryEnabledForUrl: isEntryEnabledForUrl,
+        setEntryEnabled: setEntryEnabled,
+        getAutoExtPackForUrl: getAutoExtPackForUrl,
+        setPackEnabled: setPackEnabled
+    } = _w.__LoreInj;
+
+    // ==========================================
+    // 내부 병합 연산용 독립 헬퍼 함수 정의부 (유실 복구)
+    // ==========================================
+    function summaryValue(summary) {
+        if (!summary) return "";
+        if (typeof summary === "object" && !Array.isArray(summary)) return String(summary.full || summary.compact || summary.micro || "");
+        return String(summary || "")
+    }
+
+    function canonicalMergeType(type) {
+        const t = String(type || "").toLowerCase();
+        if (t === "character" || t === "identity" || t === "persona") return "character";
+        if (t === "rel" || t === "relationship") return "relationship";
+        if (t === "prom" || t === "promise") return "promise";
+        if (t === "location" || t === "place") return "location";
+        if (t === "item" || t === "object") return "item";
+        if (t === "event" || t === "scene") return "event";
+        if (t === "concept" || t === "setting" || t === "world") return "setting";
+        return t || "misc"
+    }
+
+    function typeCompatible(a, b) {
+        return canonicalMergeType(a && a.type) === canonicalMergeType(b && b.type)
+    }
+
+    function uniq(arr) {
+        return Array.from(new Set((arr || []).filter(Boolean)))
+    }
+
+    function mergeObj(a, b) {
+        const out = a && typeof a === "object" && !Array.isArray(a) ? JSON.parse(JSON.stringify(a)) : {};
+        if (b && typeof b === "object" && !Array.isArray(b)) {
+            for (const [k, v] of Object.entries(b)) {
+                if (Array.isArray(v)) out[k] = uniq([...Array.isArray(out[k]) ? out[k] : [], ...v]);
+                else if (v && typeof v === "object" && !Array.isArray(v)) out[k] = mergeObj(out[k], v);
+                else if (v !== undefined && v !== null && v !== "") out[k] = v
+            }
+        }
+        return out
+    }
+
+    function mergeSummaries(a, b, maxChars) {
+        const av = a && typeof a === "object" && !Array.isArray(a) ? a : { full: summaryValue(a) };
+        const bv = b && typeof b === "object" && !Array.isArray(b) ? b : { full: summaryValue(b) };
+        const join = (x, y, max) => {
+            x = String(x || "").trim();
+            y = String(y || "").trim();
+            if (!x) return y.slice(0, max);
+            if (!y || x.includes(y)) return x.slice(0, max);
+            return (x + " / " + y).slice(0, max)
+        };
+        return {
+            full: join(av.full || av.compact || av.micro, bv.full || bv.compact || bv.micro, maxChars || 1200),
+            compact: join(av.compact || av.micro, bv.compact || bv.micro, 180),
+            micro: bv.micro || av.micro || ""
+        }
+    }
+
+    function mergeDraftWithOriginals(draft, entries, maxChars) {
+        const sorted = [...entries].sort((a, b) => (a.lastUpdated || a.ts || 0) - (b.lastUpdated || b.ts || 0));
+        const anchored = sorted.find(e => e.anchor);
+        const base = JSON.parse(JSON.stringify(anchored || sorted[0] || {}));
+        for (const e of sorted) {
+            base.triggers = uniq([...base.triggers || [], ...e.triggers || []]).slice(0, 12);
+            base.entities = uniq([...base.entities || [], ...e.entities || []]);
+            base.parties = uniq([...base.parties || [], ...e.parties || []]);
+            base.detail = mergeObj(base.detail, e.detail);
+            base.call = mergeObj(base.call, e.call);
+            base.callState = mergeObj(base.callState, e.callState);
+            base.timeline = mergeObj(base.timeline, e.timeline);
+            base.eventHistory = uniq([...base.eventHistory || [], ...e.eventHistory || []]);
+            base.callHistory = uniq([...base.callHistory || [], ...e.callHistory || []]);
+            base.summary = mergeSummaries(base.summary, e.summary, maxChars);
+            base.inject = mergeSummaries(base.inject, e.inject || e.summary, Math.min(maxChars || 1200, 700))
+        }
+        const merged = mergeObj(base, draft || {});
+        merged.triggers = uniq([...base.triggers || [], ...draft && draft.triggers || []]).slice(0, 12);
+        merged.entities = uniq([...base.entities || [], ...draft && draft.entities || []]);
+        merged.eventHistory = uniq([...base.eventHistory || [], ...draft && draft.eventHistory || []]);
+        merged.callHistory = uniq([...base.callHistory || [], ...draft && draft.callHistory || []]);
+        merged.summary = mergeSummaries(base.summary, draft && draft.summary, maxChars || 1200);
+        merged.inject = mergeSummaries(base.inject, draft && draft.inject || draft && draft.summary, Math.min(maxChars || 1200, 700));
+        return merged
+    }
+
+    // ==========================================
+    // 🎀 탭 메뉴 통합 주입 등록
+    // ==========================================
+    _w.__LoreInj.registerMenu = _w.__LoreInj.registerMenu || function() {};
+    _w.__LoreInj.registerMenu("lore_active", function(modal) {
+        modal.createMenu("활성 로어", m => {
+            const renderActiveLoreUI = async panel => {
+                const _url = C.getCurUrl();
+                const activePacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(_url) : settings.config.urlPacks?.[_url] || [];
+                
+                // (A) 상단: 활성 로어 목록 파트 렌더링
+                if (!activePacks.length) {
+                    panel.addText("활성화된 로어팩이 없습니다. '로어 관리' 탭에서 로어팩을 활성화하세요.");
+                } else {
+                    const entries = await db.entries.toArray();
+                    const filtered = entries.filter(e => activePacks.includes(e.packName));
+                    if (!filtered.length) {
+                        panel.addText("현재 팩에 활성화된 세부 로어 항목이 존재하지 않습니다.");
+                    } else {
+                        const byPack = {};
+                        filtered.forEach(e => {
+                            (byPack[e.packName] = byPack[e.packName] || []).push(e)
+                        });
+                        
+                        for (const [pk, items] of Object.entries(byPack)) {
+                            panel.addBoxedField("", "", {
+                                onInit: nd => {
+                                    C.setFullWidth(nd);
+                                    nd.style.cssText += "background:var(--decentral-switch-background);border:1px solid var(--decentral-text-border);border-radius:8px;margin-bottom:12px;padding:12px;box-sizing:border-box;";
+                                    
+                                    const headerRow = document.createElement("div");
+                                    headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding-bottom:6px;border-bottom:1px solid var(--decentral-border);cursor:pointer;";
+                                    
+                                    const curUrl = C.getCurUrl();
+                                    const disabledEntries = settings.config.urlDisabledEntries?.[curUrl] || [];
+                                    const allItemsEnabled = items.every(e => !disabledEntries.includes(e.id));
+                                    
+                                    const pkSw = document.createElement("div");
+                                    pkSw.style.cssText = "width:28px;height:14px;border-radius:7px;background:" + (allItemsEnabled ? "#88b9c8" : "#ccc") + ";position:relative;cursor:pointer;flex-shrink:0;margin-right:8px;";
+                                    const pkDot = document.createElement("div");
+                                    pkDot.style.cssText = "width:10px;height:10px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (allItemsEnabled ? "16px" : "2px") + ";transition:left .2s;";
+                                    pkSw.appendChild(pkDot);
+                                    
+                                    pkSw.onclick = async ev => {
+                                        ev.stopPropagation();
+                                        const newState = !allItemsEnabled;
+                                        const ud = JSON.parse(JSON.stringify(settings.config.urlDisabledEntries || {}));
+                                        ud[curUrl] = ud[curUrl] || [];
+                                        const itemIds = items.map(e => e.id);
+                                        if (newState) {
+                                            ud[curUrl] = ud[curUrl].filter(id => !itemIds.includes(id))
+                                        } else {
+                                            for (const id of itemIds) {
+                                                if (!ud[curUrl].includes(id)) ud[curUrl].push(id)
+                                            }
+                                        }
+                                        settings.config.urlDisabledEntries = ud;
+                                        settings.save();
+                                        m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
+                                    };
+                                    
+                                    const title = document.createElement("div");
+                                    title.style.cssText = "font-size:13px;font-weight:bold;color:var(--decentral-text);flex:1;";
+                                    title.textContent = pk + " (" + items.length + "개)";
+                                    
+                                    const arrow = document.createElement("span");
+                                    arrow.textContent = "▼";
+                                    arrow.style.cssText = "font-size:11px;color:var(--decentral-text-inactive);";
+                                    
+                                    headerRow.appendChild(pkSw);
+                                    headerRow.appendChild(title);
+                                    headerRow.appendChild(arrow);
+                                    nd.appendChild(headerRow);
+                                    
+                                    items.sort((a, b) => (a.type || "").localeCompare(b.type || ""));
+                                    const listContainer = document.createElement("div");
+                                    listContainer.style.cssText = "display:none;flex-direction:column;gap:0;";
+                                    
+                                    let isExpanded = false;
+                                    headerRow.onclick = () => {
+                                        isExpanded = !isExpanded;
+                                        listContainer.style.display = isExpanded ? "flex" : "none";
+                                        arrow.textContent = isExpanded ? "▲" : "▼"
+                                    };
+                                    
+                                    for (const e of items) {
+                                        const row = document.createElement("div");
+                                        row.style.cssText = "padding:8px 0;border-bottom:1px solid var(--decentral-border);display:flex;flex-direction:column;";
+                                        
+                                        const header = document.createElement("div");
+                                        header.style.cssText = "display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;";
+                                        
+                                        const left = document.createElement("div");
+                                        left.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;min-width:0;";
+                                        
+                                        const isEnabled = isEntryEnabledForUrl(e);
+                                        const swWrap = document.createElement("div");
+                                        swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;background:#334A52;padding:2px 8px;border-radius:12px;border:1px solid #bcd0d7;flex-shrink:0;";
+                                        
+                                        const swLabel = document.createElement("span");
+                                        swLabel.textContent = isEnabled ? "ON" : "OFF";
+                                        swLabel.style.cssText = "font-size:10px;font-weight:bold;width:20px;text-align:center;color:" + (isEnabled ? "#88b9c8" : "#BCD0D7") + ";";
+                                        
+                                        const sw = document.createElement("div");
+                                        sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#88b9c8" : "#ccc") + ";position:relative;";
+                                        
+                                        const dot = document.createElement("div");
+                                        dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (isEnabled ? "14px" : "2px") + ";transition:left .2s;";
+                                        sw.appendChild(dot);
+                                        
+                                        swWrap.appendChild(swLabel);
+                                        swWrap.appendChild(sw);
+                                        
+                                        swWrap.onclick = ev => {
+                                            ev.stopPropagation();
+                                            const ns = !isEntryEnabledForUrl(e);
+                                            setEntryEnabled(e, ns);
+                                            swLabel.textContent = ns ? "ON" : "OFF";
+                                            swLabel.style.color = ns ? "#88b9c8" : "#BCD0D7";
+                                            sw.style.background = ns ? "#88b9c8" : "#ccc";
+                                            dot.style.left = ns ? "14px" : "2px"
+                                        };
+                                        
+                                        const nameSpan = document.createElement("span");
+                                        nameSpan.textContent = "[" + e.type + "] " + e.name;
+                                        nameSpan.style.cssText = "font-size:12px;color:var(--decentral-text);font-weight:bold;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;flex:1;";
+                                        
+                                        const embStatusSpan = document.createElement("span");
+                                        embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;";
+                                        
+                                        const updateEmbStatus = async () => {
+                                            try {
+                                                const emb = await db.embeddings.where({
+                                                    entryId: e.id,
+                                                    field: "summary"
+                                                }).first() || await db.embeddings.where("entryId").equals(e.id).first();
+                                                
+                                                if (emb) {
+                                                    const ch = C.embeddingSourceHash ? C.embeddingSourceHash(e, emb.field || "summary") : emb.hash || "";
+                                                    const targetModel = settings.config.embeddingModel || "gemini-embedding-001";
+                                                    if ((emb.sourceHash || emb.hash) === ch && (!emb.packName || emb.packName === e.packName)) {
+                                                        const needsRegen = emb.model && emb.model !== targetModel || emb.schemaVersion && emb.schemaVersion < 2 || emb.taskType !== "RETRIEVAL_DOCUMENT" && targetModel.includes("embedding-001");
+                                                        if (needsRegen) {
+                                                            embStatusSpan.textContent = "재생성";
+                                                            embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;background:#3a3a1a;color:#d96;";
+                                                        } else {
+                                                            embStatusSpan.textContent = "임베딩";
+                                                            embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;background:#88b9c8;color:#141413;font-weight:bold;";
+                                                        }
+                                                    } else {
+                                                        embStatusSpan.textContent = "변경됨";
+                                                        embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;background:#3a3a1a;color:#d96;";
+                                                    }
+                                                } else {
+                                                    embStatusSpan.textContent = "미임베딩";
+                                                    embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;background:transparent;border:1px solid var(--decentral-text-border);color:var(--decentral-text-formal);";
+                                                }
+                                            } catch (ex) {}
+                                        };
+                                        updateEmbStatus();
+                                        nameSpan.appendChild(embStatusSpan);
+                                        
+                                        left.appendChild(swWrap);
+                                        left.appendChild(nameSpan);
+                                        
+                                        const right = document.createElement("div");
+                                        right.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;";
+                                        
+                                        const B = "font-size:10px;padding:3px 8px;border-radius:4px;background:#334A52;border:1px solid #bcd0d7;color:#bcd0d7;cursor:pointer;font-weight:600;";
+                                        const B_DEL = "font-size:10px;padding:3px 8px;border-radius:4px;background:transparent;border:1px solid #9b4600;color:#9b4600;cursor:pointer;font-weight:600;";
+                                        
+                                        const embGenBtn = document.createElement("button");
+                                        embGenBtn.textContent = "임베딩";
+                                        embGenBtn.style.cssText = B;
+                                        embGenBtn.onclick = async ev => {
+                                            ev.stopPropagation();
+                                            embGenBtn.disabled = true;
+                                            embGenBtn.textContent = "...";
+                                            try {
+                                                await C.ensureEmbedding(e, {
+                                                    apiType: settings.config.autoExtApiType || "key",
+                                                    key: settings.config.autoExtKey,
+                                                    vertexJson: settings.config.autoExtVertexJson,
+                                                    vertexLocation: settings.config.autoExtVertexLocation || "global",
+                                                    vertexProjectId: settings.config.autoExtVertexProjectId,
+                                                    firebaseEmbedKey: settings.config.autoExtFirebaseEmbedKey,
+                                                    model: settings.config.embeddingModel || "gemini-embedding-001"
+                                                });
+                                                embGenBtn.textContent = "OK";
+                                                updateEmbStatus()
+                                            } catch (err) {
+                                                embGenBtn.textContent = "X";
+                                                alert("실패:" + err.message)
+                                            }
+                                            setTimeout(() => {
+                                                embGenBtn.textContent = "임베딩";
+                                                embGenBtn.disabled = false
+                                            }, 1500)
+                                        };
+                                        
+                                        const copyBtn = document.createElement("button");
+                                        copyBtn.textContent = "복사";
+                                        copyBtn.style.cssText = B;
+                                        copyBtn.onclick = ev => {
+                                            ev.stopPropagation();
+                                            const clean = { ...e };
+                                            delete clean.id;
+                                            delete clean.packName;
+                                            delete clean.project;
+                                            delete clean.enabled;
+                                            navigator.clipboard.writeText(JSON.stringify(clean, null, 2)).then(() => alert("복사 완료")).catch(() => alert("실패"))
+                                        };
+                                        
+                                        const editBtn = document.createElement("button");
+                                        editBtn.textContent = "수정";
+                                        editBtn.style.cssText = B;
+                                        
+                                        const delBtn = document.createElement("button");
+                                        delBtn.textContent = "삭제";
+                                        delBtn.style.cssText = B_DEL;
+                                        
+                                        const histBtn = document.createElement("button");
+                                        histBtn.textContent = "이력";
+                                        histBtn.style.cssText = B;
+                                        
+                                        const anchorBtn = document.createElement("button");
+                                        const _renderAnchor = () => {
+                                            const on = !!e.anchor;
+                                            anchorBtn.textContent = "앵커";
+                                            anchorBtn.style.cssText = on 
+                                                ? "font-size:10px;padding:3px 8px;border-radius:4px;background:#88b9c8;border:1px solid #88b9c8;color:#141413;cursor:pointer;font-weight:600;"
+                                                : B;
+                                        };
+                                        _renderAnchor();
+                                        anchorBtn.onclick = async ev => {
+                                            ev.stopPropagation();
+                                            e.anchor = !e.anchor;
+                                            try {
+                                                await db.entries.put(e);
+                                                _renderAnchor()
+                                            } catch (err) {
+                                                alert("앵커 전환 실패: " + err.message);
+                                                e.anchor = !e.anchor;
+                                                _renderAnchor()
+                                            }
+                                        };
+                                        
+                                        right.appendChild(embGenBtn);
+                                        right.appendChild(copyBtn);
+                                        right.appendChild(histBtn);
+                                        right.appendChild(anchorBtn);
+                                        right.appendChild(editBtn);
+                                        right.appendChild(delBtn);
+                                        
+                                        header.appendChild(left);
+                                        header.appendChild(right);
+                                        row.appendChild(header);
+                                        
+                                        const historyContainer = document.createElement("div");
+                                        historyContainer.style.cssText = "display:none;margin-top:8px;padding:8px;background:#334A52;border:1px solid #bcd0d7;border-radius:6px;";
+                                        histBtn.onclick = async ev => {
+                                            ev.stopPropagation();
+                                            if (historyContainer.style.display !== "none") {
+                                                historyContainer.style.display = "none";
+                                                return
+                                            }
+                                            historyContainer.innerHTML = '<div style="font-size:11px;color:#BCD0D7;">로딩 중...</div>';
+                                            historyContainer.style.display = "block";
+                                            try {
+                                                const versions = await C.getEntryVersions(e.id);
+                                                if (!versions || !versions.length) {
+                                                    historyContainer.innerHTML = '<div style="font-size:11px;color:#BCD0D7;">버전 기록이 존재하지 않습니다.</div>';
+                                                    return
+                                                }
+                                                historyContainer.innerHTML = "";
+                                                const hdr = document.createElement("div");
+                                                hdr.textContent = versions.length + "개 버전 이력 (최신순)";
+                                                hdr.style.cssText = "font-size:11px;color:#C1FAFF;margin-bottom:6px;font-weight:bold;";
+                                                historyContainer.appendChild(hdr);
+                                                
+                                                for (const v of versions) {
+                                                    const vrow = document.createElement("div");
+                                                    vrow.style.cssText = "display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;border-bottom:1px dashed rgba(255,255,255,0.15);gap:8px;";
+                                                    const info = document.createElement("div");
+                                                    info.style.cssText = "font-size:11px;color:#BCD0D7;flex:1;min-width:0;";
+                                                    const sumPrev = v.snapshot && v.snapshot.summary ? String(v.snapshot.summary).slice(0, 80) : "";
+                                                    const stPrev = v.snapshot && (v.snapshot.state || v.snapshot.detail?.current_status) ? " / state: " + (v.snapshot.state || v.snapshot.detail?.current_status) : "";
+                                                    info.innerHTML = '<span style="color:#fff;font-weight:bold;">' + new Date(v.ts).toLocaleString() + '</span> <span style="color:#C1FAFF;">[' + (v.reason || "auto") + ']</span><br><span style="font-size:10px;color:#BCD0D7;word-break:break-all;">' + sumPrev + stPrev + "</span>";
+                                                    
+                                                    const vbtns = document.createElement("div");
+                                                    vbtns.style.cssText = "display:flex;gap:4px;flex-shrink:0;";
+                                                    const resBtn = document.createElement("button");
+                                                    resBtn.textContent = "복원";
+                                                    resBtn.style.cssText = "padding:3px 8px;font-size:10px;border-radius:4px;background:#88b9c8;color:#141413;border:none;cursor:pointer;font-weight:bold;";
+                                                    resBtn.onclick = async ev2 => {
+                                                        ev2.stopPropagation();
+                                                        if (!confirm("이 버전으로 복원하시겠습니까? 현재 상태는 안전하게 이력에 백업됩니다.")) return;
+                                                        try {
+                                                            const restored = await C.restoreEntryVersion(v.id);
+                                                            Object.assign(e, restored);
+                                                            nameSpan.textContent = "[" + e.type + "] " + e.name;
+                                                            nameSpan.appendChild(embStatusSpan);
+                                                            alert("복원 성공");
+                                                            historyContainer.style.display = "none"
+                                                        } catch (err) {
+                                                            alert("실패: " + err.message)
+                                                        }
+                                                    };
+                                                    vbtns.appendChild(resBtn);
+                                                    vrow.appendChild(info);
+                                                    vrow.appendChild(vbtns);
+                                                    historyContainer.appendChild(vrow)
+                                                }
+                                            } catch (err) {
+                                                historyContainer.innerHTML = '<div style="font-size:11px;color:#d66;">오류: ' + err.message + "</div>"
+                                            }
+                                        };
+                                        row.appendChild(historyContainer);
+                                        
+                                        const editContainer = document.createElement("div");
+                                        editContainer.style.cssText = "display:none;margin-top:8px;flex-direction:column;gap:8px;";
+                                        const ta = document.createElement("textarea");
+                                        ta.style.cssText = "width:100%;height:200px;background:#0a0a0a;color:#ccc;border:1px solid #333;border-radius:6px;padding:8px;font-size:12px;font-family:monospace;resize:vertical;box-sizing:border-box;";
+                                        
+                                        const editableObj = { ...e };
+                                        delete editableObj.id;
+                                        delete editableObj.packName;
+                                        delete editableObj.project;
+                                        delete editableObj.enabled;
+                                        ta.value = JSON.stringify(editableObj, null, 2);
+                                        
+                                        const btnRow = document.createElement("div");
+                                        btnRow.style.cssText = "display:flex;justify-content:flex-end;gap:6px;";
+                                        const saveBtn = document.createElement("button");
+                                        saveBtn.textContent = "저장";
+                                        saveBtn.style.cssText = B + "background:#285;border-color:#285;color:#fff;";
+                                        const cancelBtn = document.createElement("button");
+                                        cancelBtn.textContent = "닫기";
+                                        cancelBtn.style.cssText = B;
+                                        
+                                        btnRow.appendChild(cancelBtn);
+                                        btnRow.appendChild(saveBtn);
+                                        editContainer.appendChild(ta);
+                                        editContainer.appendChild(btnRow);
+                                        row.appendChild(editContainer);
+                                        
+                                        const toggleEdit = () => {
+                                            editContainer.style.display = editContainer.style.display === "none" ? "flex" : "none"
+                                        };
+                                        nameSpan.onclick = toggleEdit;
+                                        editBtn.onclick = toggleEdit;
+                                        cancelBtn.onclick = toggleEdit;
+                                        
+                                        saveBtn.onclick = async () => {
+                                            try {
+                                                const parsed = JSON.parse(ta.value);
+                                                const updated = { ...e, ...parsed };
+                                                await db.entries.put(updated);
+                                                try {
+                                                    if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(updated.id)
+                                                } catch (_) {}
+                                                alert("수정 완료");
+                                                Object.assign(e, updated);
+                                                nameSpan.textContent = "[" + updated.type + "] " + updated.name;
+                                                nameSpan.appendChild(embStatusSpan);
+                                                updateEmbStatus();
+                                                toggleEdit()
+                                            } catch (err) {
+                                                alert("JSON 형식 오류: " + err.message)
+                                            }
+                                        };
+                                        
+                                        delBtn.onclick = async () => {
+                                            if (confirm("[" + e.name + "] 항목을 영구 삭제하시겠습니까?")) {
+                                                await db.entries.delete(e.id);
+                                                try {
+                                                    await db.embeddings.where("entryId").equals(e.id).delete()
+                                                } catch (ex) {}
+                                                const count = await db.entries.where("packName").equals(e.packName).count();
+                                                if (count <= 0) {
+                                                    await db.packs.delete(e.packName);
+                                                    row.remove();
+                                                    m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
+                                                } else {
+                                                    await db.packs.update(e.packName, { entryCount: count });
+                                                    row.remove();
+                                                    title.textContent = pk + " (" + count + "개)"
+                                                }
+                                            }
+                                        };
+                                        listContainer.appendChild(row)
+                                    }
+                                    nd.appendChild(listContainer)
+                                }
+                            })
+                        }
+                    }
+                }
+                
+                // ==========================================
+                // (B) 하단: 중복 로어 병합 파트 렌더링
+                // ==========================================
+                panel.addTitleText("중복 로어 병합", {
+                    initializer: node => {
+                        node.style.cssText = "margin-top:20px; font-size:14px; color:#88b9c8;";
+                    }
+                });
+
+                const state = _w.__loreMergeState || (_w.__loreMergeState = {
+                    threshold: .88,
+                    maxChars: 1200,
+                    groups: null
+                });
+
+                panel.addBoxedField("", "", {
+                    onInit: nd => {
+                        C.setFullWidth(nd);
+                        const d = document.createElement("div");
+                        d.innerHTML = '유사도가 임계치 이상인 동일 분류 로어 후보군을 찾아 수동으로 안전하게 결합시킵니다.<br><span style="color:#d96;">※ 이 탭에서 활성화(ON)된 팩 안의 엔트리들만 후보 계산 대상이 됩니다.</span>';
+                        d.style.cssText = "font-size:11px;color:var(--decentral-text-formal);margin-bottom:10px;line-height:1.5;";
+                        nd.appendChild(d);
+                        
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;gap:12px;margin-bottom:8px;align-items:center;";
+                        
+                        const mk = (label, getter, setter, min, max, step) => {
+                            const f = document.createElement("div");
+                            f.style.flex = "1";
+                            const l = document.createElement("div");
+                            l.textContent = label;
+                            l.style.cssText = "font-size:12px;color:var(--decentral-text-formal);margin-bottom:4px;";
+                            const i = document.createElement("input");
+                            i.type = "number";
+                            i.value = getter();
+                            i.min = min;
+                            i.max = max;
+                            i.step = step;
+                            i.style.cssText = "width:100%;padding:6px;border:1px solid var(--decentral-text-border);border-radius:6px;background:var(--decentral-text-background);color:var(--decentral-text);font-size:12px;box-sizing:border-box;";
+                            i.onchange = () => {
+                                const v = parseFloat(i.value);
+                                if (!isNaN(v)) setter(v)
+                            };
+                            f.appendChild(l);
+                            f.appendChild(i);
+                            return f
+                        };
+                        row.appendChild(mk("유사도 임계값", () => state.threshold, v => state.threshold = v, .7, .99, .01));
+                        row.appendChild(mk("최대 글자수 (summary)", () => state.maxChars, v => state.maxChars = v, 200, 3e3, 50));
+                        nd.appendChild(row);
+                        
+                        const runBtn = document.createElement("button");
+                        runBtn.textContent = "병합 후보 찾기";
+                        runBtn.style.cssText = "width:100%;padding:10px;background:#88b9c8;color:#141413;border:none;border-radius:6px;cursor:pointer;font-size:12px;font-weight:bold;";
+                        
+                        const runStatus = document.createElement("div");
+                        runStatus.style.cssText = "font-size:11px;color:var(--decentral-text-formal);margin-top:6px;text-align:center;";
+                        
+                        runBtn.onclick = async () => {
+                            runBtn.disabled = true;
+                            runBtn.textContent = "분석 중...";
+                            try {
+                                const _url = C.getCurUrl();
+                                const activePacks = settings.config.urlPacks?.[_url] || [];
+                                const entries = (await db.entries.toArray()).filter(e => activePacks.includes(e.packName));
+                                if (entries.length < 2) {
+                                    runStatus.textContent = "검사 가능한 활성 세부 엔트리가 2개 미만입니다.";
+                                    runStatus.style.color = "#d66";
+                                    return
+                                }
+                                const embs = await db.embeddings.where("entryId").anyOf(entries.map(e => e.id)).toArray();
+                                const entryById = {};
+                                entries.forEach(e => entryById[e.id] = e);
+                                
+                                const embMap = {};
+                                for (const eb of embs) {
+                                    if (eb.field !== "summary") continue;
+                                    const ent = entryById[eb.entryId];
+                                    if (!ent) continue;
+                                    if (eb.packName && eb.packName !== ent.packName) continue;
+                                    if (C.embeddingSourceHash && (eb.sourceHash || eb.hash) !== C.embeddingSourceHash(ent, "summary")) continue;
+                                    embMap[eb.entryId] = eb.vector
+                                }
+                                
+                                const withEmb = entries.filter(e => embMap[e.id]);
+                                if (withEmb.length < 2) {
+                                    runStatus.textContent = "임베딩 준비 상태인 활성 로어가 부족합니다. 파일 탭에서 먼저 임베딩 버튼을 눌러주세요.";
+                                    runStatus.style.color = "#d66";
+                                    return
+                                }
+                                
+                                const cos = (a, b) => {
+                                    let d = 0, na = 0, nb = 0;
+                                    const L = Math.min(a.length, b.length);
+                                    for (let i = 0; i < L; i++) {
+                                        d += a[i] * b[i];
+                                        na += a[i] * a[i];
+                                        nb += b[i] * b[i]
+                                    }
+                                    return d / (Math.sqrt(na) * Math.sqrt(nb) || 1)
+                                };
+                                
+                                const parent = {};
+                                const find = x => {
+                                    let root = x;
+                                    while (parent[root] !== root) root = parent[root];
+                                    while (parent[x] !== root) {
+                                        const next = parent[x];
+                                        parent[x] = root;
+                                        x = next
+                                    }
+                                    return root
+                                };
+                                const uni = (a, b) => { parent[find(a)] = find(b) };
+                                withEmb.forEach(e => parent[e.id] = e.id);
+                                
+                                const pairs = [];
+                                for (let i = 0; i < withEmb.length; i++) {
+                                    for (let j = i + 1; j < withEmb.length; j++) {
+                                        if (!typeCompatible(withEmb[i], withEmb[j])) continue;
+                                        const s = cos(embMap[withEmb[i].id], embMap[withEmb[j].id]);
+                                        if (s >= state.threshold) {
+                                            pairs.push({ a: withEmb[i].id, b: withEmb[j].id, sim: s });
+                                            uni(withEmb[i].id, withEmb[j].id)
+                                        }
+                                    }
+                                }
+                                
+                                const groupMap = {};
+                                withEmb.forEach(e => {
+                                    const r = find(e.id);
+                                    (groupMap[r] = groupMap[r] || []).push(e)
+                                });
+                                
+                                const groups = Object.values(groupMap).filter(g => g.length >= 2).map(g => {
+                                    const ids = new Set(g.map(e => e.id));
+                                    const maxSim = pairs.filter(p => ids.has(p.a) && ids.has(p.b)).reduce((m, p) => Math.max(m, p.sim), 0);
+                                    return { entries: g, sim: maxSim }
+                                }).sort((a, b) => b.sim - a.sim);
+                                
+                                state.groups = groups;
+                                runStatus.textContent = groups.length > 0 ? "중복 의심 " + groups.length + "개 그룹 검출 성공" : "임계값 이상의 중복된 로어가 검출되지 않았습니다.";
+                                runStatus.style.color = groups.length > 0 ? "#4a9" : "var(--decentral-text-formal)";
+                                m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
+                            } catch (e) {
+                                runStatus.textContent = "분석 실패: " + e.message;
+                                runStatus.style.color = "#d66"
+                            }
+                            runBtn.textContent = "병합 후보 찾기";
+                            runBtn.disabled = false
+                        };
+                        nd.appendChild(runBtn);
+                        nd.appendChild(runStatus);
+                        
+                        const bulkRow = document.createElement("div");
+                        bulkRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:10px;padding:8px;background:var(--decentral-hover);border:1px solid var(--decentral-text-border);border-radius:6px;";
+                        const bulkLbl = document.createElement("div");
+                        bulkLbl.textContent = "일괄 조치";
+                        bulkLbl.style.cssText = "font-size:11px;color:var(--decentral-text-formal);white-space:nowrap;";
+                        
+                        const bulkSel = document.createElement("select");
+                        bulkSel.style.cssText = "flex:1;padding:6px;border:1px solid var(--decentral-text-border);border-radius:6px;background:var(--decentral-text-background);color:var(--decentral-text);font-size:11px;height:30px;";
+                        [
+                            ["", "-- 모든 그룹 일괄 액션 결정 --"],
+                            ["keep-longest", "가장 긴 항목 유지 + 키워드 합집합 (안전)"],
+                            ["llm-summarize", "LLM 요약 병합 (API 비용 발생, 고지능)"]
+                        ].forEach(([v, l]) => {
+                            const o = document.createElement("option");
+                            o.value = v;
+                            o.textContent = l;
+                            bulkSel.appendChild(o)
+                        });
+                        
+                        bulkSel.onchange = () => {
+                            if (!bulkSel.value) return;
+                            const sels = document.querySelectorAll("select.lore-merge-mode-sel");
+                            sels.forEach(s => { s.value = bulkSel.value });
+                            bulkSel.value = ""
+                        };
+                        bulkRow.appendChild(bulkLbl);
+                        bulkRow.appendChild(bulkSel);
+                        nd.appendChild(bulkRow);
+                        
+                        if (C.__lastMergeUndo && C.__lastMergeUndo.originals && C.__lastMergeUndo.originals.length) {
+                            const undoBtn = document.createElement("button");
+                            undoBtn.textContent = "직전 병합 취소 (" + C.__lastMergeUndo.originals.length + "개 엔트리 전원 복원)";
+                            undoBtn.style.cssText = "width:100%;padding:8px;margin-top:10px;background:transparent;color:#da8;border:1px solid #642;border-radius:6px;cursor:pointer;font-size:12px;font-weight:600;";
+                            undoBtn.onclick = async () => {
+                                if (!confirm("직전 병합을 되돌리고 개별 원본 엔트리들을 원상복구 하시겠습니까?")) return;
+                                try {
+                                    const undo = C.__lastMergeUndo;
+                                    if (undo.mergedId != null) {
+                                        await db.entries.delete(undo.mergedId);
+                                        try { await db.embeddings.where("entryId").equals(undo.mergedId).delete() } catch (_) {}
+                                    }
+                                    for (const snap of undo.originals) await db.entries.put(snap);
+                                    const packs = new Set(undo.originals.map(e => e.packName));
+                                    for (const pk of packs) {
+                                        const cnt = await db.entries.where("packName").equals(pk).count();
+                                        await db.packs.update(pk, { entryCount: cnt })
+                                    }
+                                    C.__lastMergeUndo = null;
+                                    alert("이전 병합 상태가 안전하게 취소 및 복원되었습니다.");
+                                    m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
+                                } catch (e) {
+                                    alert("실패: " + e.message)
+                                }
+                            };
+                            nd.appendChild(undoBtn)
+                        }
+                    }
+                });
+
+                if (state.groups && state.groups.length > 0) {
+                    for (const [gi, grp] of state.groups.entries()) {
+                        panel.addBoxedField("", "", {
+                            onInit: nd => {
+                                C.setFullWidth(nd);
+                                nd.style.cssText += "background:var(--decentral-switch-background);border:1px solid var(--decentral-text-border);border-radius:8px;margin-bottom:12px;padding:12px;box-sizing:border-box;";
+                                
+                                const hdr = document.createElement("div");
+                                hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--decentral-border);";
+                                
+                                const title = document.createElement("div");
+                                title.textContent = "그룹 " + (gi + 1) + " — " + grp.entries.length + "개 / 유사도 " + (grp.sim * 100).toFixed(1) + "%";
+                                title.style.cssText = "font-size:12px;color:var(--decentral-active-item);font-weight:bold;";
+                                
+                                const types = [...new Set(grp.entries.map(e => e.type))];
+                                const typeWarn = types.length > 1 ? "타입 불일치: " + types.join(", ") : "타입: " + types[0];
+                                const warn = document.createElement("div");
+                                warn.textContent = typeWarn;
+                                warn.style.cssText = "font-size:10px;color:" + (types.length > 1 ? "#9b4600" : "var(--decentral-text-formal)") + ";";
+                                
+                                hdr.appendChild(title);
+                                hdr.appendChild(warn);
+                                nd.appendChild(hdr);
+                                
+                                for (const e of grp.entries) {
+                                    const row = document.createElement("div");
+                                    row.style.cssText = "padding:6px 0;border-bottom:1px dashed var(--decentral-border);font-size:11px;color:var(--decentral-text-formal);";
+                                    const safeSum = (summaryValue(e.summary) || "(요약 정보 없음)").slice(0, 150).replace(/</g, "&lt;");
+                                    row.innerHTML = '<span style="color:var(--decentral-text);font-weight:bold;">[' + e.type + "] " + e.name + '</span> <span style="color:var(--decentral-text-formal);">(' + e.packName + ")</span>" + (e.anchor ? ' <span style="color:#88b9c8;font-weight:bold;">앵커</span>' : "") + '<br><span>' + safeSum + '</span>';
+                                    nd.appendChild(row)
+                                }
+                                
+                                const ctrl = document.createElement("div");
+                                ctrl.style.cssText = "margin-top:10px;display:flex;gap:6px;align-items:center;";
+                                
+                                const modeSel = document.createElement("select");
+                                modeSel.className = "lore-merge-mode-sel";
+                                modeSel.style.cssText = "padding:6px;border:1px solid var(--decentral-text-border);border-radius:6px;background:var(--decentral-text-background);color:var(--decentral-text);font-size:11px;flex:1;height:30px;";
+                                [
+                                    ["keep-longest", "가장 긴 항목 유지 + 키워드 합집합 (안전)"],
+                                    ["llm-summarize", "LLM 요약 병합 (API 호출, 품질↑)"]
+                                ].forEach(([v, l]) => {
+                                    const o = document.createElement("option");
+                                    o.value = v;
+                                    o.textContent = l;
+                                    modeSel.appendChild(o)
+                                });
+                                
+                                const B = "font-size:11px;padding:5px 12px;border-radius:6px;background:#334A52;border:1px solid #bcd0d7;color:#bcd0d7;cursor:pointer;font-weight:600;";
+                                
+                                const previewBtn = document.createElement("button");
+                                previewBtn.textContent = "프리뷰";
+                                previewBtn.style.cssText = B;
+                                
+                                const execBtn = document.createElement("button");
+                                execBtn.textContent = "병합 실행";
+                                execBtn.style.cssText = "padding:5px 12px;font-size:11px;border-radius:6px;background:#88b9c8 !important;border:none;color:#141413 !important;cursor:pointer;font-weight:bold;";
+                                
+                                ctrl.appendChild(modeSel);
+                                ctrl.appendChild(previewBtn);
+                                ctrl.appendChild(execBtn);
+                                nd.appendChild(ctrl);
+                                
+                                const preview = document.createElement("div");
+                                preview.style.cssText = "margin-top:8px;padding:8px;background:var(--decentral-text-background);border:1px solid var(--decentral-text-border);border-radius:6px;font-size:11px;color:var(--decentral-text);display:none;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;";
+                                nd.appendChild(preview);
+                                
+                                let mergedDraft = null;
+                                const mkKeepLongest = entries => {
+                                    const sorted = [...entries].sort((a, b) => summaryValue(b.summary).length - summaryValue(a.summary).length);
+                                    return mergeDraftWithOriginals(sorted[0] || {}, entries, state.maxChars)
+                                };
+                                const mkLlmMerge = async entries => {
+                                    const clean = entries.map(({ id: id, packName: packName, project: project, enabled: enabled, ...rest }) => rest);
+                                    const prompt = "다음은 중복으로 판단된 로어 엔트리들이다. 하나의 로어 JSON으로 병합하라.\n" + "원칙:\n1. 핵심 정보는 누락하지 않는다. 각 입력 엔트리를 체크리스트처럼 대조해 이름/관계/상태/약속/사건/원인/미해결 훅을 모두 보존한다\n2. 불필요한 반복·수식어만 제거한다. 서로 다른 사실을 요약 편의상 삭제하지 않는다\n3. summary는 {full, compact, micro} 객체로 병합한다. full은 " + state.maxChars + "자 이내 self-contained, compact는 관계/상태/훅 보존, micro는 안정 회상 핸들+현재 상태\n4. eventHistory/callHistory/callState/timeline/entities/detail은 합집합으로 통합한다. 충돌하는 상태는 최신 timeline/lastUpdated를 우선하되 과거 상태는 eventHistory에 남긴다\n5. embed_text에는 이름/별칭/관계어/사건 원인/이해관계/장소/미해결 훅을 포함한다\n6. triggers는 필수 키워드만 유지하되 양쪽 인물명과 고유명사는 보존한다 (최대 12개)\n7. type은 가장 구체적인 것 유지. 타입이 다르면 summary.full에 각 타입의 역할을 설명한다\n8. 출력은 순수 JSON 객체 하나만. 입력에 없던 설정을 창작하지 않는다.\n\n" + "입력:\n" + JSON.stringify(clean, null, 2);
+                                    
+                                    const res = await C.callGeminiApi(prompt, {
+                                        apiType: settings.config.autoExtApiType || "key",
+                                        key: settings.config.autoExtKey,
+                                        vertexJson: settings.config.autoExtVertexJson,
+                                        vertexLocation: settings.config.autoExtVertexLocation || "global",
+                                        vertexProjectId: settings.config.autoExtVertexProjectId,
+                                        firebaseScript: settings.config.autoExtFirebaseScript,
+                                        model: settings.config.autoExtModel,
+                                        maxRetries: 2
+                                    });
+                                    if (!res.text) throw new Error("LLM 응답 실패: " + (res.error || ""));
+                                    let txt = res.text.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim();
+                                    const m1 = txt.match(/\{[\s\S]*\}/);
+                                    if (m1) txt = m1[0];
+                                    const parsed = JSON.parse(txt);
+                                    return mergeDraftWithOriginals(parsed, entries, state.maxChars)
+                                };
+                                
+                                const buildPreview = async () => {
+                                    preview.style.display = "block";
+                                    preview.textContent = "병합 연산 처리 중...";
+                                    try {
+                                        if (modeSel.value === "keep-longest") mergedDraft = mkKeepLongest(grp.entries);
+                                        else mergedDraft = await mkLlmMerge(grp.entries);
+                                        const sumLen = summaryValue(mergedDraft.summary).length;
+                                        const over = sumLen > state.maxChars;
+                                        const color = over ? "#9b4600" : "var(--decentral-active-item)";
+                                        preview.innerHTML = '<div style="color:' + color + ';font-weight:bold;margin-bottom:6px;">병합 미리보기 (summary ' + sumLen + "자" + (over ? " — 상한(" + state.maxChars + ") 초과" : "") + ')</div><pre style="white-space:pre-wrap;margin:0;font-size:11px;color:var(--decentral-text);">' + JSON.stringify(mergedDraft, null, 2).replace(/</g, "&lt;") + "</pre>"
+                                    } catch (e) {
+                                        preview.textContent = "오류 발생: " + e.message;
+                                        mergedDraft = null
+                                    }
+                                };
+                                previewBtn.onclick = buildPreview;
+                                
+                                execBtn.onclick = async () => {
+                                    if (!mergedDraft) {
+                                        await buildPreview();
+                                        if (!mergedDraft) return
+                                    }
+                                    const sumLen = summaryValue(mergedDraft.summary).length;
+                                    if (sumLen > state.maxChars) {
+                                        if (!confirm("합쳐진 정보 요약 크기가 " + state.maxChars + "자를 초과합니다. 그래도 병합하시겠습니까?")) return
+                                    }
+                                    if (types.length > 1) {
+                                        if (!confirm("대분류 타입이 일치하지 않는 로어입니다. 계속 진행하시겠습니까?")) return
+                                    }
+                                    if (!confirm(grp.entries.length + "개 항목을 하나로 완전히 통합 병합하시겠습니까?")) return;
+                                    try {
+                                        const originals = grp.entries.map(e => JSON.parse(JSON.stringify(e)));
+                                        for (const e of grp.entries) {
+                                            try { if (C.saveEntryVersion) await C.saveEntryVersion(e, "pre_merge") } catch (_) {}
+                                        }
+                                        const anchored = grp.entries.find(e => e.anchor);
+                                        const target = anchored || grp.entries[0];
+                                        const toDelete = grp.entries.filter(e => e.id !== target.id);
+                                        const finalEntry = {
+                                            ...mergedDraft,
+                                            id: target.id,
+                                            packName: target.packName,
+                                            project: target.project
+                                        };
+                                        await db.entries.put(finalEntry);
+                                        for (const e of toDelete) {
+                                            await db.entries.delete(e.id);
+                                            try {
+                                                if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(e.id);
+                                                else await db.embeddings.where("entryId").equals(e.id).delete()
+                                            } catch (_) {}
+                                        }
+                                        try {
+                                            if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(target.id);
+                                            else await db.embeddings.where("entryId").equals(target.id).delete()
+                                        } catch (_) {}
+                                        
+                                        const packs = new Set(grp.entries.map(e => e.packName));
+                                        for (const pk of packs) {
+                                            const cnt = await db.entries.where("packName").equals(pk).count();
+                                            await db.packs.update(pk, { entryCount: cnt })
+                                        }
+                                        C.__lastMergeUndo = { mergedId: target.id, originals: originals };
+                                        state.groups = state.groups.filter((_, i) => i !== gi);
+                                        
+                                        let embedMsg = "";
+                                        try {
+                                            const apiType = settings.config.autoExtApiType || "key";
+                                            const apiOpts = {
+                                                apiType: apiType,
+                                                key: settings.config.autoExtKey,
+                                                vertexJson: settings.config.autoExtVertexJson,
+                                                vertexLocation: settings.config.autoExtVertexLocation || "global",
+                                                vertexProjectId: settings.config.autoExtVertexProjectId,
+                                                firebaseEmbedKey: settings.config.autoExtFirebaseEmbedKey,
+                                                model: settings.config.embeddingModel || "gemini-embedding-001"
+                                            };
+                                            const hasApi = apiType === "vertex" ? !!settings.config.autoExtVertexJson : apiType === "firebase" ? !!settings.config.autoExtFirebaseEmbedKey : !!settings.config.autoExtKey;
+                                            if (hasApi) {
+                                                await C.ensureEmbedding(finalEntry, apiOpts);
+                                                embedMsg = " / 병합 본문 임베딩 갱신 완료."
+                                            } else {
+                                                embedMsg = " / API 설정 미완료로 수동 검색 준비 필요."
+                                            }
+                                        } catch (embErr) {
+                                            embedMsg = " / 임베딩 갱신 실패: " + embErr.message
+                                        }
+                                        alert("성공적으로 병합되었습니다." + embedMsg);
+                                        m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
+                                    } catch (e) {
+                                        alert("실패: " + e.message)
+                                    }
+                                }
+                            }
+                        })
+                    }
+                }
+            }
+        };
+        m.replaceContentPanel(renderActiveLoreUI, "활성 로어")
+    });
+    _w.__LoreInj.__subLoreLoaded = true;
+    _w.__LoreInj.__subMergeLoaded = true;
+    _w.__LoreInj.__subLoreActiveLoaded = true;
 })();
 (async function() {
     const _w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
