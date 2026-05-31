@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.6-1
+// @version     2.0.6-2
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -15484,7 +15484,6 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 i3.value = s3.value;
                                 settings.config.autoExtPack = s3.value;
                                 setAutoExtPackForUrl(C.getCurUrl(), s3.value);
-                                s3.value = ""
                             }
                         };
                         inputWrap.appendChild(i3);
@@ -15710,10 +15709,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         const rDiv = document.createElement("div");
                         rDiv.style.cssText = "font-size:12px;color:#555555;margin-top:4px;text-align:left;width:100%;";
                         
-                        // URL 변환 버튼 (큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #334a52 적용)
+                        // URL 변환 버튼 스타일
                         const urlBtn = document.createElement("button");
                         urlBtn.textContent = "URL 지식 변환 실행";
-                        urlBtn.style.cssText = "padding:8px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;";
+                        urlBtn.style.cssText = "padding:0 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;display:inline-flex;align-items:center;justify-content:center;";
                         urlBtn.onclick = async () => {
                             if (!urlInp.value.trim() || !nameInp.value.trim()) {
                                 alert("URL과 팩 이름 정보가 모두 필요합니다.");
@@ -15782,6 +15781,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.appendChild(rDiv);
                         
                         const t2 = document.createElement("div");
+                        t2.style.cssText = "text-align: left; width: 100%;";
                         t2.innerHTML = '<div style="font-size:13px;color:#2c3e50;font-weight:bold;margin-top:16px;margin-bottom:8px;text-align:left;width:100%;">직접 서술 텍스트 기입</div>';
                         nd.appendChild(t2);
                         
@@ -15799,10 +15799,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         const rDiv2 = document.createElement("div");
                         rDiv2.style.cssText = "font-size:12px;color:#555555;margin-top:4px;text-align:left;width:100%;";
                         
-                        // 텍스트 변환 버튼 (큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #334a52 적용)
+                        // 텍스트 변환 버튼 스타일
                         const tBtn = document.createElement("button");
                         tBtn.textContent = "텍스트 지식 변환 실행";
-                        tBtn.style.cssText = "padding:8px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;";
+                        tBtn.style.cssText = "padding:0 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;display:inline-flex;align-items:center;justify-content:center;";
                         tBtn.onclick = async () => {
                             if (!ta.value.trim() || !nameInp2.value.trim()) {
                                 alert("설정 텍스트와 파일 명칭이 모두 필요합니다.");
