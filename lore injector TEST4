@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.7-1
+// @version     2.0.7-2
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -15944,28 +15944,43 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 const iLog = getInjLog(chatKey);
                 const eLog = getExtLog(chatKey);
                 
-                const makeLogBox = (title, color, items, renderer) => {
-                    panel.addLongBox(true, {
-                        onInit: nd => {
-                            C.setFullWidth(nd);
-                            nd.style.cssText += "background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:12px;box-sizing:border-box;";
+                // 단일 와이드 박스 구조 100% 보존 렌더링
+                panel.addLongBox(true, {
+                    onInit: async nd => {
+                        nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
+                        
+                        const t = document.createElement("div");
+                        t.textContent = "실행 로그";
+                        t.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:8px;text-align:left;width:100%;";
+                        nd.appendChild(t);
+
+                        // 공용 서브 컴포넌트 빌더 함수 (정밀 그레이스케일 스킨 적용)
+                        const makeLogBox = (title, items, renderer) => {
+                            const container = document.createElement("div");
+                            container.style.cssText = "margin-bottom:12px;width:100%;box-sizing:border-box;";
+                            
                             const hRow = document.createElement("div");
-                            hRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid #eeeeee;margin-bottom:8px;cursor:pointer;";
+                            hRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid #eeeeee;margin-bottom:8px;cursor:pointer;width:100%;";
+                            
                             const leftWrap = document.createElement("div");
                             leftWrap.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;";
+                            
                             const arrow = document.createElement("span");
                             arrow.textContent = "▶";
                             arrow.style.cssText = "font-size:11px;color:#888888;transition:transform .15s;";
-                            const t = document.createElement("div");
-                            t.textContent = `${title} (${items.length})`;
-                            t.style.cssText = `font-size:14px;color:${color};font-weight:bold;`;
+                            
+                            const st = document.createElement("div");
+                            st.textContent = `${title} (${items.length})`;
+                            st.style.cssText = "font-size:13px;color:#74a1c0;font-weight:bold;";
+                            
                             leftWrap.appendChild(arrow);
-                            leftWrap.appendChild(t);
+                            leftWrap.appendChild(st);
                             hRow.appendChild(leftWrap);
+                            
                             if (items.length > 0) {
                                 const btn = document.createElement("button");
                                 btn.textContent = "초기화";
-                                btn.style.cssText = "padding:4px 10px;font-size:11px;border-radius:4px;cursor:pointer;background:transparent;color:#334a52;border:1px solid #334a52;";
+                                btn.style.cssText = "padding:3px 8px;font-size:10px;border-radius:4px;cursor:pointer;background:transparent;color:#334a52;border:1px solid #334a52;font-weight:bold;";
                                 btn.onclick = ev => {
                                     ev.stopPropagation();
                                     if (confirm("로그 기록을 비우시겠습니까?")) {
@@ -15975,9 +15990,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 };
                                 hRow.appendChild(btn)
                             }
-                            nd.appendChild(hRow);
+                            container.appendChild(hRow);
+                            
                             const listCon = document.createElement("div");
-                            listCon.style.display = "none";
+                            listCon.style.cssText = "display:none;width:100%;box-sizing:border-box;";
                             if (!items.length) {
                                 listCon.appendChild(Object.assign(document.createElement("div"), {
                                     textContent: "로그 기록이 비어 있습니다.",
@@ -15986,39 +16002,49 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             } else {
                                 items.slice(0, 20).forEach(i => renderer(false, i, listCon))
                             }
-                            nd.appendChild(listCon);
+                            container.appendChild(listCon);
+                            
                             hRow.onclick = () => {
                                 const isOpen = listCon.style.display !== "none";
                                 listCon.style.display = isOpen ? "none" : "block";
                                 arrow.textContent = isOpen ? "▶" : "▼"
-                            }
-                        }
-                    })
-                };
-                const renderCostBox = panel => {
-                    panel.addLongBox(true, {
-                        onInit: nd => {
-                            C.setFullWidth(nd);
-                            nd.style.cssText += "background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:12px;box-sizing:border-box;";
+                            };
+                            nd.appendChild(container);
+                        };
+
+                        // [API 비용 상세 컴포넌트 이식 및 진회색 가독성 개선]
+                        const renderCostBox = () => {
+                            const costContainer = document.createElement("div");
+                            costContainer.style.cssText = "margin-bottom:12px;width:100%;box-sizing:border-box;";
+                            
                             let period = "all";
                             let detailsOpen = false;
+                            
                             const headerRow = document.createElement("div");
-                            headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid #eeeeee;margin-bottom:8px;flex-wrap:wrap;gap:8px;";
+                            headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid #eeeeee;margin-bottom:8px;flex-wrap:wrap;gap:8px;width:100%;";
+                            
                             const leftWrap = document.createElement("div");
                             leftWrap.style.cssText = "display:flex;align-items:center;gap:6px;flex:1;cursor:pointer;min-width:0;flex-wrap:wrap;";
+                            
                             const arrow = document.createElement("span");
                             arrow.textContent = "▶";
                             arrow.style.cssText = "font-size:11px;color:#888888;transition:transform .15s;";
+                            
                             const titleSpan = document.createElement("span");
                             titleSpan.textContent = "API 비용";
-                            titleSpan.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;";
+                            titleSpan.style.cssText = "font-size:13px;color:#74a1c0;font-weight:bold;";
+                            
                             const totalSpan = document.createElement("span");
-                            totalSpan.style.cssText = "font-size:14px;color:#333333;font-weight:bold;";
+                            totalSpan.style.cssText = "font-size:13px;color:#333333;font-weight:bold;";
+                            
                             const subSpan = document.createElement("span");
                             subSpan.style.cssText = "font-size:11px;color:#666666;";
+                            
                             leftWrap.append(arrow, titleSpan, totalSpan, subSpan);
+                            
                             const rightWrap = document.createElement("div");
                             rightWrap.style.cssText = "display:flex;align-items:center;gap:4px;flex-wrap:wrap;";
+                            
                             const periods = [{ k: "24h", l: "24h" }, { k: "7d", l: "7d" }, { k: "30d", l: "30d" }, { k: "all", l: "전체" }];
                             const periodBtns = {};
                             periods.forEach(p => {
@@ -16033,9 +16059,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 periodBtns[p.k] = b;
                                 rightWrap.appendChild(b)
                             });
+                            
                             const clearBtn = document.createElement("button");
                             clearBtn.textContent = "초기화";
-                            clearBtn.style.cssText = "padding:3px 8px;font-size:10px;border-radius:4px;cursor:pointer;background:transparent;color:#334a52;border:1px solid #334a52;margin-left:4px;";
+                            clearBtn.style.cssText = "padding:3px 8px;font-size:10px;border-radius:4px;cursor:pointer;background:transparent;color:#334a52;border:1px solid #334a52;margin-left:4px;font-weight:bold;";
                             clearBtn.onclick = ev => {
                                 ev.stopPropagation();
                                 if (confirm("전체 누적 비용 기록을 초기화하시겠습니까?")) {
@@ -16046,15 +16073,18 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             };
                             rightWrap.appendChild(clearBtn);
                             headerRow.append(leftWrap, rightWrap);
-                            nd.appendChild(headerRow);
+                            costContainer.appendChild(headerRow);
+                            
                             const detailsCon = document.createElement("div");
-                            detailsCon.style.display = "none";
-                            nd.appendChild(detailsCon);
+                            detailsCon.style.cssText = "display:none;width:100%;box-sizing:border-box;";
+                            costContainer.appendChild(detailsCon);
+                            
                             leftWrap.onclick = () => {
                                 detailsOpen = !detailsOpen;
                                 detailsCon.style.display = detailsOpen ? "block" : "none";
                                 arrow.textContent = detailsOpen ? "▼" : "▶"
                             };
+                            
                             const fmtUsd = n => "$" + (Math.abs(n) < .01 ? n.toFixed(5) : n.toFixed(4));
                             const fmtTok = n => n >= 1e3 ? (n / 1e3).toFixed(1) + "k" : String(n);
                             const refresh = () => {
@@ -16152,63 +16182,64 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 }
                             };
                             refresh()
-                        }
-                    })
-                };
-                renderCostBox(panel);
-                
-                // 1. 주입 기록 (원색을 배제하고 차분한 진회색 #333333 및 중회색 #666666 통일)
-                makeLogBox("주입 기록", "#74a1c0", iLog, (clear, i, nd) => {
-                    if (clear) {
-                        clearInjLog(chatKey);
-                        return
-                    }
-                    const r = document.createElement("div");
-                    r.style.cssText = "margin-bottom:6px;border-bottom:1px dashed #eeeeee;padding-bottom:4px;text-align:left;";
-                    let h = `<span style="color:#333333;font-size:12px;font-weight:bold;">${i.turn}턴 (${i.time})</span>`;
-                    if (i.totalChars && i.maxChars) {
-                        const pct = Math.round(i.totalChars / i.maxChars * 100);
-                        h += `<br><span style="font-size:11px;color:#333333;">주입량: ${i.totalChars}/${i.maxChars}자 (${pct}%)</span>`;
-                        h += ` <span style="font-size:10px;color:#666666;">(유저 ${i.userInputChars||0}자 + 지식 ${i.injectedChars||0}자)</span>`
-                    }
-                    if (i.sections) {
-                        const s = i.sections;
-                        const parts = [];
-                        if (s.scene) parts.push(`씬 ${s.scene}`);
-                        if (s.firstEnc) parts.push(`첫만남 ${s.firstEnc}`);
-                        if (s.reunion) parts.push(`재회 ${s.reunion}`);
-                        if (s.honor) parts.push(`호칭 ${s.honor}`);
-                        if (s.temporalRecall) parts.push(`시간축 ${s.temporalRecall}`);
-                        if (s.lore) parts.push(`로어 ${s.lore}`);
-                        if (parts.length) h += `<br><span style="font-size:10px;color:#666666;">분류 구성: ${parts.join(" / ")}</span>`
-                    }
-                    if (i.temporalInjection && (i.temporalInjection.source || i.temporalInjection.chars || (i.temporalInjection.eventIds || []).length)) {
-                        const ti = i.temporalInjection;
-                        if (ti.source && ti.source !== "none") {
-                            const src = ti.source === "judge" ? "판단AI" : ti.source === "deterministic" ? "규칙기반" : escHtml(ti.source);
-                            h += `<br><span style="font-size:10px;color:#666666;">시간축: ${src} / ${escHtml(ti.mode||"")} / ${escHtml(ti.level||"")} / ${ti.chars||0}자</span>`
-                        }
-                        const actions = Array.isArray(ti.compressionActions) ? ti.compressionActions : [];
-                        const drops = Array.isArray(ti.droppedEventIds) ? ti.droppedEventIds : [];
-                        if (actions.length || drops.length) {
-                            const aTxt = actions.slice(0, 3).map(a => `${escHtml(a.action||"")} ${escHtml(a.from||"")}→${escHtml(a.to||"")}`).join(", ");
-                            h += `<br><span style="font-size:10px;color:#666666;">압축 제어: ${aTxt||"없음"}${drops.length?" / 일부 드롭":""}</span>`
-                        }
-                    }
-                    if (i.budget) h += `<br><span style="font-size:10px;color:#666666;">지식 주입량: ${i.used||0}/${i.budget}자 (${i.level || "compact"})</span>`;
-                    h += `<br><span style="font-size:11px;color:#555555;font-weight:bold;">${i.count>0?i.count+"개 활성화: "+i.matched.join(", "):i.note||"매치된 지식 없음"}</span>`;
-                    r.innerHTML = h;
-                    nd.appendChild(r)
-                });
-                
-                // 2. 추출 기록 (진회색 및 중회색 정렬 완료)
-                makeLogBox("추출 기록", "#74a1c0", eLog, (clear, i, nd) => {
-                    if (clear) clearExtLog(chatKey);
-                    else {
-                        const r = document.createElement("div");
-                        r.style.cssText = "margin-bottom:6px;border-bottom:1px dashed #eeeeee;padding-bottom:4px;font-size:12px;text-align:left;";
-                        r.innerHTML = `<span style="color:#333333;font-weight:bold;">[${i.time}] ${i.isManual?"수동":"자동"} 추출 - ${i.status} (${i.count||0}개 반영)</span>${i.api?`<br><span style="font-size:10px;color:#666666;">API 상태: ${i.api.status}${i.api.error?" | "+i.api.error:""}</span>`:""}${renderCostLine(i)}`;
-                        nd.appendChild(r)
+                            nd.appendChild(costContainer);
+                        };
+                        renderCostBox();
+                        
+                        // 1. 주입 기록 (색상 무채색 보정: #333333 및 #666666 일치화)
+                        makeLogBox("주입 기록", iLog, (clear, i, nd) => {
+                            if (clear) {
+                                clearInjLog(chatKey);
+                                return
+                            }
+                            const r = document.createElement("div");
+                            r.style.cssText = "margin-bottom:6px;border-bottom:1px dashed #eeeeee;padding-bottom:4px;text-align:left;width:100%;box-sizing:border-box;";
+                            let h = `<span style="color:#333333;font-size:12px;font-weight:bold;">${i.turn}턴 (${i.time})</span>`;
+                            if (i.totalChars && i.maxChars) {
+                                const pct = Math.round(i.totalChars / i.maxChars * 100);
+                                h += `<br><span style="font-size:11px;color:#333333;">주입량: ${i.totalChars}/${i.maxChars}자 (${pct}%)</span>`;
+                                h += ` <span style="font-size:10px;color:#666666;">(유저 ${i.userInputChars||0}자 + 지식 ${i.injectedChars||0}자)</span>`
+                            }
+                            if (i.sections) {
+                                const s = i.sections;
+                                const parts = [];
+                                if (s.scene) parts.push(`씬 ${s.scene}`);
+                                if (s.firstEnc) parts.push(`첫만남 ${s.firstEnc}`);
+                                if (s.reunion) parts.push(`재회 ${s.reunion}`);
+                                if (s.honor) parts.push(`호칭 ${s.honor}`);
+                                if (s.temporalRecall) parts.push(`시간축 ${s.temporalRecall}`);
+                                if (s.lore) parts.push(`로어 ${s.lore}`);
+                                if (parts.length) h += `<br><span style="font-size:10px;color:#666666;">분류 구성: ${parts.join(" / ")}</span>`
+                            }
+                            if (i.temporalInjection && (i.temporalInjection.source || i.temporalInjection.chars || (i.temporalInjection.eventIds || []).length)) {
+                                const ti = i.temporalInjection;
+                                if (ti.source && ti.source !== "none") {
+                                    const src = ti.source === "judge" ? "판단AI" : ti.source === "deterministic" ? "규칙기반" : escHtml(ti.source);
+                                    h += `<br><span style="font-size:10px;color:#666666;">시간축: ${src} / ${escHtml(ti.mode||"")} / ${escHtml(ti.level||"")} / ${ti.chars||0}자</span>`
+                                }
+                                const actions = Array.isArray(ti.compressionActions) ? ti.compressionActions : [];
+                                const drops = Array.isArray(ti.droppedEventIds) ? ti.droppedEventIds : [];
+                                if (actions.length || drops.length) {
+                                    const aTxt = actions.slice(0, 3).map(a => `${escHtml(a.action||"")} ${escHtml(a.from||"")}→${escHtml(a.to||"")}`).join(", ");
+                                    h += `<br><span style="font-size:10px;color:#666666;">압축 제어: ${aTxt||"없음"}${drops.length?" / 일부 드롭":""}</span>`
+                                }
+                            }
+                            if (i.budget) h += `<br><span style="font-size:10px;color:#666666;">지식 주입량: ${i.used||0}/${i.budget}자 (${i.level || "compact"})</span>`;
+                            h += `<br><span style="font-size:11px;color:#555555;font-weight:bold;">${i.count>0?i.count+"개 활성화: "+i.matched.join(", "):i.note||"매치된 지식 없음"}</span>`;
+                            r.innerHTML = h;
+                            nd.appendChild(r)
+                        });
+                        
+                        // 2. 추출 기록 (차분한 그레이 보정)
+                        makeLogBox("추출 기록", eLog, (clear, i, nd) => {
+                            if (clear) clearExtLog(chatKey);
+                            else {
+                                const r = document.createElement("div");
+                                r.style.cssText = "margin-bottom:6px;border-bottom:1px dashed #eeeeee;padding-bottom:4px;font-size:12px;text-align:left;width:100%;box-sizing:border-box;";
+                                r.innerHTML = `<span style="color:#333333;font-weight:bold;">[${i.time}] ${i.isManual?"수동":"자동"} 추출 - ${i.status} (${i.count||0}개 반영)</span>${i.api?`<br><span style="font-size:10px;color:#666666;">API 상태: ${i.api.status}${i.api.error?" | "+i.api.error:""}</span>`:""}${renderCostLine(i)}`;
+                                nd.appendChild(r)
+                            }
+                        });
                     }
                 });
             };
