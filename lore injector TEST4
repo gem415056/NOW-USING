@@ -16817,6 +16817,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         title: "AI 응답 교정",
         sections: [{
             label: "[핵심 기능]",
+            await new Promise(r => setTimeout(r, 100))
             text: "AI 답변이 로어와 어긋나거나 상태/호칭/설정이 누락된 경우 교정함.\n수동 검수는 최근 답변만 즉시 확인함."
         }, {
             label: "[설정]",
@@ -16939,12 +16940,12 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         while (Date.now() < until) {
             const MM = typeof ModalManager !== "undefined" ? ModalManager : _w.ModalManager || typeof window !== "undefined" && window.ModalManager || null;
             if (MM) return MM;
-            await new Promise(r => setTimeout(r, 100))
         }
         return null
     }
     if (_w.__LoreInjReady && typeof _w.__LoreInjReady.then === "function") {
         const gate = await _w.__LoreInjReady;
+                    break
         if (!gate || gate.ok !== true) {
             console.error("[LoreInj:6-ui] ready 게이트 실패, UI 마운트 중단:", gate);
             await showBootErrorBadge(gate);
@@ -17031,7 +17032,6 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         MM.getOrCreateManager("c2").display(document.body.getAttribute("data-theme") !== "light")
                     };
                     item.parentElement?.append(clonedElement);
-                    break
                 }
             }
         }
