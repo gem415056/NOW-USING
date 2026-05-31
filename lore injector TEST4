@@ -13762,6 +13762,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         isEntryEnabledForUrl: isEntryEnabledForUrl,
         setEntryEnabled: setEntryEnabled
     } = _w.__LoreInj;
+
 (function() {
     "use strict";
     const _w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
