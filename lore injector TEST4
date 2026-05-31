@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.8-4
+// @version     2.0.8-5
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -1547,11 +1547,11 @@ const DECENTRAL_CSS_VALUES = `
         width: 100% !important;
         min-width: 100% !important;
         height: auto !important;
-        padding-top: 0px !important; /* 타이틀 마진이 밀어주므로 상단 중복 패딩 제거 */
-        padding-left: 20px !important;
-        padding-right: 20px !important;
-        padding-bottom: 6px !important; /* 아래로 6px 밀어내기 동일화 */
-        margin-bottom: 16px !important; /* 탭 하단과의 여백도 16px 콤팩트 매핑 */
+        padding-top: 0px !important;
+        padding-left: 28px !important; /* 좌측 여백을 28px로 통일 */
+        padding-right: 28px !important; /* 우측 여백을 28px로 통일 */
+        padding-bottom: 6px !important;
+        margin-bottom: 16px !important;
         background-color: transparent !important;
         overflow-x: auto !important;
         overflow-y: hidden !important;
@@ -1634,7 +1634,7 @@ const DECENTRAL_CSS_VALUES = `
         position: relative !important;
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 12px !important;
-        padding: 16px !important;
+        padding: 16px 28px !important; /* 좌우 여백을 28px로 완전 동기화하여 수평 정렬 일치 */
         box-sizing: border-box !important;
     }
 
@@ -3421,27 +3421,20 @@ function createLongSemiFlatGridElement(titleText, lambda) {
 
     function createToggleRow(title, desc, isChecked, onChange) {
         const wrap = document.createElement("div");
-        wrap.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;margin-bottom:8px;box-sizing:border-box;";
+        wrap.style.cssText = "display:flex;justify-content:space-between;align-items:center;gap:10px;width:100%;box-sizing:border-box;";
         const left = document.createElement("div");
         left.style.cssText = "display:flex;flex-direction:column;gap:4px;flex:1;text-align:left;";
         const t = document.createElement("div");
         t.textContent = title;
-        // 소소제목 글자색 #2c3e50 변경 및 bold 지정
         t.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;text-align:left;";
         const d = document.createElement("div");
         d.textContent = desc;
-        // 상세 설명 글자색 #555555 변경 및 가독성 확보
         d.style.cssText = "font-size:11px;color:#555555;line-height:1.4;word-break:keep-all;text-align:left;";
         left.appendChild(t);
         left.appendChild(d);
         const right = document.createElement("div");
-        right.style.cssText = "display:flex;align-items:center;gap:8px;";
-        const swLabel = document.createElement("span");
-        swLabel.textContent = isChecked ? "ON" : "OFF";
-        // ON/OFF 상태 라벨 글자색 진회색 보정
-        swLabel.style.cssText = "font-size:12px;color:#555555;font-weight:bold;width:22px;text-align:center;";
+        right.style.cssText = "display:flex;align-items:center;justify-content:flex-end;flex-shrink:0;";
         const sw = document.createElement("div");
-        // 토글 ON: #88b9c8, OFF: #dddddd 이식 완료
         sw.style.cssText = `width:36px;height:20px;border-radius:10px;cursor:pointer;background:${isChecked?"#88b9c8":"#dddddd"};position:relative;flex-shrink:0;`;
         const dot = document.createElement("div");
         dot.style.cssText = `width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;left:${isChecked?"18px":"2px"};transition:left .2s;`;
@@ -3449,11 +3442,9 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         sw.onclick = () => {
             isChecked = !isChecked;
             onChange(isChecked);
-            swLabel.textContent = isChecked ? "ON" : "OFF";
             sw.style.background = isChecked ? "#88b9c8" : "#dddddd";
             dot.style.left = isChecked ? "18px" : "2px"
         };
-        right.appendChild(swLabel);
         right.appendChild(sw);
         wrap.appendChild(left);
         wrap.appendChild(right);
@@ -14030,16 +14021,14 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 pkSw.style.background = newState ? "#88b9c8" : "#dddddd";
                                 pkDot.style.left = newState ? "16px" : "2px";
                                 
+                                // 3. 하위 자식 스위치들 비주얼 깜빡임 전혀 없이 0ms 즉시 동적 갱신
                                 const rows = listContainer.children;
                                 for (const row of rows) {
                                     const swWrap = row.querySelector("div[style*='cursor:pointer']");
                                     if (swWrap) {
-                                        const swLabel = swWrap.querySelector("span");
                                         const sw = swWrap.querySelector("div[style*='width:24px']");
                                         const dot = sw?.querySelector("div");
-                                        if (swLabel && sw && dot) {
-                                            swLabel.textContent = newState ? "ON" : "OFF";
-                                            swLabel.style.color = newState ? "#88b9c8" : "#888888";
+                                        if (sw && dot) {
                                             sw.style.background = newState ? "#88b9c8" : "#dddddd";
                                             dot.style.left = newState ? "14px" : "2px";
                                         }
@@ -14074,24 +14063,17 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 left.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;min-width:0;padding-right:8px;";
                                 const isEnabled = isEntryEnabledForUrl(e);
                                 const swWrap = document.createElement("div");
-                                swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;background:#FFFFFF;padding:2px 8px;border-radius:12px;border:1px solid #cccccc;flex-shrink:0;";
-                                const swLabel = document.createElement("span");
-                                swLabel.textContent = isEnabled ? "ON" : "OFF";
-                                swLabel.style.color = isEnabled ? "#88b9c8" : "#888888";
-                                swLabel.style.cssText += "font-size:10px;font-weight:bold;width:20px;text-align:center;";
+                                swWrap.style.cssText = "display:flex;align-items:center;cursor:pointer;flex-shrink:0;";
                                 const sw = document.createElement("div");
                                 sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#88b9c8" : "#dddddd") + ";position:relative;";
                                 const dot = document.createElement("div");
                                 dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (isEnabled ? "14px" : "2px") + ";transition:left .2s;";
                                 sw.appendChild(dot);
-                                swWrap.appendChild(swLabel);
                                 swWrap.appendChild(sw);
                                 swWrap.onclick = ev => {
                                     ev.stopPropagation();
                                     const ns = !isEntryEnabledForUrl(e);
                                     setEntryEnabled(e, ns);
-                                    swLabel.textContent = ns ? "ON" : "OFF";
-                                    swLabel.style.color = ns ? "#88b9c8" : "#888888";
                                     sw.style.background = ns ? "#88b9c8" : "#dddddd";
                                     dot.style.left = ns ? "14px" : "2px"
                                 };
@@ -14998,27 +14980,19 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             
                             const isEnabled = enabledPacks.includes(pack.name);
                             const swWrap = document.createElement("div");
-                            swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;";
-                            const swLabel = document.createElement("span");
-                            swLabel.textContent = isEnabled ? "ON" : "OFF";
-                            swLabel.style.cssText = "font-size:10px;font-weight:bold;width:20px;text-align:center;color:" + (isEnabled ? "#88b9c8" : "#888888") + ";";
+                            swWrap.style.cssText = "display:flex;align-items:center;cursor:pointer;";
                             const sw = document.createElement("div");
                             sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#88b9c8" : "#dddddd") + ";position:relative;";
                             const dot = document.createElement("div");
                             dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (isEnabled ? "14px" : "2px") + ";transition:left .2s;";
                             sw.appendChild(dot);
-                            swWrap.appendChild(swLabel);
                             swWrap.appendChild(sw);
                             
-                            // 파일 목록 토글 클릭 시 깜빡임(새로고침) 현상을 완전 소멸시키는 직접 DOM 제어 주입
                             swWrap.onclick = async () => {
-                                const curEnabled = (_w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(curUrl) : settings.config.urlPacks?.[curUrl] || []).includes(pack.name);
+                                const curEnabled = (_w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(curUrl) : settings.config.urlPacks?.[C.getCurUrl()] || []).includes(pack.name);
                                 const nextEnabled = !curEnabled;
                                 await setPackEnabled(pack.name, nextEnabled);
                                 
-                                // 비주얼 즉각 반응 (새로고침 흔들림 0%)
-                                swLabel.textContent = nextEnabled ? "ON" : "OFF";
-                                swLabel.style.color = nextEnabled ? "#88b9c8" : "#888888";
                                 sw.style.background = nextEnabled ? "#88b9c8" : "#dddddd";
                                 dot.style.left = nextEnabled ? "14px" : "2px";
                             };
