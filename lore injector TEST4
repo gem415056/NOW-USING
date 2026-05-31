@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.5-1
+// @version     2.0.5-2
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -3463,7 +3463,8 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         const projKey = prefix + "VertexProjectId";
         const fbScriptKey = prefix + "FirebaseScript";
         const fbEmbKey = prefix + "FirebaseEmbedKey";
-        const S = "width:100%;padding:6px 8px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:12px;box-sizing:border-box;";
+        // 배경 흰색, 테두리 회색, 8px 라운드 처리로 표준화
+        const S = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;height:32px;";
         const typeRow = document.createElement("div");
         typeRow.style.cssText = "display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;";
         const btnKey = document.createElement("button");
@@ -3473,7 +3474,8 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         const vertexArea = document.createElement("div");
         const firebaseArea = document.createElement("div");
         const curMode = () => config[apiTypeKey] || "key";
-        const sty = on => `padding:6px 12px;font-size:12px;border-radius:4px;cursor:pointer;border:1px solid ${on?"#285":"#444"};background:${on?"#285":"transparent"};color:${on?"#fff":"#ccc"};`;
+        // OFF 상태: 회색 테두리/진회색 텍스트 | ON 상태: 배경 #bcd0d7/테두리 및 텍스트 #334a52 정밀 매핑
+        const sty = on => `padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid ${on?"#334a52":"#cccccc"};background:${on?"#bcd0d7":"#FFFFFF"};color:${on?"#334a52":"#333333"};font-weight:${on?"bold":"normal"};height:32px;box-sizing:border-box;`;
         const updateBtns = () => {
             const m = curMode();
             btnKey.style.cssText = sty(m === "key");
@@ -13313,11 +13315,11 @@ function createLongSemiFlatGridElement(titleText, lambda) {
             m.replaceContentPanel(async panel => {
                 
                 // API 드롭다운 구성을 위한 빌더 함수 로컬 이식 (수정 무오류 보장)
-                const FIELD_STYLE = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;height:32px;";
+                const FIELD_STYLE = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;height:32px;text-align:left !important;";
                 const addSelect = (nd, label, value, groups, onChange, opts = {}) => {
                     const l = document.createElement("div");
                     l.textContent = label;
-                    l.style.cssText = "font-size:11px;color:#555555;margin:10px 0 4px;text-align:left;";
+                    l.style.cssText = "font-size:13px;color:#2c3e50;margin:10px 0 4px;text-align:left !important;width:100%;font-weight:bold;";
                     nd.appendChild(l);
                     const sel = document.createElement("select");
                     sel.style.cssText = FIELD_STYLE;
@@ -13356,27 +13358,29 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 };
 
                 // ==========================================
-                // 1. 현재 상태 카드 (addLongBox 개편 및 소제목 파스텔블루 적용)
+                // 1. 현재 상태 카드 (왼쪽 정렬 및 5개 칩 전용 색상 적용)
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: nd => {
                         nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
                         const title = document.createElement("div");
                         title.textContent = "현재 상태";
-                        title.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:8px;text-align:left;";
+                        title.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:8px;text-align:left !important;width:100%;display:block !important;";
                         nd.appendChild(title);
                         const grid = document.createElement("div");
                         grid.style.cssText = "display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;width:100%;";
                         nd.appendChild(grid);
+                        
+                        // 현재상태 5개 칩 스타일 적용 (배경: #bcd0d7 / 활성: #334a52 / 비활성: #888888)
                         const chip = (label, value, ok) => {
                             const c = document.createElement("div");
-                            c.style.cssText = "border:1px solid #cccccc;border-radius:8px;padding:8px 10px;background:#FFFFFF;min-width:0;box-sizing:border-box;text-align:left;";
+                            c.style.cssText = "border:1px solid #879aa0;border-radius:8px;padding:8px 10px;background:#bcd0d7;min-width:0;box-sizing:border-box;text-align:left;";
                             const l = document.createElement("div");
                             l.textContent = label;
-                            l.style.cssText = "font-size:10px;color:#888888;margin-bottom:4px;";
+                            l.style.cssText = "font-size:10px;color:#334a52;margin-bottom:4px;font-weight:bold;";
                             const v = document.createElement("div");
                             v.textContent = value;
-                            v.style.cssText = "font-size:12px;font-weight:bold;color:" + (ok ? "#88b9c8" : "#888888") + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+                            v.style.cssText = "font-size:12px;font-weight:bold;color:" + (ok ? "#334a52" : "#888888") + ";white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
                             c.appendChild(l);
                             c.appendChild(v);
                             grid.appendChild(c);
@@ -13395,7 +13399,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             const active = new Set(activePacks);
                             const usable = active.size ? entries.filter(e => active.has(e.packName)).length : 0;
                             entryValue.textContent = usable + "개";
-                            entryValue.style.color = usable ? "#88b9c8" : "#888888";
+                            entryValue.style.color = usable ? "#334a52" : "#888888";
                             if (activePacks.length) packValue.textContent = activePacks.join(", ")
                         }).catch(() => {
                             entryValue.textContent = "조회 실패";
@@ -13405,7 +13409,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 });
 
                 // ==========================================
-                // 2. 인젝션 활성화 & 적응형 압축 카드 (addLongBox 개편)
+                // 2. 인젝션 활성화 & 적응형 압축 카드
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: nd => {
@@ -13422,9 +13426,9 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         cmpWrap.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-top:4px;width:100%;box-sizing:border-box;";
                         const cmpLbl = document.createElement("div");
                         cmpLbl.textContent = "압축 강도 지정";
-                        cmpLbl.style.cssText = "font-size:12px;color:#555555;";
+                        cmpLbl.style.cssText = "font-size:12px;color:#555555;font-weight:bold;";
                         const cmpSel = document.createElement("select");
-                        cmpSel.style.cssText = "width:120px;padding:4px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;height:32px;box-sizing:border-box;";
+                        cmpSel.style.cssText = "width:120px;padding:4px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;height:32px;box-sizing:border-box;text-align:left;";
                         [{ v: "auto", l: "자동 공간 맞춤" }, { v: "full", l: "상세히 쓰기" }, { v: "compact", l: "간결히 요약" }, { v: "micro", l: "핵심만 쓰기" }].forEach(o => {
                             const opt = document.createElement("option");
                             opt.value = o.v;
@@ -13443,7 +13447,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 });
 
                 // ==========================================
-                // 3. 검색 & 감지 카드 (addLongBox 개편 및 소제목 적용)
+                // 3. 검색 & 감지 카드
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: nd => {
@@ -13462,10 +13466,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         emL.style.cssText = "display:flex;flex-direction:column;gap:4px;flex:1;text-align:left;";
                         const eml1 = document.createElement("div");
                         eml1.textContent = "의미 검색 모델";
-                        eml1.style.cssText = "font-size:12px;color:#555555;font-weight:bold;";
+                        eml1.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;";
                         emL.appendChild(eml1);
                         const emSel = document.createElement("select");
-                        emSel.style.cssText = "width:180px;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;height:32px;box-sizing:border-box;";
+                        emSel.style.cssText = "width:180px;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;height:32px;box-sizing:border-box;text-align:left;";
                         [{ v: "gemini-embedding-001", l: "gemini-embedding-001" }, { v: "gemini-embedding-2-preview", l: "gemini-embedding-2-preview" }].forEach(o => {
                             const opt = document.createElement("option");
                             opt.value = o.v;
@@ -13498,7 +13502,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 });
 
                 // ==========================================
-                // 4. 주입 위치 카드 (addLongBox 개편)
+                // 4. 주입 위치 카드 (지정 수치 동기화: ON배경 #bcd0d7 / 텍스트 및 테두리 #334a52)
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: nd => {
@@ -13520,8 +13524,8 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         const b1 = document.createElement("button"), b2 = document.createElement("button");
                         const updateBtns = () => {
                             const isB = settings.config.position === "before";
-                            b1.style.cssText = `padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid ${isB?"#88b9c8":"#cccccc"};background:${isB?"#88b9c8":"#FFFFFF"};color:${isB?"#ffffff":"#555555"};font-weight:bold;height:32px;`;
-                            b2.style.cssText = `padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid ${!isB?"#88b9c8":"#cccccc"};background:${!isB?"#88b9c8":"#FFFFFF"};color:${!isB?"#ffffff":"#555555"};font-weight:bold;height:32px;`
+                            b1.style.cssText = `padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid ${isB?"#334a52":"#cccccc"};background:${isB?"#bcd0d7":"#FFFFFF"};color:${isB?"#334a52":"#555555"};font-weight:bold;height:32px;`;
+                            b2.style.cssText = `padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid ${!isB?"#334a52":"#cccccc"};background:${!isB?"#bcd0d7":"#FFFFFF"};color:${!isB?"#334a52":"#555555"};font-weight:bold;height:32px;`
                         };
                         b1.textContent = "메시지 앞";
                         b1.onclick = () => {
@@ -13545,7 +13549,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 });
 
                 // ==========================================
-                // 5. 추가 정보 주입 카드 (addLongBox 개편 및 소제목 적용)
+                // 5. 추가 정보 주입 카드
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: nd => {
@@ -13566,7 +13570,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 });
 
                 // ==========================================
-                // 6. 출력 포맷 카드 (addLongBox 개편 및 소제목 적용)
+                // 6. 출력 포맷 카드
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: nd => {
@@ -13576,7 +13580,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         t1.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #eeeeee;text-align:left;width:100%;";
                         nd.appendChild(t1);
                         const oocSel = document.createElement("select");
-                        oocSel.style.cssText = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;margin-bottom:12px;height:32px;";
+                        oocSel.style.cssText = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;margin-bottom:12px;height:32px;text-align:left;";
                         for (const [k, v] of Object.entries(OOC_FORMATS)) {
                             const opt = document.createElement("option");
                             opt.value = k;
@@ -13586,14 +13590,14 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         oocSel.value = settings.config.oocFormat || "custom";
                         const pInp = document.createElement("input");
                         pInp.value = settings.config.prefix || "";
-                        pInp.style.cssText = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;margin-bottom:12px;height:32px;";
+                        pInp.style.cssText = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;margin-bottom:12px;height:32px;text-align:left;";
                         pInp.onchange = () => {
                             settings.config.prefix = pInp.value;
                             settings.save()
                         };
                         const sInp = document.createElement("input");
                         sInp.value = settings.config.suffix || "";
-                        sInp.style.cssText = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;margin-bottom:4px;height:32px;";
+                        sInp.style.cssText = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;margin-bottom:4px;height:32px;text-align:left;";
                         sInp.onchange = () => {
                             settings.config.suffix = sInp.value;
                             settings.save()
@@ -13625,7 +13629,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 });
 
                 // ==========================================
-                // 7. API 설정 카드 (기존 독립 메뉴를 하단으로 통합 수렴 및 8px 흰색상자 적용)
+                // 7. API 설정 카드 (왼쪽 정렬 정립)
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: nd => {
@@ -13637,7 +13641,6 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.appendChild(t);
                         
                         const apiSummary = document.createElement("div");
-                        const apiTypeLabel = (settings.config.autoExtApiType || "key") === "vertex" ? "Vertex JSON" : (settings.config.autoExtApiType || "key") === "firebase" ? "Firebase" : "API Key";
                         apiSummary.textContent = "추출/정리 및 의미 검색 준비에 활용될 API 연결 정보입니다.";
                         apiSummary.style.cssText = "font-size:11px;color:#555555;margin-bottom:8px;line-height:1.4;text-align:left;width:100%;";
                         nd.appendChild(apiSummary);
@@ -13648,7 +13651,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         const testRow = document.createElement("div");
                         testRow.style.cssText = "margin:12px 0 16px;display:flex;gap:8px;align-items:center;width:100%;box-sizing:border-box;";
                         
-                        // API 테스트 버튼 (큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #334a52 적용)
+                        // API 테스트 버튼 (배경 유지, 테두리 및 글씨 #334a52 고정)
                         const testBtn = document.createElement("button");
                         testBtn.textContent = "API 연결 테스트";
                         testBtn.style.cssText = "padding:6px 16px;font-size:12px;border-radius:6px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;";
@@ -13688,7 +13691,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         testRow.appendChild(testResult);
                         nd.appendChild(testRow);
                         
-                        // 모델 일치화 정렬
+                        // 모델 일치화 왼쪽 정렬 강제 적용
                         addSelect(nd, "지식 자동 추출용 모델", settings.config.autoExtModel || "gemini-3-flash-preview", [
                             ["Gemini 3.x", [
                                 ["3.5 Flash (권장)", "gemini-3.5-flash"],
@@ -13739,7 +13742,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         
                         const rl = document.createElement("div");
                         rl.textContent = "인공지능 생각 깊이 (Reasoning)";
-                        rl.style.cssText = "font-size:11px;color:#555555;margin:10px 0 4px;text-align:left;width:100%;";
+                        rl.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;margin:10px 0 4px;text-align:left;width:100%;";
                         nd.appendChild(rl);
                         const rs = document.createElement("select");
                         rs.style.cssText = FIELD_STYLE;
@@ -13761,7 +13764,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         
                         const bl = document.createElement("div");
                         bl.textContent = "생각 토큰 예산 크기";
-                        bl.style.cssText = "font-size:11px;color:#666;margin-bottom:4px;margin-top:8px;text-align:left;" + (rs.value === "budget" ? "" : "display:none;");
+                        bl.style.cssText = "font-size:12px;color:#555555;font-weight:bold;margin-bottom:4px;margin-top:8px;text-align:left;" + (rs.value === "budget" ? "" : "display:none;");
                         const bi = document.createElement("input");
                         bi.type = "number";
                         bi.value = settings.config.autoExtBudget || 2048;
@@ -13782,7 +13785,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         
                         const jrl = document.createElement("div");
                         jrl.textContent = "판단 AI 생각 깊이";
-                        jrl.style.cssText = "font-size:11px;color:#555555;margin:10px 0 4px;text-align:left;width:100%;";
+                        jrl.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;margin:10px 0 4px;text-align:left;width:100%;";
                         nd.appendChild(jrl);
                         const jrs = document.createElement("select");
                         jrs.style.cssText = FIELD_STYLE;
@@ -13807,7 +13810,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 });
 
                 // ==========================================
-                // 8. 모든 설정 초기화 카드 (addLongBox 개편 및 전용 주황빛 경고색 매핑)
+                // 8. 모든 설정 초기화 카드
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: nd => {
@@ -13815,7 +13818,6 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         
                         const resetBtn = document.createElement("button");
                         resetBtn.textContent = "모든 설정 초기화 (로어 데이터 유지)";
-                        // 요구사항 9 반영: 경고 배경색 #9b4600, 텍스트색 #effcff
                         resetBtn.style.cssText = "width:100%;padding:10px;background:#9b4600;border:1px solid #9b4600;color:#effcff;border-radius:8px;font-weight:bold;cursor:pointer;font-size:12px;height:36px;";
                         
                         resetBtn.onclick = () => {
