@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.4-3
+// @version     2.0.4-4
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -13859,12 +13859,12 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                     (byPack[e.packName] = byPack[e.packName] || []).push(e)
                 });
                 for (const [pk, items] of Object.entries(byPack)) {
-                    panel.addBoxedField("", "", {
+                    // 로어 목록 상자를 addLongBox로 개편하여 오른쪽 치우침 원천 해결
+                    panel.addLongBox(true, {
                         onInit: nd => {
-                            C.setFullWidth(nd);
-                            nd.style.cssText += "background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:12px;";
+                            nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:12px;box-sizing:border-box;";
                             const headerRow = document.createElement("div");
-                            headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #eeeeee;padding-bottom:6px;cursor:pointer;";
+                            headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #eeeeee;padding-bottom:6px;cursor:pointer;width:100%;";
                             const curUrl = C.getCurUrl();
                             const disabledEntries = settings.config.urlDisabledEntries?.[curUrl] || [];
                             let allItemsEnabled = items.every(e => !disabledEntries.includes(e.id));
@@ -13874,7 +13874,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             pkDot.style.cssText = "width:10px;height:10px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (allItemsEnabled ? "16px" : "2px") + ";transition:left .2s;";
                             pkSw.appendChild(pkDot);
                             
-                            // 팩 전체 스위치 토글 클릭 시 깜빡임(스크롤/새로고침 현상) 완전히 무력화하는 직접 DOM 업데이트 주입
+                            // 부모 팩 토글 시 깜빡임(새로고침 현상) 완전히 무력화하는 직접 DOM 업데이트 주입
                             pkSw.onclick = async ev => {
                                 ev.stopPropagation();
                                 const newState = !allItemsEnabled;
@@ -13916,7 +13916,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 }
                             };
                             const title = document.createElement("div");
-                            title.style.cssText = "font-size:14px;font-weight:bold;color:#2c3e50;flex:1;";
+                            title.style.cssText = "font-size:14px;font-weight:bold;color:#2c3e50;flex:1;text-align:left;";
                             title.textContent = pk + " (" + items.length + "개)";
                             const arrow = document.createElement("span");
                             arrow.textContent = "▼";
@@ -13927,7 +13927,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             nd.appendChild(headerRow);
                             items.sort((a, b) => (a.type || "").localeCompare(b.type || ""));
                             const listContainer = document.createElement("div");
-                            listContainer.style.cssText = "display:none;flex-direction:column;gap:0;";
+                            listContainer.style.cssText = "display:none;flex-direction:column;gap:0;width:100%;";
                             let isExpanded = false;
                             headerRow.onclick = () => {
                                 isExpanded = !isExpanded;
@@ -13936,11 +13936,11 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             };
                             for (const e of items) {
                                 const row = document.createElement("div");
-                                row.style.cssText = "padding:8px 0;border-bottom:1px solid #eeeeee;display:flex;flex-direction:column;";
+                                row.style.cssText = "padding:8px 0;border-bottom:1px solid #eeeeee;display:flex;flex-direction:column;width:100%;";
                                 const header = document.createElement("div");
-                                header.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+                                header.style.cssText = "display:flex;justify-content:space-between;align-items:center;width:100%;";
                                 const left = document.createElement("div");
-                                left.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;";
+                                left.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;width:100%;min-width:0;";
                                 const isEnabled = isEntryEnabledForUrl(e);
                                 const swWrap = document.createElement("div");
                                 swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;background:#FFFFFF;padding:2px 8px;border-radius:12px;border:1px solid #cccccc;flex-shrink:0;";
@@ -13965,7 +13965,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 };
                                 const nameSpan = document.createElement("span");
                                 nameSpan.textContent = "[" + e.type + "] " + e.name;
-                                nameSpan.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;cursor:pointer;flex:1;";
+                                nameSpan.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;cursor:pointer;flex:1;text-align:left;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                                 const embStatusSpan = document.createElement("span");
                                 embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;";
                                 const updateEmbStatus = async () => {
@@ -14009,7 +14009,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 left.appendChild(swWrap);
                                 left.appendChild(nameSpan);
                                 const right = document.createElement("div");
-                                right.style.cssText = "display:flex;gap:6px;";
+                                right.style.cssText = "display:flex;gap:6px;flex-shrink:0;";
                                 
                                 // 작은 기능 버튼 스타일 (연회색 테두리와 진회색 텍스트)
                                 const B = "font-size:11px;padding:3px 8px;border-radius:4px;background:#FFFFFF;border:1px solid #cccccc;color:#333333;cursor:pointer;";
@@ -14097,7 +14097,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 header.appendChild(right);
                                 row.appendChild(header);
                                 const historyContainer = document.createElement("div");
-                                historyContainer.style.cssText = "display:none;margin-top:8px;padding:8px;background:#FFFFFF;border:1px solid #cccccc;border-radius:4px;";
+                                historyContainer.style.cssText = "display:none;margin-top:8px;padding:8px;background:#FFFFFF;border:1px solid #cccccc;border-radius:4px;width:100%;";
                                 histBtn.onclick = async ev => {
                                     ev.stopPropagation();
                                     if (historyContainer.style.display !== "none") {
@@ -14125,7 +14125,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                             const vrow = document.createElement("div");
                                             vrow.style.cssText = "display:flex;justify-content:space-between;align-items:flex-start;padding:4px 0;border-bottom:1px dashed #eee;gap:8px;";
                                             const info = document.createElement("div");
-                                            info.style.cssText = "font-size:11px;color:#555;flex:1;min-width:0;";
+                                            info.style.cssText = "font-size:11px;color:#555;flex:1;min-width:0;text-align:left;";
                                             const sumPrev = v.snapshot && v.snapshot.summary ? String(v.snapshot.summary).slice(0, 80) : "";
                                             const stPrev = v.snapshot && (v.snapshot.state || v.snapshot.detail?.current_status) ? " / state: " + (v.snapshot.state || v.snapshot.detail?.current_status) : "";
                                             info.innerHTML = '<span style="color:#2c3e50;font-weight:bold;">' + new Date(v.ts).toLocaleString() + '</span> <span style="color:#88b9c8;">[' + (v.reason || "auto") + ']</span><br><span style="font-size:10px;color:#888;word-break:break-all;">' + sumPrev + stPrev + "</span>";
@@ -14159,7 +14159,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 };
                                 row.appendChild(historyContainer);
                                 const editContainer = document.createElement("div");
-                                editContainer.style.cssText = "display:none;margin-top:8px;flex-direction:column;gap:8px;";
+                                editContainer.style.cssText = "display:none;margin-top:8px;flex-direction:column;gap:8px;width:100%;";
                                 const ta = document.createElement("textarea");
                                 ta.style.cssText = "width:100%;height:200px;background:#FFFFFF;color:#2c3e50;border:1px solid #cccccc;border-radius:8px;padding:8px;font-size:12px;font-family:monospace;resize:vertical;box-sizing:border-box;";
                                 const editableObj = {
@@ -14313,7 +14313,6 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 s.value = bulkSel.value;
                                 s.dispatchEvent(new Event('change', { bubbles: true }));
                             });
-                            bulkSel.value = ""
                         };
                         bulkRow.appendChild(bulkLbl);
                         bulkRow.appendChild(bulkSel);
