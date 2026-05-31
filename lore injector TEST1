@@ -13219,17 +13219,12 @@ function createLongSemiFlatGridElement(titleText, lambda) {
     if (!_w.__LoreInj.__menuQueue) _w.__LoreInj.__menuQueue = [];
     if (!_w.__LoreInj.__subMenuQueue) _w.__LoreInj.__subMenuQueue = [];
     const MENU_ORDER = {
-        main: 10,
-        lore: 20,
-        file: 30,
-        extract: 40,
-        merge: 50,
-        snapshot: 60,
-        refiner: 70,
-        log: 80,
-        session: 90,
-        api: 100,
-        help: 110
+        lore_active: 10,     /* 1. 활성 로어 */
+        session: 20,         /* 2. 세션 상태 */
+        lore_management: 30, /* 3. 로어 관리 */
+        settings: 40,        /* 4. 설정 (구 main) */
+        extract: 50,         /* 5. 추출/변환 */
+        log: 60              /* 6. 실행 로그 */
     };
 
     function stableMenuQueue(queue, prefix) {
