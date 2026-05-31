@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.7-2
+// @version     2.0.8-1
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -16263,9 +16263,9 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         getCooldownMap: getCooldownMap,
         isEntryEnabledForUrl: isEntryEnabledForUrl
     } = _w.__LoreInj;
-    _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
-    _w.__LoreInj.registerSubMenu("session", function(modal) {
-        modal.createSubMenu("세션 상태 관리", m => {
+    _w.__LoreInj.registerMenu = _w.__LoreInj.registerMenu || function() {};
+    _w.__LoreInj.registerMenu("session", function(modal) {
+        modal.createMenu("세션 상태", m => {
             const renderSessionStatus = async panel => {
                 const chatKey = getChatKey();
                 const turnCounter = getTurnCounter(chatKey);
@@ -16276,19 +16276,25 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                     const all = await db.entries.toArray();
                     allEntries = all.filter(e => urlPacks.includes(e.packName) && isEntryEnabledForUrl(e))
                 }
-                panel.addBoxedField("", "", {
-                    onInit: nd => {
-                        C.setFullWidth(nd);
+                
+                // 단일 와이드 카드 상자 이식 (내부 쏠림 완전 정복)
+                panel.addLongBox(true, {
+                    onInit: async nd => {
+                        nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
+                        
                         const headerRow = document.createElement("div");
-                        headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #333;padding-bottom:8px;";
+                        headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #eeeeee;padding-bottom:8px;width:100%;box-sizing:border-box;";
+                        
                         const title = document.createElement("div");
-                        title.textContent = `현재 세션 상태 (턴: ${turnCounter})`;
-                        title.style.cssText = "font-size:14px;color:#4a9;font-weight:bold;";
+                        title.textContent = "현재 세션 상태 (턴: " + turnCounter + ")";
+                        title.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;";
+                        
+                        // 세션 전체 초기화 버튼 (배경: #bcd0d7 / 테두리 및 텍스트 #879aa0)
                         const clearAllBtn = document.createElement("button");
                         clearAllBtn.textContent = "세션 전체 초기화";
-                        clearAllBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:4px;cursor:pointer;background:#833;color:#fff;border:none;font-weight:bold;";
+                        clearAllBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:6px;cursor:pointer;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;font-weight:bold;height:28px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border-width:1px;";
                         clearAllBtn.onclick = async () => {
-                            if (!confirm("이 채팅방의 모든 쿨다운, 시간감쇠(망각) 점수 및 턴 수를 초기화할 것?")) return;
+                            if (!confirm("이 대화방의 모든 지식 재사용 쿨타임과 누적 턴 카운트를 초기화하시겠습니까?")) return;
                             try {
                                 const curUrl = C.getCurUrl();
                                 if (settings.config.urlCooldownMaps) delete settings.config.urlCooldownMaps[chatKey];
@@ -16305,9 +16311,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     const entries = await db.entries.where("packName").anyOf(packs).toArray();
                                     for (const e of entries) {
                                         try {
-                                            await db.entries.update(e.id, {
-                                                lastMentionedTurn: 0
-                                            })
+                                            await db.entries.update(e.id, { lastMentionedTurn: 0 })
                                         } catch (_) {}
                                     }
                                 }
@@ -16315,30 +16319,33 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     if (db.workingMemory) await db.workingMemory.delete(curUrl)
                                 } catch (_) {}
                                 settings.save();
-                                m.replaceContentPanel(renderSessionStatus, "세션 상태 관리")
+                                m.replaceContentPanel(renderSessionStatus, "세션 상태")
                             } catch (e) {
-                                console.error("[LoreInj:session] 전체 초기화 실패:", e);
+                                console.error("[LoreInj:session] 초기화 실패:", e);
                                 alert("세션 초기화 실패: " + (e.message || e))
                             }
                         };
                         headerRow.appendChild(title);
                         headerRow.appendChild(clearAllBtn);
                         nd.appendChild(headerRow);
+                        
                         const mig = settings.config.migrationStatus;
                         if (mig && mig.message) {
                             const migBox = document.createElement("div");
                             const ok = !/failed/i.test(mig.message);
-                            migBox.style.cssText = `margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid ${ok?"#285":"#833"};background:#111;color:#ccc;font-size:11px;line-height:1.5;`;
-                            migBox.textContent = `마이그레이션: ${mig.message} / 엔트리 ${mig.migratedEntries||0}개 정리 / stale embedding ${mig.staleEmbeddingsRemoved||0}개 삭제`;
+                            migBox.style.cssText = `margin-bottom:10px;padding:8px;border-radius:6px;border:1px solid ${ok?"#88b9c8":"#9b4600"};background:#FFFFFF;color:#2c3e50;font-size:11px;line-height:1.5;text-align:left;width:100%;box-sizing:border-box;`;
+                            migBox.textContent = `연속성 마이그레이션: ${mig.message}`;
                             nd.appendChild(migBox)
                         }
+                        
                         if (!allEntries.length) {
                             const empty = document.createElement("div");
-                            empty.textContent = "현재 활성화된 로어가 없습니다.";
-                            empty.style.cssText = "color:#888;font-size:12px;text-align:center;padding:10px;";
+                            empty.textContent = "현재 세션에서 활성화된 지식 파일이 없습니다.";
+                            empty.style.cssText = "color:#888888;font-size:12px;text-align:center;padding:10px;width:100%;";
                             nd.appendChild(empty);
                             return
                         }
+                        
                         const lastMentionMap = JSON.parse(_ls.getItem("lore-last-mention") || "{}")[chatKey] || {};
                         const statusList = [];
                         for (const e of allEntries) {
@@ -16371,41 +16378,55 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 })
                             }
                         }
+                        
                         statusList.sort((a, b) => b.reinjScore - a.reinjScore);
                         if (statusList.length === 0) {
                             const empty2 = document.createElement("div");
-                            empty2.textContent = "표시할 상태(쿨다운/점수)가 없습니다.";
-                            empty2.style.cssText = "color:#888;font-size:12px;text-align:center;padding:10px;";
+                            empty2.textContent = "기억 감쇠 및 대기 중인 쿨타임 이력이 존재하지 않습니다.";
+                            empty2.style.cssText = "color:#888888;font-size:12px;text-align:center;padding:10px;width:100%;";
                             nd.appendChild(empty2);
                             return
                         }
+                        
                         const listContainer = document.createElement("div");
-                        listContainer.style.cssText = "display:flex;flex-direction:column;gap:8px;max-height:400px;overflow-y:auto;";
+                        listContainer.style.cssText = "display:flex;flex-direction:column;gap:8px;max-height:360px;overflow-y:auto;width:100%;box-sizing:border-box;";
+                        
                         for (const st of statusList) {
                             const row = document.createElement("div");
-                            row.style.cssText = "display:flex;justify-content:space-between;align-items:center;background:#1a1a1a;border:1px solid #333;border-radius:6px;padding:8px 12px;";
+                            row.style.cssText = "display:flex;justify-content:space-between;align-items:center;background:#FFFFFF;border:1px solid #eeeeee;border-radius:8px;padding:8px 12px;width:100%;box-sizing:border-box;";
+                            
                             const info = document.createElement("div");
-                            info.style.cssText = "display:flex;flex-direction:column;gap:4px;";
+                            info.style.cssText = "display:flex;flex-direction:column;gap:4px;text-align:left;flex:1;min-width:0;padding-right:8px;";
+                            
                             const nameEl = document.createElement("div");
                             nameEl.textContent = `[${st.type}] ${st.name}`;
-                            nameEl.style.cssText = "font-size:13px;font-weight:bold;color:#ccc;";
+                            nameEl.style.cssText = "font-size:13px;font-weight:bold;color:#2c3e50;word-break:break-all;";
+                            
                             const statText = document.createElement("div");
-                            statText.style.cssText = "font-size:11px;color:#888;display:flex;gap:12px;";
-                            let cdStr = st.cooldownRem > 0 ? `<span style="color:#d66;">⏳ 쿨다운 ${st.cooldownRem}턴 남음</span>` : `<span style="color:#4a9;">✅ 쿨다운 완료</span>`;
+                            statText.style.cssText = "font-size:11px;color:#666666;display:flex;gap:12px;flex-wrap:wrap;";
+                            
+                            // 쿨타임 상태 색상 (대기중: #334a52, 완료/기본: #88b9c8 적용)
+                            let cdStr = st.cooldownRem > 0 ? `<span style="color:#334a52;font-weight:bold;">⏳ 쿨다운 ${st.cooldownRem}턴 남음</span>` : `<span style="color:#88b9c8;font-weight:bold;">✅ 쿨다운 완료</span>`;
+                            
                             let decayStr = "";
                             if (settings.config.decayEnabled) {
                                 const p = Math.round(st.reinjScore * 100);
-                                const pColor = p > 70 ? "#d66" : p > 40 ? "#da8" : "#888";
-                                decayStr = `<span>망각: ${st.turnsSince}턴 경과 (재주입 점수: <span style="color:${pColor}">${p}%</span>)</span>`
+                                // 망각 수치 색상 그레이스케일 평탄화 완료
+                                const pColor = p > 70 ? "#333333" : p > 40 ? "#555555" : "#777777";
+                                decayStr = `<span>망각: ${st.turnsSince}턴 경과 (재주입: <span style="color:${pColor};font-weight:bold;">${p}%</span>)</span>`
                             }
-                            const timeStr = st.eventTurn ? `<span>사건:t${st.eventTurn}${st.gap!=null?" / gap "+st.gap+"턴":""}</span>` : "";
-                            const entStr = st.entities && st.entities.length ? `<span>엔티티:${st.entities.join(",")}</span>` : "";
+                            
+                            const timeStr = st.eventTurn ? `<span>사건: t${st.eventTurn}</span>` : "";
+                            const entStr = st.entities && st.entities.length ? `<span>대상: ${st.entities.join(", ")}</span>` : "";
+                            
                             statText.innerHTML = [cdStr, decayStr, timeStr, entStr].filter(Boolean).join("");
                             info.appendChild(nameEl);
                             info.appendChild(statText);
+                            
+                            // 리셋 단일 액션 버튼 (테두리 연회색 / 텍스트 진회색)
                             const resetBtn = document.createElement("button");
                             resetBtn.textContent = "리셋";
-                            resetBtn.style.cssText = "padding:4px 10px;font-size:11px;border-radius:4px;cursor:pointer;background:transparent;border:1px solid #555;color:#ccc;";
+                            resetBtn.style.cssText = "padding:4px 10px;font-size:11px;border-radius:4px;cursor:pointer;background:#FFFFFF;border:1px solid #cccccc;color:#333333;flex-shrink:0;height:24px;display:inline-flex;align-items:center;justify-content:center;";
                             resetBtn.onclick = () => {
                                 if (settings.config.urlCooldownMaps?.[chatKey]) {
                                     delete settings.config.urlCooldownMaps[chatKey][st.id]
@@ -16416,8 +16437,9 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     _ls.setItem("lore-last-mention", JSON.stringify(allMentions))
                                 }
                                 settings.save();
-                                m.replaceContentPanel(renderSessionStatus, "세션 상태 관리")
+                                m.replaceContentPanel(renderSessionStatus, "세션 상태")
                             };
+                            
                             row.appendChild(info);
                             row.appendChild(resetBtn);
                             listContainer.appendChild(row)
@@ -16426,7 +16448,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                     }
                 })
             };
-            m.replaceContentPanel(renderSessionStatus, "세션 상태 조회")
+            m.replaceContentPanel(renderSessionStatus, "세션 상태")
         })
     });
     _w.__LoreInj.__subSessionLoaded = true
