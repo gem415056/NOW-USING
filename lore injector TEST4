@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.4-6
+// @version     2.0.4-7
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -14821,7 +14821,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 const enabledPacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(curUrl) : settings.config.urlPacks?.[curUrl] || [];
 
                 // ==========================================
-                // 1. 로어 파일 목록 카드 (addLongBox 개편으로 쏠림 해결)
+                // 1. 로어 파일 목록 카드
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: async nd => {
@@ -14876,18 +14876,17 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             swWrap.appendChild(swLabel);
                             swWrap.appendChild(sw);
                             
-                            // 스냅샷 및 팩 스위치 깜빡임 방지용 스크롤 상태 기억 갱신 적용
+                            // 파일 목록 토글 클릭 시 깜빡임(새로고침) 현상을 완전 소멸시키는 직접 DOM 제어 주입
                             swWrap.onclick = async () => {
-                                const gridContainer = document.querySelector(".decentral-grid-container");
-                                const currentScrollTop = gridContainer ? gridContainer.scrollTop : 0;
-
-                                const curEnabled = (_w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(C.getCurUrl()) : settings.config.urlPacks?.[C.getCurUrl()] || []).includes(pack.name);
-                                await setPackEnabled(pack.name, !curEnabled);
+                                const curEnabled = (_w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(curUrl) : settings.config.urlPacks?.[curUrl] || []).includes(pack.name);
+                                const nextEnabled = !curEnabled;
+                                await setPackEnabled(pack.name, nextEnabled);
                                 
-                                await m.replaceContentPanel(renderPackUI, "로어 관리");
-
-                                const newGridContainer = document.querySelector(".decentral-grid-container");
-                                if (newGridContainer) newGridContainer.scrollTop = currentScrollTop;
+                                // 비주얼 즉각 반응 (새로고침 흔들림 0%)
+                                swLabel.textContent = nextEnabled ? "ON" : "OFF";
+                                swLabel.style.color = nextEnabled ? "#88b9c8" : "#888888";
+                                sw.style.background = nextEnabled ? "#88b9c8" : "#dddddd";
+                                dot.style.left = nextEnabled ? "14px" : "2px";
                             };
                             
                             leftSide.appendChild(swWrap);
@@ -14900,8 +14899,8 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             const actions = document.createElement("div");
                             actions.style.cssText = "display:flex;gap:4px;";
                             
-                            // 내보내기, 임베딩, 정리 버튼 스타일 (테두리 및 텍스트 #bcd0d7 적용)
-                            const B_PACK = "font-size:11px;padding:3px 8px;border-radius:4px;background:#FFFFFF;border:1px solid #bcd0d7;color:#bcd0d7;cursor:pointer;";
+                            // 내보내기, 임베딩, 정리 버튼 스타일 보정 (연회색 테두리와 진회색 텍스트)
+                            const B_PACK = "font-size:11px;padding:3px 8px;border-radius:4px;background:#FFFFFF;border:1px solid #cccccc;color:#333333;cursor:pointer;";
                             
                             const exportBtn = document.createElement("button");
                             exportBtn.textContent = "내보내기";
@@ -14972,7 +14971,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 setTimeout(() => { cleanBtn.textContent = orig; cleanBtn.disabled = false; }, 1500)
                             };
                             
-                            // 삭제 버튼 (볼드체 해제, 배경 #bcd0d7, 테두리 및 텍스트 #334a52 적용)
+                            // 삭제 버튼 (배경: #bcd0d7 / 테두리 및 텍스트 #334a52 유지)
                             const delBtn = document.createElement("button");
                             delBtn.textContent = "삭제";
                             delBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:4px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;cursor:pointer;font-weight:normal;";
@@ -14997,7 +14996,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 });
 
                 // ==========================================
-                // 2. 백업 스냅샷 목록 카드 (addLongBox 개편 및 소제목 파스텔블루 적용)
+                // 2. 백업 스냅샷 목록 카드
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: async nd => {
@@ -15037,10 +15036,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             const btnWrap = document.createElement("div");
                             btnWrap.style.cssText = "display:flex;gap:4px;";
                             
-                            // 복원 버튼 (배경: #bcd0d7 / 테두리 및 텍스트: #879aa0 적용)
+                            // 복원 버튼 스타일 보정 (연회색 테두리와 진회색 텍스트)
                             const rBtn = document.createElement("button");
                             rBtn.textContent = "복원";
-                            rBtn.style.cssText = "padding:3px 8px;font-size:11px;border-radius:4px;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;cursor:pointer;font-weight:bold;";
+                            rBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:4px;background:#FFFFFF;border:1px solid #cccccc;color:#333333;cursor:pointer;font-weight:normal;";
                             rBtn.onclick = async () => {
                                 if (confirm(`[${s.packName}] 팩을 이 시점으로 복원하시겠습니까?`)) {
                                     await restoreSnapshot(s.id);
@@ -15049,7 +15048,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 }
                             };
                             
-                            // 삭제 버튼 (배경: #bcd0d7 / 테두리 및 텍스트: #334a52 적용)
+                            // 삭제 버튼 (배경: #bcd0d7 / 테두리 및 텍스트 #334a52 유지)
                             const dBtn = document.createElement("button");
                             dBtn.textContent = "삭제";
                             dBtn.style.cssText = "padding:3px 8px;font-size:11px;border-radius:4px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;cursor:pointer;font-weight:normal;";
@@ -15071,7 +15070,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 });
 
                 // ==========================================
-                // 3. 로어 가져오기 카드 (addLongBox 개편 및 입력폼 흰색화, 대형버튼 테마 적용)
+                // 3. 로어 가져오기 카드
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: nd => {
@@ -15095,10 +15094,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         fileInput.accept = ".json";
                         fileInput.style.display = "none";
                         
-                        // JSON 파일 가져오기 (큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #879aa0 적용)
+                        // JSON 파일 가져오기 (배경색 유지, 테두리 및 텍스트 #334a52 수정)
                         const importBtn = document.createElement("button");
                         importBtn.textContent = "JSON 파일 가져오기";
-                        importBtn.style.cssText = "padding:6px 14px;font-size:12px;border-radius:6px;cursor:pointer;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;font-weight:bold;white-space:nowrap;height:32px;";
+                        importBtn.style.cssText = "padding:6px 14px;font-size:12px;border-radius:6px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;white-space:nowrap;height:32px;";
                         importBtn.onclick = () => fileInput.click();
                         
                         fileInput.onchange = async ev => {
@@ -15160,10 +15159,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         const manualBtnRow = document.createElement("div");
                         manualBtnRow.style.cssText = "display:flex;justify-content:flex-end;width:100%;";
                         
-                        // 수동 추가 (큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #879aa0 적용)
+                        // 수동 추가 (배경색 유지, 테두리 및 텍스트 #334a52 수정)
                         const manualBtn = document.createElement("button");
                         manualBtn.textContent = "수동 추가";
-                        manualBtn.style.cssText = "padding:6px 14px;font-size:12px;border-radius:6px;cursor:pointer;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;font-weight:bold;height:32px;";
+                        manualBtn.style.cssText = "padding:6px 14px;font-size:12px;border-radius:6px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;";
                         manualBtn.onclick = async () => {
                             const pn = nameInput.value.trim() || "수동추가";
                             try {
