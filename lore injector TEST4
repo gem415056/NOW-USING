@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.8-5
+// @version     2.0.8-6
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -1463,7 +1463,7 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 모달 베이스 선언 (응답교정기 팝업 크기 동일화)
+     * 모달 베이스 선언 (응답교정기 팝업 크기 및 전역 28px 내부 패딩 완벽 결합)
      */
     .decentral-modal {
         display: flex !important;
@@ -1479,6 +1479,7 @@ const DECENTRAL_CSS_VALUES = `
         box-shadow: 0 8px 40px rgba(0,0,0,0.2) !important;
         overflow: hidden !important;
         box-sizing: border-box !important;
+        padding: 28px !important; /* 응답교정기 전역 패딩 28px 완벽 이식 */
     }
 
     /*
@@ -1492,8 +1493,8 @@ const DECENTRAL_CSS_VALUES = `
       display: flex !important;
       align-items: center !important;
       justify-content: space-between !important;
-      padding: 28px 28px 0px 28px !important; /* 아래 패딩을 0으로 좁힘 */
-      margin-bottom: 16px !important; /* 응답교정기와 동일한 16px 수직 여백 확보 */
+      padding: 0px !important; /* 전역 패딩 28px 영역 내부에 위치하므로 중복 패딩 완전 제거 */
+      margin-bottom: 16px !important; /* 교정기 헤더 수직 여백 16px 완전 동기화 */
       border-bottom: none !important;
       flex-shrink: 0;
       width: 100% !important;
@@ -1501,11 +1502,9 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     .decental-modal-title-text {
-      margin: 0 !important;
-      font-weight: 700 !important;
-      font-size: 17px !important; /* 교정기 🎀 로어 인젝터 타이틀 폰트 크기 동기화 */
+      font-weight: bold;
+      font-size: 17px !important; /* 교정기 헤더 타이틀 크기 동기화 */
       color: var(--decentral-text) !important;
-      line-height: 1.2 !important;
     }
     
     .decentral-modal-button-container {
@@ -1535,7 +1534,7 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 모달 상단 메뉴 탭 컨테이너 선언
+     * 모달 상단 메뉴 탭 컨테이너 선언 (응답교정기 탭 메뉴바 정밀 이식)
      */
     .decentral-menu-container {
         border-right: none !important;
@@ -1548,39 +1547,34 @@ const DECENTRAL_CSS_VALUES = `
         min-width: 100% !important;
         height: auto !important;
         padding-top: 0px !important;
-        padding-left: 28px !important; /* 좌측 여백을 28px로 통일 */
-        padding-right: 28px !important; /* 우측 여백을 28px로 통일 */
+        padding-left: 0px !important; /* 전역 패딩 28px 내부에 있으므로 수동 정렬 여백 제거 */
+        padding-right: 0px !important;
         padding-bottom: 6px !important;
-        margin-bottom: 16px !important;
+        margin-top: 0px !important; /* 중복 마진 제거로 벌어짐 복구 */
+        margin-bottom: 12px !important; /* 탭 하단과의 여백 12px 동기화 */
         background-color: transparent !important;
         overflow-x: auto !important;
         overflow-y: hidden !important;
-        flex-shrink: 0;
+        gap: 17px !important; /* 탭 간격 17px */
         box-sizing: border-box !important;
+        flex-shrink: 0;
     }
 
     .decentral-menu-container::-webkit-scrollbar {
         display: none;
     }
 
-    .decentral-menu-element-container {
-        display: flex !important;
-        gap: 17px !important;
-        margin-bottom: -7px !important; /* 7px 아래 마이너스 마진 상쇄 */
-        padding: 0 !important;
-        height: auto !important;
-        align-items: center !important;
-    }
-
+    /* 탭 메뉴 글자 스타일 */
     .decentral-menu-container .decentral-menu-element {
         background: none !important;
         border: none !important;
         font-size: 14px !important;
         font-weight: 500 !important;
         color: var(--decentral-text-inactive) !important;
-        padding: 0 4px 6px 4px !important;
+        padding: 0 4px 6px 4px !important; /* 6px 바닥 여백 동일화 */
+        margin-bottom: -7px !important; /* 자식 마이너스 마진 7px 수치 밀착 복구 */
         cursor: pointer !important;
-        border-bottom: 2px solid transparent !important;
+        border-bottom: 2px solid transparent !important; /* 투명 밑줄 선언 */
         border-radius: 0px !important;
         transition: 0.2s !important;
         white-space: nowrap !important;
@@ -1595,10 +1589,10 @@ const DECENTRAL_CSS_VALUES = `
         display: none !important;
     }
 
-    /* 활성화 시 밑줄 처리 (연청색 탭 밑줄 정립) */
+    /* 활성화 시 밑줄 처리 (교정기 active 수치 매핑 완료) */
     .decentral-menu-container .decentral-menu-element[active="true"] {
         color: var(--decentral-text) !important;
-        border-bottom: 3px solid var(--decentral-active-item) !important;
+        border-bottom: 2px solid var(--decentral-active-item) !important; /* 밑줄 회색 실선 위 안착 완료 */
         background: none !important;
         font-weight: 500 !important;
     }
@@ -1617,7 +1611,7 @@ const DECENTRAL_CSS_VALUES = `
     }
     
     /*
-     * 모달 컨텐츠 정렬
+     * 모달 컨텐츠 정렬 (절대 좌표 해제로 쏠림 현상 방지)
      */
     .decentral-grid-container {
       display: block !important;
@@ -1634,16 +1628,16 @@ const DECENTRAL_CSS_VALUES = `
         position: relative !important;
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 12px !important;
-        padding: 16px 28px !important; /* 좌우 여백을 28px로 완전 동기화하여 수평 정렬 일치 */
+        padding: 16px 0px 16px 0px !important; /* 모달의 28px 내부에 있으므로 수동 좌우 여백을 제거하여 칼정렬 */
         box-sizing: border-box !important;
     }
 
     .decentral-modal-footer {
-      border-top: 1px solid var(--decentral-border);
-      display: flex;
-      flex-direction: column;
-      padding: 12px 16px;
-      flex-shrink: 0;
+      border-top: 1px solid var(--decentral-border) !important;
+      display: flex !important;
+      flex-direction: column !important;
+      padding: 12px 0px 0px 0px !important; /* 좌우/하단 패딩 제거로 칼정렬 선 수렴 */
+      flex-shrink: 0 !important;
     }
 
     /* 소제목의 색상을 #74a1c0로 조정 */
@@ -1968,26 +1962,27 @@ const DECENTRAL_CSS_VALUES = `
         background-color: var(--decentral-active-item) !important;
     }
 
-    /* ContentPanel 내부의 중복 타이틀 제거 규칙 */
-    .decentral-vertical-container .decentral-modal-title-container:not(.top-static-title) {
-        display: none !important;
-    }
-
     /* 모바일 콤팩트 규격 최적화 */
     @media screen and (max-width:600px) {
+        .decentral-modal {
+            width: 90vw !important;
+            height: calc(66vh - 20px) !important;
+            padding: 28px !important; /* 모바일 전면 패딩 28px 동일화 적용 */
+        }
+        
         .decentral-menu-container {
             display: flex !important; /* 탭 목록 무조건 노출 */
             flex-direction: row !important;
             width: 100% !important;
             overflow-x: auto !important;
-            padding: 0px 16px 6px 16px !important;
+            padding: 0px 0px 6px 0px !important; /* 모바일 패딩 중복 해제 */
             gap: 12px !important; /* 탭 밀착 방지 간격 */
         }
 
         .decentral-grid {
             grid-template-columns: 100% !important; /* 1열로 강제 고정하여 우측 잘림 해소 */
             column-count: 1 !important;
-            padding: 12px !important;
+            padding: 12px 0px !important; /* 모바일 본문 중복 패딩 해제 */
         }
         .decentral-grid-element,
         .decentral-grid-element-long,
