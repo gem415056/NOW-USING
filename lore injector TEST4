@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.6-3
+// @version     2.0.6-4
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -3467,7 +3467,6 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         const projKey = prefix + "VertexProjectId";
         const fbScriptKey = prefix + "FirebaseScript";
         const fbEmbKey = prefix + "FirebaseEmbedKey";
-        // 배경 흰색, 테두리 회색, 8px 라운드 처리로 표준화
         const S = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;height:32px;";
         const typeRow = document.createElement("div");
         typeRow.style.cssText = "display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;";
@@ -3478,8 +3477,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         const vertexArea = document.createElement("div");
         const firebaseArea = document.createElement("div");
         const curMode = () => config[apiTypeKey] || "key";
-        // OFF 상태: 회색 테두리/진회색 텍스트 | ON 상태: 배경 #bcd0d7/테두리 및 텍스트 #334a52 정밀 매핑
-        const sty = on => `padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid ${on?"#334a52":"#cccccc"};background:${on?"#bcd0d7":"#FFFFFF"};color:${on?"#334a52":"#333333"};font-weight:${on?"bold":"normal"};height:32px;box-sizing:border-box;`;
+        const sty = on => `padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid ${on?"#334a52":"#cccccc"};background:${on?"#bcd0d7":"#ffffff"};color:${on?"#334a52":"#333333"};font-weight:${on?"bold":"normal"};height:32px;box-sizing:border-box;`;
         const updateBtns = () => {
             const m = curMode();
             btnKey.style.cssText = sty(m === "key");
@@ -15480,7 +15478,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 o.textContent = p.name;
                                 s3.appendChild(o)
                             });
-                            // 현재 활성화된 팩 이름이 있으면 드롭다운 목록에서 기본값으로 자동 고정 (훽 돌아감 버그 수정)
+                            // 수동 선택 드롭다운 훽 돌아감 문제 해결 및 설정값 고정 동기화 적용
                             getAutoExtPackForUrl(C.getCurUrl()).then(name => {
                                 s3.value = name || "";
                             });
@@ -15687,7 +15685,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 });
 
                 // ==========================================
-                // 4. 지식 변환 카드 (텍스트 왼쪽 정렬 및 수직 센터 보정 완료)
+                // 4. 지식 변환 카드
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: nd => {
@@ -15714,7 +15712,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         const rDiv = document.createElement("div");
                         rDiv.style.cssText = "font-size:12px;color:#555555;margin-top:4px;text-align:left;width:100%;";
                         
-                        // URL 변환 버튼 (수직 가운데 정렬 공식 주입)
+                        // URL 변환 버튼 (수직 가운데 정렬 정밀 공식 동기화)
                         const urlBtn = document.createElement("button");
                         urlBtn.textContent = "URL 지식 변환 실행";
                         urlBtn.style.cssText = "padding:0px 16px !important;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;display:inline-flex !important;align-items:center !important;justify-content:center !important;line-height:1 !important;";
@@ -15785,7 +15783,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.appendChild(urlBtn);
                         nd.appendChild(rDiv);
                         
-                        // 직접 서술 텍스트 기입 상위 감싸는 컨테이너에 강제 정렬 이식
+                        // 직접 서술 텍스트 기입 상위 부모 래퍼에 강제 정렬 이식 완료
                         const t2 = document.createElement("div");
                         t2.style.cssText = "width:100% !important;text-align:left !important;display:block !important;box-sizing:border-box !important;";
                         t2.innerHTML = '<div style="font-size:13px;color:#2c3e50;font-weight:bold;margin-top:16px;margin-bottom:8px;text-align:left !important;width:100% !important;display:block !important;">직접 서술 텍스트 기입</div>';
