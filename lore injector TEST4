@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.4-3
+// @version     2.0.4-4
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -13765,26 +13765,6 @@ function createLongSemiFlatGridElement(titleText, lambda) {
 (function() {
     "use strict";
     const _w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
-    const C = _w.__LoreCore;
-    const db = C.getDB();
-    const _ls = _w.localStorage;
-    const settings = _w.__LoreInj.settings;
-    const getChatKey = _w.__LoreInj.getChatKey;
-    const getTurnCounter = _w.__LoreInj.getTurnCounter;
-    const getCooldownMap = _w.__LoreInj.getCooldownMap;
-    const isEntryEnabledForUrl = _w.__LoreInj.isEntryEnabledForUrl;
-    const setEntryEnabled = _w.__LoreInj.setEntryEnabled;
-    const getInjLog = _w.__LoreInj.getInjLog;
-    const getExtLog = _w.__LoreInj.getExtLog;
-    const clearInjLog = _w.__LoreInj.clearInjLog;
-    const clearExtLog = _w.__LoreInj.clearExtLog;
-    const setPackEnabled = _w.__LoreInj.setPackEnabled;
-    const getAutoExtPackForUrl = _w.__LoreInj.getAutoExtPackForUrl;
-    const setAutoExtPackForUrl = _w.__LoreInj.setAutoExtPackForUrl;
-    const restoreSnapshot = _w.__LoreInj.restoreSnapshot;
-    const OOC_FORMATS = _w.__LoreInj.OOC_FORMATS;
-    const resetSettingsKeepApi = _w.__LoreInj.resetSettingsKeepApi;
-
     _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
 
     // --------------------------------------------------------------------------------
@@ -13793,10 +13773,15 @@ function createLongSemiFlatGridElement(titleText, lambda) {
     _w.__LoreInj.registerSubMenu("lore", function(modal) {
         modal.createSubMenu("활성 로어", m => {
             const renderActiveLoreUI = async panel => {
+                const C = _w.__LoreCore;
+                const db = C.getDB();
+                const settings = _w.__LoreInj.settings;
+                const isEntryEnabledForUrl = _w.__LoreInj.isEntryEnabledForUrl;
+                const setEntryEnabled = _w.__LoreInj.setEntryEnabled;
+
                 const _url = C.getCurUrl();
                 const activePacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(_url) : settings.config.urlPacks?.[_url] || [];
                 
-                // 로어 목록 렌더링 영역
                 if (!activePacks.length) {
                     panel.addText("활성화된 팩이 없습니다. '로어 관리' 탭에서 활성화하세요.");
                 } else {
@@ -14079,6 +14064,15 @@ function createLongSemiFlatGridElement(titleText, lambda) {
     _w.__LoreInj.registerSubMenu("session", function(modal) {
         modal.createSubMenu("세션 상태", m => {
             const renderSessionStatus = async panel => {
+                const C = _w.__LoreCore;
+                const db = C.getDB();
+                const settings = _w.__LoreInj.settings;
+                const getChatKey = _w.__LoreInj.getChatKey;
+                const getTurnCounter = _w.__LoreInj.getTurnCounter;
+                const getCooldownMap = _w.__LoreInj.getCooldownMap;
+                const isEntryEnabledForUrl = _w.__LoreInj.isEntryEnabledForUrl;
+                const setEntryEnabled = _w.__LoreInj.setEntryEnabled;
+
                 const chatKey = getChatKey();
                 const turnCounter = getTurnCounter(chatKey);
                 const cMap = getCooldownMap(chatKey);
@@ -14127,11 +14121,16 @@ function createLongSemiFlatGridElement(titleText, lambda) {
     });
 
     // --------------------------------------------------------------------------------
-    // [3] 로어 관리 탭 (파일 목록 -> 스냅샷 목록 -> 파일 가져오기 및 수동)
+    // [3] 로어 관리 탭 (순서: 파일 목록 -> 스냅샷 목록 -> 파일 가져오기 및 수동)
     // --------------------------------------------------------------------------------
     _w.__LoreInj.registerSubMenu("file", function(modal) {
         modal.createSubMenu("로어 관리", m => {
             const renderLoreManageUI = async panel => {
+                const C = _w.__LoreCore;
+                const db = C.getDB();
+                const settings = _w.__LoreInj.settings;
+                const setPackEnabled = _w.__LoreInj.setPackEnabled;
+                const restoreSnapshot = _w.__LoreInj.restoreSnapshot;
                 
                 // 1. 로어 파일 목록 (최상단 배치)
                 panel.addBoxedField("", "", {
@@ -14349,152 +14348,160 @@ function createLongSemiFlatGridElement(titleText, lambda) {
     });
 });
 
-// ================================================================================
-// [4] 설정 탭 (로어설정 본체 + 하단 API설정 병합 / 빠른설정 제거)
-// ================================================================================
-_w.__LoreInj.registerSubMenu("main", function(modal) {
-    modal.createSubMenu("설정", m => {
-        m.replaceContentPanel(async panel => {
-            
-            // 1. 인젝션 스위치
-            panel.addBoxedField("", "", {
-                onInit: nd => {
-                    C.setFullWidth(nd);
-                    nd.appendChild(C.createToggleRow("로어 인젝션 활성화", "대화에 설정 정보를 자동 삽입함.", settings.config.enabled, v => {
-                        settings.config.enabled = v;
-                        settings.save();
-                    }));
-                    nd.appendChild(C.createToggleRow("적응형 로어 압축", "주입 공간 부족 시 텍스트를 자동으로 짧게 줄임.", settings.config.useCompressedFormat !== false, v => {
-                        settings.config.useCompressedFormat = v;
-                        settings.save();
-                    }));
-                }
-            });
-
-            // 2. 통합 API 설정 필드 추가 (모든 입력 상자 모서리 둥글게 8px)
-            panel.addBoxedField("", "", {
-                onInit: nd => {
-                    C.setFullWidth(nd);
-                    const t = document.createElement("div");
-                    t.textContent = "API 설정";
-                    t.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;margin-bottom:8px;";
-                    nd.appendChild(t);
-                    C.createApiInput(settings.config, "autoExt", nd, () => settings.save());
-                }
-            });
-
-            // 3. 모든 설정 초기화 카드 (배경: #9b4600 / 글자색: #effcff / 모서리 둥글게 8px)
-            panel.addBoxedField("", "", {
-                onInit: nd => {
-                    C.setFullWidth(nd);
-                    nd.style.cssText += "background:#9b4600 !important;border:1px solid #9b4600 !important;border-radius:8px;";
-                    const resetBtn = document.createElement("button");
-                    resetBtn.textContent = "모든 설정 초기화 (DB 유지)";
-                    resetBtn.style.cssText = "width:100%;padding:10px;background:#9b4600;color:#effcff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;";
-                    resetBtn.onclick = () => {
-                        if (!confirm("설정을 전체 초기화하시겠습니까?")) return;
-                        resetSettingsKeepApi();
-                        location.reload();
-                    };
-                    nd.appendChild(resetBtn);
-                }
-            });
-        }, "설정");
-    });
-});
-
-// ================================================================================
-// [5] 추출/변환 탭 (수동 추출, 일괄 추출 등 포함 / 대형 버튼 배경색 #88b9c8 설정)
-// ================================================================================
-_w.__LoreInj.registerSubMenu("extract", function(modal) {
-    modal.createSubMenu("추출/변환", m => {
-        m.replaceContentPanel(panel => {
-            panel.addBoxedField("", "", {
-                onInit: nd => {
-                    C.setFullWidth(nd);
-                    const title = document.createElement("div");
-                    title.textContent = "수동 정밀 추출";
-                    title.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;margin-bottom:8px;";
-                    nd.appendChild(title);
-                    
-                    const btnRun = document.createElement("button");
-                    btnRun.textContent = "수동 추출 실행";
-                    btnRun.style.cssText = "padding:8px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;color:#879aa0;border:1px solid #879aa0;font-weight:bold;width:100%;margin-top:10px;";
-                    nd.appendChild(btnRun);
-                    
-                    const bBtn = document.createElement("button");
-                    bBtn.textContent = "전체 일괄 추출 실행";
-                    bBtn.style.cssText = "padding:8px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;color:#879aa0;border:1px solid #879aa0;font-weight:bold;width:100%;margin-top:6px;";
-                    nd.appendChild(bBtn);
-                }
-            });
-        }, "추출/변환");
-    });
-});
-
-// ================================================================================
-// [6] 실행 로그 탭 (교정기록, 모순기록 완전 제거 및 다채로운 테마 단색 진회색 보정)
-// ================================================================================
-_w.__LoreInj.registerSubMenu("log", function(modal) {
-    modal.createSubMenu("실행 로그", m => {
-        const renderLogs = panel => {
-            const chatKey = getChatKey();
-            const iLog = getInjLog(chatKey);
-            const eLog = getExtLog(chatKey);
-
-            const makeLogBox = (title, items, renderer) => {
+    // --------------------------------------------------------------------------------
+    // [4] 설정 탭 (로어설정 본체 + 하단 API설정 병합 / 빠른설정 제거)
+    // --------------------------------------------------------------------------------
+    _w.__LoreInj.registerSubMenu("main", function(modal) {
+        modal.createSubMenu("설정", m => {
+            m.replaceContentPanel(async panel => {
+                const C = _w.__LoreCore;
+                const settings = _w.__LoreInj.settings;
+                const resetSettingsKeepApi = _w.__LoreInj.resetSettingsKeepApi;
+                
+                // 1. 인젝션 스위치
                 panel.addBoxedField("", "", {
                     onInit: nd => {
                         C.setFullWidth(nd);
-                        const hRow = document.createElement("div");
-                        hRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid #eeeeee;margin-bottom:8px;cursor:pointer;";
-                        const leftWrap = document.createElement("div");
-                        leftWrap.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;";
-                        const arrow = document.createElement("span");
-                        arrow.textContent = "▶";
-                        arrow.style.cssText = "font-size:11px;color:#888;";
-                        const t = document.createElement("div");
-                        t.textContent = `${title} (${items.length})`;
-                        t.style.cssText = `font-size:14px;color:#2c3e50;font-weight:bold;`;
-                        leftWrap.appendChild(arrow);
-                        leftWrap.appendChild(t);
-                        hRow.appendChild(leftWrap);
-                        nd.appendChild(hRow);
-                        const listCon = document.createElement("div");
-                        listCon.style.display = "none";
-                        items.slice(0, 20).forEach(i => renderer(false, i, listCon));
-                        nd.appendChild(listCon);
-                        hRow.onclick = () => {
-                            const isOpen = listCon.style.display !== "none";
-                            listCon.style.display = isOpen ? "none" : "block";
-                            arrow.textContent = isOpen ? "▶" : "▼"
-                        }
+                        nd.appendChild(C.createToggleRow("로어 인젝션 활성화", "대화에 설정 정보를 자동 삽입함.", settings.config.enabled, v => {
+                            settings.config.enabled = v;
+                            settings.save();
+                        }));
+                        nd.appendChild(C.createToggleRow("적응형 로어 압축", "주입 공간 부족 시 텍스트를 자동으로 짧게 줄임.", settings.config.useCompressedFormat !== false, v => {
+                            settings.config.useCompressedFormat = v;
+                            settings.save();
+                        }));
                     }
-                })
-            };
+                });
 
-            makeLogBox("주입 기록", iLog, (clear, i, nd) => {
-                const r = document.createElement("div");
-                r.style.cssText = "margin-bottom:6px;border-bottom:1px dashed #eee;padding-bottom:4px;font-size:11px;color:#555;";
-                r.innerHTML = `<span>${i.turn}턴 (${i.time}) - 주입 성공</span>`;
-                nd.appendChild(r);
-            });
+                // 2. 통합 API 설정 필드 추가 (모든 입력 상자 모서리 둥글게 8px)
+                panel.addBoxedField("", "", {
+                    onInit: nd => {
+                        C.setFullWidth(nd);
+                        const t = document.createElement("div");
+                        t.textContent = "API 설정";
+                        t.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;margin-bottom:8px;";
+                        nd.appendChild(t);
+                        C.createApiInput(settings.config, "autoExt", nd, () => settings.save());
+                    }
+                });
 
-            makeLogBox("추출 기록", eLog, (clear, i, nd) => {
-                const r = document.createElement("div");
-                r.style.cssText = "margin-bottom:6px;border-bottom:1px dashed #eee;padding-bottom:4px;font-size:11px;color:#555;";
-                r.innerHTML = `<span>[${i.time}] 추출 상태: ${i.status}</span>`;
-                nd.appendChild(r);
-            });
-        };
-        m.replaceContentPanel(renderLogs, "실행 로그")
+                // 3. 모든 설정 초기화 카드 (배경: #9b4600 / 글자색: #effcff / 모서리 둥글게 8px)
+                panel.addBoxedField("", "", {
+                    onInit: nd => {
+                        C.setFullWidth(nd);
+                        nd.style.cssText += "background:#9b4600 !important;border:1px solid #9b4600 !important;border-radius:8px;";
+                        const resetBtn = document.createElement("button");
+                        resetBtn.textContent = "모든 설정 초기화 (DB 유지)";
+                        resetBtn.style.cssText = "width:100%;padding:10px;background:#9b4600;color:#effcff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;";
+                        resetBtn.onclick = () => {
+                            if (!confirm("설정을 전체 초기화하시겠습니까?")) return;
+                            resetSettingsKeepApi();
+                            location.reload();
+                        };
+                        nd.appendChild(resetBtn);
+                    }
+                });
+            }, "설정");
+        });
     });
-});
 
-_w.__LoreInj.__subSnapshotLoaded = true;
-_w.__LoreInj.__subApiLoaded = true;
-_w.__LoreInj.__subHelpLoaded = true;
+    // --------------------------------------------------------------------------------
+    // [5] 추출/변환 탭 (수동 추출, 일괄 추출 등 포함 / 대형 버튼 배경색 #88b9c8 설정)
+    // --------------------------------------------------------------------------------
+    _w.__LoreInj.registerSubMenu("extract", function(modal) {
+        modal.createSubMenu("추출/변환", m => {
+            m.replaceContentPanel(panel => {
+                const C = _w.__LoreCore;
+                panel.addBoxedField("", "", {
+                    onInit: nd => {
+                        C.setFullWidth(nd);
+                        const title = document.createElement("div");
+                        title.textContent = "수동 정밀 추출";
+                        title.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;margin-bottom:8px;";
+                        nd.appendChild(title);
+                        
+                        // 큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #879aa0 / 둥글게 8px
+                        const btnRun = document.createElement("button");
+                        btnRun.textContent = "수동 추출 실행";
+                        btnRun.style.cssText = "padding:8px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;color:#879aa0;border:1px solid #879aa0;font-weight:bold;width:100%;margin-top:10px;";
+                        nd.appendChild(btnRun);
+                        
+                        const bBtn = document.createElement("button");
+                        bBtn.textContent = "전체 일괄 추출 실행";
+                        bBtn.style.cssText = "padding:8px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;color:#879aa0;border:1px solid #879aa0;font-weight:bold;width:100%;margin-top:6px;";
+                        nd.appendChild(bBtn);
+                    }
+                });
+            }, "추출/변환");
+        });
+    });
 
+    // --------------------------------------------------------------------------------
+    // [6] 실행 로그 탭 (교정기록, 모순기록 완전 제거 및 다채로운 테마 단색 진회색 보정)
+    // --------------------------------------------------------------------------------
+    _w.__LoreInj.registerSubMenu("log", function(modal) {
+        modal.createSubMenu("실행 로그", m => {
+            const renderLogs = panel => {
+                const getChatKey = _w.__LoreInj.getChatKey;
+                const getInjLog = _w.__LoreInj.getInjLog;
+                const getExtLog = _w.__LoreInj.getExtLog;
+
+                const chatKey = getChatKey();
+                const iLog = getInjLog(chatKey);
+                const eLog = getExtLog(chatKey);
+
+                const makeLogBox = (title, items, renderer) => {
+                    panel.addBoxedField("", "", {
+                        onInit: nd => {
+                            C.setFullWidth(nd);
+                            const hRow = document.createElement("div");
+                            hRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding-bottom:8px;border-bottom:1px solid #eeeeee;margin-bottom:8px;cursor:pointer;";
+                            const leftWrap = document.createElement("div");
+                            leftWrap.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;";
+                            const arrow = document.createElement("span");
+                            arrow.textContent = "▶";
+                            arrow.style.cssText = "font-size:11px;color:#888;";
+                            const t = document.createElement("div");
+                            t.textContent = `${title} (${items.length})`;
+                            t.style.cssText = `font-size:14px;color:#2c3e50;font-weight:bold;`; // 진회색화 일치
+                            leftWrap.appendChild(arrow);
+                            leftWrap.appendChild(t);
+                            hRow.appendChild(leftWrap);
+                            nd.appendChild(hRow);
+                            const listCon = document.createElement("div");
+                            listCon.style.display = "none";
+                            items.slice(0, 20).forEach(i => renderer(false, i, listCon));
+                            nd.appendChild(listCon);
+                            hRow.onclick = () => {
+                                const isOpen = listCon.style.display !== "none";
+                                listCon.style.display = isOpen ? "none" : "block";
+                                arrow.textContent = isOpen ? "▶" : "▼"
+                            }
+                        }
+                    })
+                };
+
+                makeLogBox("주입 기록", iLog, (clear, i, nd) => {
+                    const r = document.createElement("div");
+                    r.style.cssText = "margin-bottom:6px;border-bottom:1px dashed #eee;padding-bottom:4px;font-size:11px;color:#555;"; // 가독성을 위한 단색 정제
+                    r.innerHTML = `<span>${i.turn}턴 (${i.time}) - 주입 성공</span>`;
+                    nd.appendChild(r);
+                });
+
+                makeLogBox("추출 기록", eLog, (clear, i, nd) => {
+                    const r = document.createElement("div");
+                    r.style.cssText = "margin-bottom:6px;border-bottom:1px dashed #eee;padding-bottom:4px;font-size:11px;color:#555;";
+                    r.innerHTML = `<span>[${i.time}] 추출 상태: ${i.status}</span>`;
+                    nd.appendChild(r);
+                });
+            };
+            m.replaceContentPanel(renderLogs, "실행 로그")
+        })
+    });
+
+    _w.__LoreInj.__subSnapshotLoaded = true;
+    _w.__LoreInj.__subApiLoaded = true;
+    _w.__LoreInj.__subHelpLoaded = true;
 })();
 (async function() {
     "use strict";
