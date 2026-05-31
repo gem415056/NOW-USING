@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.4-4
+// @version     2.0.4-5
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -1410,9 +1410,9 @@ const DECENTRAL_CSS_VALUES = `
         --decentral-inactive-item: #cbd5e0;
         --decentral-active-text: #111111;
         --decentral-background-active-item: transparent;
-        --decentral-text-background: #F9F9F9;
-        --decentral-text-border: #ddd;
-        --decentral-switch-background: #F9F9F9; /* 연회색 카드배경 적용 */
+        --decentral-text-background: #FFFFFF; /* 인풋용 순백색 */
+        --decentral-text-border: #dddddd; /* 인풋용 회색 테두리 */
+        --decentral-switch-background: #FFFFFF; /* 카드 박스용 순백색 일치화 */
         --decentral-switch-inactive: #ccc;
     }
 
@@ -1455,7 +1455,7 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 모달 베이스 선언 (응답교정기 팝업 크기와 소수점까지 100% 동일화)
+     * 모달 베이스 선언
      */
     .decentral-modal {
         display: flex !important;
@@ -1477,7 +1477,7 @@ const DECENTRAL_CSS_VALUES = `
      * 모달 헤더(제목) 및 ✕ 버튼
      */
     .decentral-modal-title-icon {
-      display: none !important; /* 톱니바퀴 아이콘 완전 삭제 */
+      display: none !important;
     }
 
     .decentral-modal-title-container {
@@ -1485,7 +1485,7 @@ const DECENTRAL_CSS_VALUES = `
       flex-direction: row;
       padding: 20px 24px;
       align-items: center;
-      border-bottom: none !important; /* 타이틀 아래 가두리 실선을 완전히 삭제하여 공백 확보 */
+      border-bottom: none !important;
       flex-shrink: 0;
     }
 
@@ -1531,19 +1531,19 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 모달 상단 메뉴 탭 컨테이너 선언 (응답교정기 탭 메뉴바 정밀 이식)
+     * 모달 상단 메뉴 탭 컨테이너 선언
      */
     .decentral-menu-container {
         border-right: none !important;
-        border-bottom: 1px solid var(--decentral-border) !important; /* 하단 1px 실선만 노출 */
+        border-bottom: 1px solid var(--decentral-border) !important;
         display: flex !important;
         flex-direction: row !important;
-        align-items: flex-end !important; /* 탭 글자들을 바닥에 일치시킴 */
+        align-items: flex-end !important;
         justify-content: flex-start !important;
         width: 100% !important;
         min-width: 100% !important;
-        height: 38px !important; /* 간결한 높이 적용 */
-        padding: 0px 20px 0px 20px !important; /* 탭 밑줄 정렬을 위해 하단 패딩 제거 */
+        height: 38px !important;
+        padding: 0px 20px 0px 20px !important;
         margin-bottom: 12px !important;
         background-color: transparent !important;
         color: var(--decentral-text-inactive);
@@ -1551,7 +1551,7 @@ const DECENTRAL_CSS_VALUES = `
         user-select: none;
         overflow-x: auto !important;
         overflow-y: hidden !important;
-        gap: 17px !important; /* 탭 간격 17px 동기화 */
+        gap: 17px !important;
         box-sizing: border-box;
         flex-shrink: 0;
     }
@@ -1560,58 +1560,22 @@ const DECENTRAL_CSS_VALUES = `
         display: none;
     }
 
-    /* 1단계 부모: 응답교정기 crr-tabs-container 스타일 1:1 매핑 */
-    .decentral-menu-container {
-        border-right: none !important;
-        border-bottom: 1px solid var(--decentral-border) !important; /* 부모 회색 실선 */
-        display: flex !important;
-        flex-direction: row !important;
-        align-items: center !important;
-        justify-content: flex-start !important;
-        width: 100% !important;
-        min-width: 100% !important;
-        height: auto !important;
-        padding-top: 10px !important;
-        padding-left: 20px !important;
-        padding-right: 20px !important;
-        padding-bottom: 6px !important; /* 아래로 6px 밀어내기 동일화 */
-        margin-bottom: 12px !important;
-        background-color: transparent !important;
-        overflow-x: auto !important;
-        overflow-y: hidden !important;
-        flex-shrink: 0;
-        box-sizing: border-box !important;
-    }
-
-    .decentral-menu-container::-webkit-scrollbar {
-        display: none;
-    }
-
-    /* 2단계 자식: 응답교정기 crr-tabs 레이아웃 스타일 1:1 매핑 */
-    .decentral-menu-element-container {
-        display: flex !important;
-        gap: 17px !important; /* 탭 간격 17px */
-        margin-bottom: -7px !important; /* 강제 아래 마이너스 마진 상쇄 동일화 */
-        padding: 0 !important;
-        height: auto !important;
-        align-items: center !important;
-    }
-
-    /* 3단계 손자: 응답교정기 crr-tab 버튼 스타일 1:1 매핑 */
+    /* 탭 메뉴 글자 스타일 */
     .decentral-menu-container .decentral-menu-element {
         background: none !important;
         border: none !important;
         font-size: 14px !important;
         font-weight: 500 !important;
         color: var(--decentral-text-inactive) !important;
-        padding: 0 4px 6px 4px !important; /* 6px 바닥 여백 동일화 */
+        padding: 0 4px 6px 4px !important;
+        margin-bottom: -1px !important;
         cursor: pointer !important;
-        border-bottom: 2px solid transparent !important; /* 투명 밑줄 선언 */
+        border-bottom: 2px solid transparent !important;
         border-radius: 0px !important;
         transition: 0.2s !important;
         white-space: nowrap !important;
         display: inline-flex !important;
-        align-items: center !important;
+        align-items: flex-end !important;
         justify-content: center !important;
         width: auto !important;
         box-sizing: border-box !important;
@@ -1621,10 +1585,10 @@ const DECENTRAL_CSS_VALUES = `
         display: none !important;
     }
 
-    /* 활성화 시 밑줄 처리 (교정기 active 수치 매핑 완료) */
+    /* 활성화 시 밑줄 처리 */
     .decentral-menu-container .decentral-menu-element[active="true"] {
         color: var(--decentral-text) !important;
-        border-bottom: 3px solid var(--decentral-active-item) !important; /* 밑줄 회색 실선 위 안착 완료 */
+        border-bottom: 2px solid var(--decentral-active-item) !important;
         background: none !important;
         font-weight: 500 !important;
     }
@@ -1643,7 +1607,7 @@ const DECENTRAL_CSS_VALUES = `
     }
     
     /*
-     * 모달 컨텐츠 정렬
+     * 모달 컨텐츠 정렬 (우측 쏠림 완전 방지형 정렬 패치 수립)
      */
     .decentral-grid-container {
       display: flex;
@@ -1658,15 +1622,17 @@ const DECENTRAL_CSS_VALUES = `
 
     .decentral-grid {
         display: grid;
-        width: 100%;
-        min-width: 200px;
+        width: 100% !important;
+        max-width: 100% !important;
+        min-width: 0px !important;
         grid-template-columns: repeat(2, 1fr);
         gap: 12px;
         grid-row-gap: 0.3em;
         padding: 16px;
         min-height: 0;
-        min-width: 0; 
-        position: absolute;
+        position: relative !important; /* absolute를 제거하여 가운데 정렬 강제 유도 */
+        margin: 0 auto !important;
+        box-sizing: border-box !important;
     }
 
     .decentral-modal-footer {
@@ -1731,14 +1697,14 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 카드형 박스 필드 선언 (둥근 가두리 정렬 및 진회색 텍스트 전환)
+     * 카드형 박스 필드 선언 (둥근 모서리 8px 일치화)
      */
     .decentral-boxed-field {
       display: flex;
       width: 100%;
       background-color: var(--decentral-switch-background);
       border: 1px solid var(--decentral-text-border);
-      border-radius: 8px !important;
+      border-radius: 8px !important; /* 모서리 둥글게 */
       user-select: none;
       padding: 12px 0px;
       box-sizing: border-box;
@@ -1771,7 +1737,7 @@ const DECENTRAL_CSS_VALUES = `
       box-sizing: border-box;
     }
 
-    /* 카드 내 글씨 진회색 보정으로 가독성 보장 */
+    /* 카드 내 진회색 텍스트 보정 */
     .decentral-boxed-field .element-title {
       font-size: 13px;
       font-weight: bold;
@@ -1799,13 +1765,18 @@ const DECENTRAL_CSS_VALUES = `
       margin-top: 8px;
     }
 
+    /* 입력창 형태 (교정기와 100% 동일한 흰색배경 + 회색테두리 + 8px 둥근모서리) */
     .decentral-boxed-field .element-small-input,
     .decentral-boxed-field .element-medium-input,
-    .decentral-boxed-field .element-large-input {
-        background: var(--decentral-text-background);
-        border: 1px solid var(--decentral-text-border);
-        color: var(--decentral-text);
-        border-radius: 6px;
+    .decentral-boxed-field .element-large-input,
+    .decentral-boxed-field input[type="number"],
+    .decentral-boxed-field input[type="text"],
+    .decentral-boxed-field select,
+    .decentral-boxed-field textarea {
+        background: var(--decentral-text-background) !important;
+        border: 1px solid var(--decentral-text-border) !important;
+        color: var(--decentral-text) !important;
+        border-radius: 8px !important; /* 8px 둥글게 통일 */
         height: 32px;
         padding: 4px 8px;
         box-sizing: border-box;
@@ -1851,12 +1822,12 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 공용 컨트롤 인풋
+     * 공용 컨트롤 인풋 (둥근 모서리 8px 싱크 적용)
      */
     .decentral-text-field {
       background-color: var(--decentral-text-background);
       border: 1px solid var(--decentral-text-border);
-      border-radius: 6px;
+      border-radius: 8px !important;
       width: 100%;
       padding: 4px 8px;
       color: var(--decentral-text);
@@ -1868,7 +1839,7 @@ const DECENTRAL_CSS_VALUES = `
     .decentral-logging-area {
       background-color: var(--decentral-text-background);
       border: 1px solid var(--decentral-text-border);
-      border-radius: 6px;
+      border-radius: 8px !important;
       resize: none;
       width: 100%;
       padding: 6px 8px;
@@ -1887,7 +1858,7 @@ const DECENTRAL_CSS_VALUES = `
       height: 32px;
       padding: 4px 16px;
       border: none;
-      border-radius: 6px;
+      border-radius: 8px !important;
       font-weight: bold;
       font-size: 13px;
       cursor: pointer;
@@ -1915,11 +1886,11 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 커스텀 드롭다운 선택상자 (배경: #334A52, 글자색: #effcff)
+     * 커스텀 드롭다운 선택상자 (배경: #334A52, 글자색: #effcff, 8px 둥글게)
      */
     .decentral-select { 
         width: 100%;
-        border-radius: 6px;
+        border-radius: 8px !important;
         background-color: #334A52 !important; 
         overflow: hidden;
         position: relative; 
@@ -1957,7 +1928,7 @@ const DECENTRAL_CSS_VALUES = `
         border: 1px solid var(--decentral-text-border); 
         background-color: #334A52 !important; 
         width: 244px;
-        border-radius: 6px;
+        border-radius: 8px !important;
     }
 
     .decentral-select[list-enabled="true"] .decentral-option {
@@ -1994,6 +1965,7 @@ const DECENTRAL_CSS_VALUES = `
 
     .decentral-modal-footer button {
         background-color: var(--decentral-active-item) !important;
+        border-radius: 8px !important;
     }
 
     /* ContentPanel 내부의 중복 타이틀 제거 규칙 */
@@ -2021,15 +1993,18 @@ const DECENTRAL_CSS_VALUES = `
         }
 
         .decentral-grid {
-            grid-template-columns: 100%; 
-            column-count: 1;
-            padding: 12px;
+            grid-template-columns: 100% !important; 
+            max-width: 100% !important;
+            column-count: 1 !important;
+            padding: 12px !important;
+            margin: 0 auto !important;
+            box-sizing: border-box !important;
         }
         .decentral-grid-element,
         .decentral-grid-element-long,
         .decentral-grid-element-long-semi-flat,
         .decentral-grid-element-long-flat {
-            grid-column: 1 / 1;
+            grid-column: 1 / 1 !important;
         }
     }
     
@@ -13955,15 +13930,16 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             panel.addBoxedField("", "", {
                                 onInit: nd => {
                                     C.setFullWidth(nd);
-                                    nd.style.cssText += "background:#1a1a1a;border:1px solid #333;border-radius:4px;margin-bottom:12px;";
+                                    // 까만색 가두리를 제거하고, 지정된 테마 카드 변수 배경(흰색 연동)으로 싱크 적용
+                                    nd.style.cssText += "background:var(--decentral-switch-background); border:1.5px solid var(--decentral-text-border); border-radius:8px; margin-bottom:12px; box-sizing:border-box;";
                                     const headerRow = document.createElement("div");
-                                    headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #333;padding:10px;cursor:pointer;";
+                                    headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid var(--decentral-text-border);padding:10px;cursor:pointer;";
                                     const curUrl = C.getCurUrl();
                                     const disabledEntries = settings.config.urlDisabledEntries?.[curUrl] || [];
                                     const allItemsEnabled = items.every(e => !disabledEntries.includes(e.id));
                                     
                                     const pkSw = document.createElement("div");
-                                    pkSw.style.cssText = "width:28px;height:14px;border-radius:7px;background:" + (allItemsEnabled ? "#88b9c8" : "#444") + ";position:relative;cursor:pointer;flex-shrink:0;margin-right:8px;";
+                                    pkSw.style.cssText = "width:28px;height:14px;border-radius:7px;background:" + (allItemsEnabled ? "#88b9c8" : "#ccc") + ";position:relative;cursor:pointer;flex-shrink:0;margin-right:8px;";
                                     const pkDot = document.createElement("div");
                                     pkDot.style.cssText = "width:10px;height:10px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (allItemsEnabled ? "16px" : "2px") + ";transition:left .2s;";
                                     pkSw.appendChild(pkDot);
@@ -13986,11 +13962,11 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     };
                                     
                                     const title = document.createElement("div");
-                                    title.style.cssText = "font-size:13px;font-weight:bold;color:#ccc;flex:1;";
+                                    title.style.cssText = "font-size:13px;font-weight:bold;color:var(--decentral-text);flex:1;";
                                     title.textContent = pk + " (" + items.length + "개)";
                                     const arrow = document.createElement("span");
                                     arrow.textContent = "▼";
-                                    arrow.style.cssText = "font-size:12px;color:#888;";
+                                    arrow.style.cssText = "font-size:12px;color:var(--decentral-text-inactive);";
                                     headerRow.appendChild(pkSw);
                                     headerRow.appendChild(title);
                                     headerRow.appendChild(arrow);
@@ -14008,20 +13984,20 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     
                                     for (const e of items) {
                                         const row = document.createElement("div");
-                                        row.style.cssText = "padding:8px 0;border-bottom:1px solid #222;display:flex;flex-direction:column;";
+                                        row.style.cssText = "padding:8px 0;border-bottom:1px solid var(--decentral-border);display:flex;flex-direction:column;";
                                         const header = document.createElement("div");
-                                        header.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+                                        header.style.cssText = "display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;";
                                         const left = document.createElement("div");
-                                        left.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;";
+                                        left.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;min-width:0;";
                                         
                                         const isEnabled = isEntryEnabledForUrl(e);
                                         const swWrap = document.createElement("div");
-                                        swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;background:#111;padding:2px 8px;border-radius:12px;border:1px solid #333;flex-shrink:0;";
+                                        swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;background:var(--decentral-hover);padding:2px 8px;border-radius:12px;border:1px solid var(--decentral-text-border);flex-shrink:0;";
                                         const swLabel = document.createElement("span");
                                         swLabel.textContent = isEnabled ? "ON" : "OFF";
                                         swLabel.style.cssText = "font-size:10px;font-weight:bold;width:20px;text-align:center;color:" + (isEnabled ? "#88b9c8" : "#777") + ";";
                                         const sw = document.createElement("div");
-                                        sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#88b9c8" : "#444") + ";position:relative;";
+                                        sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#88b9c8" : "#ccc") + ";position:relative;";
                                         const dot = document.createElement("div");
                                         dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (isEnabled ? "14px" : "2px") + ";transition:left .2s;";
                                         sw.appendChild(dot);
@@ -14033,13 +14009,13 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                             setEntryEnabled(e, ns);
                                             swLabel.textContent = ns ? "ON" : "OFF";
                                             swLabel.style.color = ns ? "#88b9c8" : "#777";
-                                            sw.style.background = ns ? "#88b9c8" : "#444";
+                                            sw.style.background = ns ? "#88b9c8" : "#ccc";
                                             dot.style.left = ns ? "14px" : "2px";
                                         };
                                         
                                         const nameSpan = document.createElement("span");
                                         nameSpan.textContent = "[" + e.type + "] " + e.name;
-                                        nameSpan.style.cssText = "font-size:13px;color:#ccc;font-weight:bold;cursor:pointer;flex:1;";
+                                        nameSpan.style.cssText = "font-size:13px;color:var(--decentral-text);font-weight:bold;cursor:pointer;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;";
                                         
                                         const embStatusSpan = document.createElement("span");
                                         const updateEmbStatus = async () => {
@@ -14075,8 +14051,9 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                         left.appendChild(swWrap);
                                         left.appendChild(nameSpan);
                                         
+                                        // 우측 버튼 레이아웃 찌그러짐 원천 차단 (flex-wrap 및 shrink 보강)
                                         const right = document.createElement("div");
-                                        right.style.cssText = "display:flex;gap:6px;";
+                                        right.style.cssText = "display:flex;gap:4px;flex-wrap:wrap;justify-content:flex-end;flex-shrink:0;min-width:180px;align-items:center;";
                                         
                                         const embGenBtn = document.createElement("button");
                                         embGenBtn.className = "decentral-lore-action-btn";
@@ -14244,7 +14221,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                         const saveBtn = document.createElement("button");
                                         saveBtn.textContent = "저장";
                                         saveBtn.className = "decentral-lore-action-btn";
-                                        saveBtn.style.cssText += "background:#285 !important; border-color:#285 !important; color:#fff !important;";
+                                        saveBtn.style.cssText += "background:#88b9c8 !important; border-color:#88b9c8 !important; color:#fff !important;"; /* 저장 버튼 하늘색으로 지정 */
                                         const cancelBtn = document.createElement("button");
                                         cancelBtn.textContent = "닫기";
                                         cancelBtn.className = "decentral-lore-action-btn";
@@ -14307,20 +14284,20 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                     }
                 }
                 
-                // 2부. 중복 로어 병합 렌더링 (아래쪽 배치)
-                panel.addTitleText("중복 로어 병합");
+                // 2부. 중복 로어 병합 렌더링 (카드박스 내부 제목으로 완벽 통합 및 회색 글씨 진회색 보정 완료)
                 const state = _w.__loreMergeState || (_w.__loreMergeState = {
                     threshold: .88,
                     maxChars: 1200,
                     groups: null
                 });
                 
-                panel.addBoxedField("", "", {
+                // addBoxedField의 첫 번째 인자로 "중복 로어 병합" 타이틀 지정하여 카드박스 액면 위에 아름답게 안착
+                panel.addBoxedField("중복 로어 병합", "", {
                     onInit: nd => {
                         C.setFullWidth(nd);
                         const d = document.createElement("div");
                         d.innerHTML = '유사한 로어를 찾아 수동 병합을 처리합니다. 인물/장소/사건 등 대분류가 다른 항목은 유사도가 높더라도 서로 병합하지 않고 격리합니다.';
-                        d.style.cssText = "font-size:11px;color:#888;margin-bottom:10px;line-height:1.5;";
+                        d.style.cssText = "font-size:11px;color:#333333 !important;margin-bottom:10px;line-height:1.5;"; /* 진회색 보정 */
                         nd.appendChild(d);
                         
                         const row = document.createElement("div");
@@ -14330,14 +14307,14 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             f.style.flex = "1";
                             const l = document.createElement("div");
                             l.textContent = label;
-                            l.style.cssText = "font-size:12px;color:#888;margin-bottom:4px;";
+                            l.style.cssText = "font-size:12px;color:#333333 !important;margin-bottom:4px;font-weight:bold;"; /* 진회색 및 볼드 보정 */
                             const i = document.createElement("input");
                             i.type = "number";
                             i.value = getter();
                             i.min = min;
                             i.max = max;
                             i.step = step;
-                            i.style.cssText = "width:100%;padding:6px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:12px;box-sizing:border-box;";
+                            i.style.cssText = "width:100%;padding:6px;border:1px solid #ddd !important;border-radius:8px !important;background:#FFFFFF !important;color:#2c3e50 !important;font-size:12px;box-sizing:border-box;";
                             i.onchange = () => {
                                 const v = parseFloat(i.value);
                                 if (!isNaN(v)) setter(v);
@@ -14352,9 +14329,9 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         
                         const runBtn = document.createElement("button");
                         runBtn.textContent = "병합 후보 찾기";
-                        runBtn.style.cssText = "width:100%;padding:10px;background:#88b9c8 !important;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
+                        runBtn.style.cssText = "width:100%;padding:10px;background:#88b9c8 !important;color:#fff;border:none;border-radius:8px !important;cursor:pointer;font-size:12px;font-weight:bold;";
                         const runStatus = document.createElement("div");
-                        runStatus.style.cssText = "font-size:11px;color:#888;margin-top:6px;text-align:center;";
+                        runStatus.style.cssText = "font-size:11px;color:#333333 !important;margin-top:6px;text-align:center;"; /* 진회색 보정 */
                         
                         runBtn.onclick = async () => {
                             runBtn.disabled = true;
@@ -14363,7 +14340,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 const entries = (await db.entries.toArray()).filter(e => activePacks.includes(e.packName));
                                 if (entries.length < 2) {
                                     runStatus.textContent = "활성 항목이 부족합니다.";
-                                    runStatus.style.color = "#d66";
+                                    runStatus.style.color = "#9b4600";
                                     return;
                                 }
                                 const embs = await db.embeddings.where("entryId").anyOf(entries.map(e => e.id)).toArray();
@@ -14380,8 +14357,8 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 }
                                 const withEmb = entries.filter(e => embMap[e.id]);
                                 if (withEmb.length < 2) {
-                                    runStatus.textContent = "임베딩 정보가 부족합니다. '로어 관리' 탭에서 임베딩을 먼저 생성하세요.";
-                                    runStatus.style.color = "#d66";
+                                    runStatus.textContent = "임베딩 정보가 부족합니다. 파일 관리 혹은 개별 항목 임베딩을 먼저 완료하세요.";
+                                    runStatus.style.color = "#9b4600";
                                     return;
                                 }
                                 const cos = (a, b) => {
@@ -14438,12 +14415,12 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.appendChild(runStatus);
                         
                         const bulkRow = document.createElement("div");
-                        bulkRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:10px;padding:8px;background:#111;border:1px solid #333;border-radius:4px;";
+                        bulkRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:10px;padding:8px;background:#FFFFFF;border:1px solid #ddd;border-radius:8px;";
                         const bulkLbl = document.createElement("div");
                         bulkLbl.textContent = "일괄 모드";
-                        bulkLbl.style.cssText = "font-size:11px;color:#888;";
+                        bulkLbl.style.cssText = "font-size:11px;color:#333333;font-weight:bold;";
                         const bulkSel = document.createElement("select");
-                        bulkSel.style.cssText = "flex:1;padding:6px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:11px;";
+                        bulkSel.style.cssText = "flex:1;padding:6px;border:1px solid #ddd !important;border-radius:8px !important;background:#FFFFFF !important;color:#2c3e50 !important;font-size:11px;";
                         [
                             ["", "-- 전체 그룹 일괄 선택 --"],
                             ["keep-longest", "가장 긴 텍스트 보존 + 키워드 통합"],
@@ -14464,7 +14441,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         if (C.__lastMergeUndo && C.__lastMergeUndo.originals?.length) {
                             const undoBtn = document.createElement("button");
                             undoBtn.textContent = `직전 병합 취소 (${C.__lastMergeUndo.originals.length}개 원본 복원)`;
-                            undoBtn.style.cssText = "width:100%;padding:8px;margin-top:10px;background:transparent;color:#da8;border:1px solid #642;border-radius:4px;cursor:pointer;font-size:12px;";
+                            undoBtn.style.cssText = "width:100%;padding:8px;margin-top:10px;background:transparent;color:#9b4600;border:1px solid #9b4600;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;";
                             undoBtn.onclick = async () => {
                                 if (!confirm("직전 병합을 철회하고 원본 로어들을 원상복구하시겠습니까?")) return;
                                 try {
@@ -14490,31 +14467,33 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                     }
                 });
                 
+                // 후보군 렌더링 카드창 (흰색 배경 / 진회색 텍스트 / 호버 하이라이트 동기화 완비)
                 if (state.groups && state.groups.length > 0) {
                     for (const [gi, grp] of state.groups.entries()) {
                         panel.addBoxedField("", "", {
                             onInit: nd => {
                                 C.setFullWidth(nd);
-                                nd.style.cssText += "background:#1a1a1a;border:1px solid #333;border-radius:6px;margin-bottom:12px;padding:10px;";
+                                // 후보군 박스 배경색을 흰색으로 전환하고 8px 라운딩
+                                nd.style.cssText += "background:var(--decentral-switch-background); border:1.5px solid var(--decentral-text-border); border-radius:8px; margin-bottom:12px; padding:10px; box-sizing:border-box;";
                                 const hdr = document.createElement("div");
-                                hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #333;";
+                                hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--decentral-text-border);";
                                 const title = document.createElement("div");
                                 title.textContent = "그룹 " + (gi + 1) + " — " + grp.entries.length + "개 / 유사도 " + (grp.sim * 100).toFixed(1) + "%";
-                                title.style.cssText = "font-size:13px;color:#4a9;font-weight:bold;";
+                                title.style.cssText = "font-size:13px;color:#88b9c8 !important;font-weight:bold;"; /* 제목색 지정 하늘색 */
                                 const types = [...new Set(grp.entries.map(e => e.type))];
                                 const typeWarn = types.length > 1 ? "유형 불일치: " + types.join(", ") : "분류: " + types[0];
                                 const warn = document.createElement("div");
                                 warn.textContent = typeWarn;
-                                warn.style.cssText = "font-size:10px;color:" + (types.length > 1 ? "#d96" : "#888") + ";";
+                                warn.style.cssText = "font-size:10px;color:var(--decentral-text-formal);";
                                 hdr.appendChild(title);
                                 hdr.appendChild(warn);
                                 nd.appendChild(hdr);
                                 
                                 for (const e of grp.entries) {
                                     const row = document.createElement("div");
-                                    row.style.cssText = "padding:6px 0;border-bottom:1px dashed #222;font-size:11px;color:#aaa;";
+                                    row.style.cssText = "padding:6px 0;border-bottom:1px dashed var(--decentral-border);font-size:11px;color:var(--decentral-text);";
                                     const safeSum = (summaryValue(e.summary) || "(요약 없음)").slice(0, 150).replace(/</g, "&lt;");
-                                    row.innerHTML = '<span style="color:#ccc;font-weight:bold;">[' + e.type + "] " + e.name + '</span> <span style="color:#888;">(' + e.packName + ")</span>" + (e.anchor ? ' <span style="color:#fc4;">앵커</span>' : "") + '<br><span style="font-size:10px;">' + safeSum + "</span>";
+                                    row.innerHTML = '<span style="color:var(--decentral-text);font-weight:bold;">[' + e.type + "] " + e.name + '</span> <span style="color:var(--decentral-text-inactive);">(' + e.packName + ")</span>" + (e.anchor ? ' <span style="color:#fc4;">앵커</span>' : "") + '<br><span style="font-size:10px;color:var(--decentral-text-formal);">' + safeSum + "</span>";
                                     nd.appendChild(row);
                                 }
                                 
@@ -14522,7 +14501,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 ctrl.style.cssText = "margin-top:10px;display:flex;gap:8px;align-items:center;";
                                 const modeSel = document.createElement("select");
                                 modeSel.className = "lore-merge-mode-sel";
-                                modeSel.style.cssText = "padding:6px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:11px;flex:1;";
+                                modeSel.style.cssText = "padding:6px;border:1px solid #ddd !important;border-radius:8px !important;background:#FFFFFF !important;color:#2c3e50 !important;font-size:11px;flex:1;height:32px;";
                                 [
                                     ["keep-longest", "가장 긴 텍스트 보존 + 키워드 통합"],
                                     ["llm-summarize", "AI 종합 요약 (API 호출 필요)"]
@@ -14533,11 +14512,11 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 
                                 const previewBtn = document.createElement("button");
                                 previewBtn.textContent = "프리뷰";
-                                previewBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:4px;background:#334A52 !important;border:1px solid #bcd0d7 !important;color:#bcd0d7 !important;cursor:pointer;";
+                                previewBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:8px !important;background:#334A52 !important;border:1px solid #bcd0d7 !important;color:#bcd0d7 !important;cursor:pointer;height:32px;";
                                 
                                 const execBtn = document.createElement("button");
                                 execBtn.textContent = "병합 실행";
-                                execBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:4px;background:#88b9c8 !important;border:none;color:#fff;cursor:pointer;font-weight:bold;";
+                                execBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:8px !important;background:#88b9c8 !important;border:none;color:#fff;cursor:pointer;font-weight:bold;height:32px;";
                                 
                                 ctrl.appendChild(modeSel);
                                 ctrl.appendChild(previewBtn);
@@ -14545,7 +14524,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 nd.appendChild(ctrl);
                                 
                                 const preview = document.createElement("div");
-                                preview.style.cssText = "margin-top:8px;padding:8px;background:#0a0a0a;border:1px solid #222;border-radius:4px;font-size:11px;color:#ccc;display:none;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;";
+                                preview.style.cssText = "margin-top:8px;padding:8px;background:var(--decentral-text-background);border:1px solid var(--decentral-text-border);border-radius:8px !important;font-size:11px;color:var(--decentral-text);display:none;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;";
                                 nd.appendChild(preview);
                                 
                                 let mergedDraft = null;
@@ -14567,7 +14546,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                         maxRetries: 2
                                     });
                                     if (!res.text) throw new Error("LLM 응답 실패");
-                                    let txt = res.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+                                    let txt = res.text.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim();
                                     const parsed = JSON.parse(txt);
                                     return mergeDraftWithOriginals(parsed, entries, state.maxChars);
                                 };
@@ -14578,7 +14557,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     try {
                                         if (modeSel.value === "keep-longest") mergedDraft = mkKeepLongest(grp.entries);
                                         else mergedDraft = await mkLlmMerge(grp.entries);
-                                        preview.innerHTML = `<pre style="white-space:pre-wrap;margin:0;font-size:11px;color:#ccc;">${JSON.stringify(mergedDraft, null, 2).replace(/</g, "&lt;")}</pre>`;
+                                        preview.innerHTML = `<pre style="white-space:pre-wrap;margin:0;font-size:11px;color:var(--decentral-text);">${JSON.stringify(mergedDraft, null, 2).replace(/</g, "&lt;")}</pre>`;
                                     } catch (err) {
                                         preview.textContent = "에러: " + err.message;
                                         mergedDraft = null;
