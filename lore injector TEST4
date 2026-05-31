@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.6-2
+// @version     2.0.6-3
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -15344,36 +15344,6 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         setPackEnabled: setPackEnabled
     } = _w.__LoreInj;
     _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
-
-    function buildGenerationApiOpts(overrides = {}, costContext = null) {
-        const cfg = settings.config || {};
-        const model = cfg.autoExtModel === "_custom" ? cfg.autoExtCustomModel : cfg.autoExtModel;
-        const opts = {
-            apiType: cfg.autoExtApiType || "key",
-            key: cfg.autoExtKey,
-            vertexJson: cfg.autoExtVertexJson,
-            vertexLocation: cfg.autoExtVertexLocation || "global",
-            vertexProjectId: cfg.autoExtVertexProjectId,
-            firebaseScript: cfg.autoExtFirebaseScript,
-            firebaseEmbedKey: cfg.autoExtFirebaseEmbedKey,
-            model: model || "gemini-3-flash-preview",
-            maxRetries: cfg.autoExtMaxRetries || 1,
-            responseMimeType: "application/json",
-            costContext: costContext,
-            ...overrides
-        };
-        const reasoning = cfg.autoExtReasoning || "medium";
-        if (String(opts.model || "").includes("gemini-3") && reasoning && reasoning !== "off" && reasoning !== "budget") {
-            opts.thinkingConfig = {
-                thinkingLevel: reasoning
-            }
-        }
-        if (String(opts.model || "").includes("pro") && opts.thinkingConfig?.thinkingLevel === "minimal") {
-            opts.thinkingConfig.thinkingLevel = "low"
-        }
-        return opts
-    }
-    _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
     _w.__LoreInj.registerSubMenu("extract", function(modal) {
         modal.createSubMenu("추출/변환", m => {
             m.replaceContentPanel(panel => {
@@ -15620,7 +15590,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             const save = () => {
                                 const v = parseInt(i.value);
                                 if (!isNaN(v)) {
-                                    setter(v);
+                                    settings.config[key] = v;
                                     settings.save()
                                 }
                             };
@@ -15709,7 +15679,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         const rDiv = document.createElement("div");
                         rDiv.style.cssText = "font-size:12px;color:#555555;margin-top:4px;text-align:left;width:100%;";
                         
-                        // URL 변환 버튼 (수직 정중앙 정렬 완벽 보정 적용)
+                        // URL 변환 버튼 (수직 정중앙 플렉스 정합 완료)
                         const urlBtn = document.createElement("button");
                         urlBtn.textContent = "URL 지식 변환 실행";
                         urlBtn.style.cssText = "padding:0 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;display:inline-flex;align-items:center;justify-content:center;line-height:1;";
@@ -15780,7 +15750,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.appendChild(urlBtn);
                         nd.appendChild(rDiv);
                         
-                        // 직접 서술 텍스트 기입 소제목 왼쪽 정렬 완전 해결
+                        // 직접 서술 텍스트 기입 소제목 왼쪽 정렬 완전 해결 및 상자 제거 수렴
                         const t2 = document.createElement("div");
                         t2.textContent = "직접 서술 텍스트 기입";
                         t2.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;margin-top:16px;margin-bottom:8px;text-align:left !important;width:100% !important;display:block !important;";
@@ -15800,7 +15770,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         const rDiv2 = document.createElement("div");
                         rDiv2.style.cssText = "font-size:12px;color:#555555;margin-top:4px;text-align:left;width:100%;";
                         
-                        // 텍스트 변환 버튼 (수직 정중앙 정렬 완벽 보정 적용)
+                        // 텍스트 변환 버튼 (수직 정중앙 플렉스 정합 완료)
                         const tBtn = document.createElement("button");
                         tBtn.textContent = "텍스트 지식 변환 실행";
                         tBtn.style.cssText = "padding:0 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;display:inline-flex;align-items:center;justify-content:center;line-height:1;";
