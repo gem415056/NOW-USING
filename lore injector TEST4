@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.6-2
+// @version     2.0.6-3
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -15373,6 +15373,9 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         }
         return opts
     }
+(function() {
+    "use strict";
+    const _w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
     _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
     _w.__LoreInj.registerSubMenu("extract", function(modal) {
         modal.createSubMenu("추출/변환", m => {
@@ -15477,7 +15480,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 o.textContent = p.name;
                                 s3.appendChild(o)
                             });
-                            // 현재 활성화된 팩 이름이 드롭다운 목록에 있으면 강제로 자동 선택하여 유지 (훽 돌아감 버그 수정)
+                            // 현재 활성화된 팩 이름이 있으면 드롭다운 목록에서 기본값으로 자동 고정 (훽 돌아감 버그 수정)
                             getAutoExtPackForUrl(C.getCurUrl()).then(name => {
                                 s3.value = name || "";
                             });
@@ -15684,7 +15687,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                 });
 
                 // ==========================================
-                // 4. 지식 변환 카드 (텍스트 왼쪽 정렬 및 수직 센터 보정 단추 이식)
+                // 4. 지식 변환 카드 (텍스트 왼쪽 정렬 및 수직 센터 보정 완료)
                 // ==========================================
                 panel.addLongBox(true, {
                     onInit: nd => {
@@ -15711,10 +15714,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         const rDiv = document.createElement("div");
                         rDiv.style.cssText = "font-size:12px;color:#555555;margin-top:4px;text-align:left;width:100%;";
                         
-                        // URL 변환 버튼 (배경 #bcd0d7 / 테두리 및 글씨 #334a52 / 수직가운데 정렬화)
+                        // URL 변환 버튼 (수직 가운데 정렬 공식 주입)
                         const urlBtn = document.createElement("button");
                         urlBtn.textContent = "URL 지식 변환 실행";
-                        urlBtn.style.cssText = "padding:0px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;display:inline-flex;align-items:center;justify-content:center;";
+                        urlBtn.style.cssText = "padding:0px 16px !important;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;display:inline-flex !important;align-items:center !important;justify-content:center !important;line-height:1 !important;";
                         urlBtn.onclick = async () => {
                             if (!urlInp.value.trim() || !nameInp.value.trim()) {
                                 alert("URL과 팩 이름 정보가 모두 필요합니다.");
@@ -15782,10 +15785,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.appendChild(urlBtn);
                         nd.appendChild(rDiv);
                         
-                        // 직접 서술 텍스트 기입 소제목 왼쪽 정렬 완전 해결
+                        // 직접 서술 텍스트 기입 상위 감싸는 컨테이너에 강제 정렬 이식
                         const t2 = document.createElement("div");
-                        t2.style.cssText = "width:100%;text-align:left;box-sizing:border-box;";
-                        t2.innerHTML = '<div style="font-size:13px;color:#2c3e50;font-weight:bold;margin-top:16px;margin-bottom:8px;text-align:left;width:100%;">직접 서술 텍스트 기입</div>';
+                        t2.style.cssText = "width:100% !important;text-align:left !important;display:block !important;box-sizing:border-box !important;";
+                        t2.innerHTML = '<div style="font-size:13px;color:#2c3e50;font-weight:bold;margin-top:16px;margin-bottom:8px;text-align:left !important;width:100% !important;display:block !important;">직접 서술 텍스트 기입</div>';
                         nd.appendChild(t2);
                         
                         const ta = document.createElement("textarea");
@@ -15802,10 +15805,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         const rDiv2 = document.createElement("div");
                         rDiv2.style.cssText = "font-size:12px;color:#555555;margin-top:4px;text-align:left;width:100%;";
                         
-                        // 텍스트 변환 버튼 (배경 #bcd0d7 / 테두리 및 글씨 #334a52 / 수직가운데 정렬화)
+                        // 텍스트 변환 버튼 (수직 가운데 정렬 공식 주입)
                         const tBtn = document.createElement("button");
                         tBtn.textContent = "텍스트 지식 변환 실행";
-                        tBtn.style.cssText = "padding:0px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;display:inline-flex;align-items:center;justify-content:center;";
+                        tBtn.style.cssText = "padding:0px 16px !important;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:32px;box-sizing:border-box;border-width:1px;display:inline-flex !important;align-items:center !important;justify-content:center !important;line-height:1 !important;";
                         tBtn.onclick = async () => {
                             if (!ta.value.trim() || !nameInp2.value.trim()) {
                                 alert("설정 텍스트와 파일 명칭이 모두 필요합니다.");
@@ -15862,8 +15865,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.appendChild(rDiv2)
                     }
                 });
-            };
-            m.replaceContentPanel(renderPanel, "추출/변환")
+            }, "추출/변환")
         })
     });
     _w.__LoreInj.__subExtractLoaded = true;
