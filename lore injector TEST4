@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.4-5
+// @version     2.0.4-6
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -14783,75 +14783,19 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         restoreSnapshot: restoreSnapshot
     } = _w.__LoreInj;
     _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
+    // 스냅샷 백업 메뉴는 로어 관리 탭 하단으로 통합되었으므로 메뉴바 비노출 처리
+    /*
     _w.__LoreInj.registerSubMenu("snapshot", function(modal) {
         modal.createSubMenu("로어 스냅샷 (백업)", m => {
             const renderSnapshotUI = async panel => {
-                panel.addBoxedField("", "", {
-                    onInit: async nd => {
-                        C.setFullWidth(nd);
-                        const t = document.createElement("div");
-                        t.textContent = "스냅샷 복원";
-                        t.style.cssText = "font-size:14px;color:#ccc;font-weight:bold;margin-bottom:8px;";
-                        nd.appendChild(t);
-                        const snaps = await db.snapshots.orderBy("timestamp").reverse().toArray();
-                        if (!snaps.length) {
-                            nd.appendChild(Object.assign(document.createElement("div"), {
-                                textContent: "저장된 스냅샷이 없습니다.",
-                                style: "color:#888;font-size:12px;"
-                            }));
-                            return
-                        }
-                        const list = document.createElement("div");
-                        list.style.cssText = "display:flex;flex-direction:column;gap:6px;max-height:300px;overflow-y:auto;";
-                        for (const s of snaps) {
-                            const row = document.createElement("div");
-                            row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:6px;background:#1a1a1a;border:1px solid #333;border-radius:4px;";
-                            const info = document.createElement("div");
-                            info.style.cssText = "display:flex;flex-direction:column;";
-                            const sTitle = document.createElement("span");
-                            sTitle.textContent = `[${s.packName}] ${s.label} (${s.data.length}개)`;
-                            sTitle.style.cssText = "font-size:12px;color:#4a9;font-weight:bold;";
-                            const sTime = document.createElement("span");
-                            sTime.textContent = new Date(s.timestamp).toLocaleString();
-                            sTime.style.cssText = "font-size:10px;color:#888;";
-                            info.appendChild(sTitle);
-                            info.appendChild(sTime);
-                            const btnWrap = document.createElement("div");
-                            btnWrap.style.cssText = "display:flex;gap:4px;";
-                            const rBtn = document.createElement("button");
-                            rBtn.textContent = "복원";
-                            rBtn.style.cssText = "padding:4px 8px;font-size:11px;border-radius:3px;background:#258;color:#fff;border:none;cursor:pointer;";
-                            rBtn.onclick = async () => {
-                                if (confirm(`[${s.packName}] 팩을 이 시점으로 복원할 것?\n기존 데이터는 덮어씌워집니다.`)) {
-                                    await restoreSnapshot(s.id);
-                                    alert("복원 완료.");
-                                    m.replaceContentPanel(renderSnapshotUI, "스냅샷 관리")
-                                }
-                            };
-                            const dBtn = document.createElement("button");
-                            dBtn.textContent = "삭제";
-                            dBtn.style.cssText = "padding:4px 8px;font-size:11px;border-radius:3px;background:transparent;color:#d66;border:1px solid #d66;cursor:pointer;";
-                            dBtn.onclick = async () => {
-                                if (confirm("삭제?")) {
-                                    await db.snapshots.delete(s.id);
-                                    m.replaceContentPanel(renderSnapshotUI, "스냅샷 관리")
-                                }
-                            };
-                            btnWrap.appendChild(rBtn);
-                            btnWrap.appendChild(dBtn);
-                            row.appendChild(info);
-                            row.appendChild(btnWrap);
-                            list.appendChild(row)
-                        }
-                        nd.appendChild(list)
-                    }
-                })
+                ...
             };
             m.replaceContentPanel(renderSnapshotUI, "스냅샷 관리")
         })
     });
+    */
     _w.__LoreInj.__subSnapshotLoaded = true
-})();
+    })();
 (async function() {
     "use strict";
     if (document.readyState === "loading") await new Promise(r => document.addEventListener("DOMContentLoaded", r));
@@ -14869,158 +14813,25 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         settings: settings,
         setPackEnabled: setPackEnabled
     } = _w.__LoreInj;
-    _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
-    _w.__LoreInj.registerSubMenu("file", function(modal) {
-        modal.createSubMenu("로어 관리 (파일)", m => {
+    _w.__LoreInj.registerMenu = _w.__LoreInj.registerMenu || function() {};
+    _w.__LoreInj.registerMenu("file", function(modal) {
+        modal.createMenu("로어 관리", m => {
             const renderPackUI = async panel => {
-                panel.addBoxedField("", "", {
-                    onInit: nd => {
-                        C.setFullWidth(nd);
-                        const title = document.createElement("div");
-                        title.textContent = "로어 가져오기";
-                        title.style.cssText = "font-size:14px;color:#ccc;font-weight:bold;margin-bottom:8px;";
-                        nd.appendChild(title);
-                        const row = document.createElement("div");
-                        row.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:8px;";
-                        const nameInput = document.createElement("input");
-                        nameInput.placeholder = "로어 이름";
-                        nameInput.style.cssText = "flex:1;padding:6px 8px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:12px;";
-                        row.appendChild(nameInput);
-                        const fileInput = document.createElement("input");
-                        fileInput.type = "file";
-                        fileInput.accept = ".json";
-                        fileInput.style.display = "none";
-                        const importBtn = document.createElement("button");
-                        importBtn.textContent = "JSON 파일 가져오기";
-                        importBtn.style.cssText = "padding:6px 14px;font-size:12px;border-radius:4px;cursor:pointer;background:#258;color:#fff;border:1px solid #258;font-weight:bold;white-space:nowrap;";
-                        importBtn.onclick = () => fileInput.click();
-                        fileInput.onchange = async ev => {
-                            const file = ev.target.files[0];
-                            if (!file) return;
-                            const packName = nameInput.value.trim() || file.name.replace(".json", "");
-                            try {
-                                const text = await file.text();
-                                const data = JSON.parse(text);
-                                const arr = Array.isArray(data) ? data : Array.isArray(data.entries) ? data.entries : [data];
-                                let count = 0;
-                                for (let e of arr) {
-                                    if (!e || !e.name) continue;
-                                    if (C.normalizeLoreEntry) e = C.normalizeLoreEntry(e, {
-                                        source: "imported"
-                                    });
-                                    if (!e.triggers) e.triggers = [e.name];
-                                    e.packName = packName;
-                                    e.project = settings.config.activeProject || "";
-                                    e.enabled = true;
-                                    e.src = e.src || "im";
-                                    e.source = e.source || "imported";
-                                    e.ts = e.ts || Date.now();
-                                    e.lastUpdated = Date.now();
-                                    const existing = await db.entries.where("packName").equals(packName).and(x => x.name === e.name).first();
-                                    if (existing) {
-                                        await db.entries.update(existing.id, e);
-                                        try {
-                                            if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(existing.id)
-                                        } catch (_) {}
-                                    } else {
-                                        await db.entries.add(e);
-                                        count++
-                                    }
-                                }
-                                const totalCount = await db.entries.where("packName").equals(packName).count();
-                                let pack = await db.packs.get(packName);
-                                if (pack) await db.packs.update(packName, {
-                                    entryCount: totalCount
-                                });
-                                else await db.packs.put({
-                                    name: packName,
-                                    entryCount: totalCount,
-                                    project: settings.config.activeProject || ""
-                                });
-                                await setPackEnabled(packName, true);
-                                alert(arr.length + "개 항목 처리 완료 (신규 " + count + "개)");
-                                m.replaceContentPanel(renderPackUI, "파일 관리")
-                            } catch (err) {
-                                alert("가져오기 실패: " + err.message)
-                            }
-                            fileInput.value = ""
-                        };
-                        row.appendChild(fileInput);
-                        row.appendChild(importBtn);
-                        nd.appendChild(row);
-                        const manualLbl = document.createElement("div");
-                        manualLbl.textContent = "또는 직접 JSON 입력";
-                        manualLbl.style.cssText = "font-size:12px;color:#888;margin:12px 0 4px;";
-                        nd.appendChild(manualLbl);
-                        const manualTa = document.createElement("textarea");
-                        manualTa.placeholder = '[{"name":"이름","triggers":["키워드"],"type":"character","summary":"설명","detail":{}}]';
-                        manualTa.style.cssText = "width:100%;height:100px;background:#0a0a0a;color:#ccc;border:1px solid #333;border-radius:4px;padding:8px;font-size:12px;font-family:monospace;resize:vertical;box-sizing:border-box;";
-                        nd.appendChild(manualTa);
-                        const manualBtnRow = document.createElement("div");
-                        manualBtnRow.style.cssText = "display:flex;justify-content:flex-end;margin-top:6px;";
-                        const manualBtn = document.createElement("button");
-                        manualBtn.textContent = "수동 추가";
-                        manualBtn.style.cssText = "padding:6px 14px;font-size:12px;border-radius:4px;cursor:pointer;background:#285;color:#fff;border:1px solid #285;font-weight:bold;";
-                        manualBtn.onclick = async () => {
-                            const pn = nameInput.value.trim() || "수동추가";
-                            try {
-                                const txt = manualTa.value.trim();
-                                if (!txt) {
-                                    alert("JSON을 입력할 것.");
-                                    return
-                                }
-                                const data = JSON.parse(txt);
-                                const arr = Array.isArray(data) ? data : Array.isArray(data.entries) ? data.entries : [data];
-                                let cnt = 0;
-                                for (let e of arr) {
-                                    if (!e || !e.name) continue;
-                                    if (C.normalizeLoreEntry) e = C.normalizeLoreEntry(e, {
-                                        source: "imported"
-                                    });
-                                    if (!e.triggers) e.triggers = [e.name];
-                                    e.packName = pn;
-                                    e.project = settings.config.activeProject || "";
-                                    e.enabled = true;
-                                    e.src = e.src || "im";
-                                    e.source = e.source || "imported";
-                                    e.ts = e.ts || Date.now();
-                                    e.lastUpdated = Date.now();
-                                    const ex = await db.entries.where("packName").equals(pn).and(x => x.name === e.name).first();
-                                    if (ex) {
-                                        await db.entries.update(ex.id, e);
-                                        try {
-                                            if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(ex.id)
-                                        } catch (_) {}
-                                    } else {
-                                        await db.entries.add(e);
-                                        cnt++
-                                    }
-                                }
-                                const tc = await db.entries.where("packName").equals(pn).count();
-                                let pk = await db.packs.get(pn);
-                                if (pk) await db.packs.update(pn, {
-                                    entryCount: tc
-                                });
-                                else await db.packs.put({
-                                    name: pn,
-                                    entryCount: tc,
-                                    project: settings.config.activeProject || ""
-                                });
-                                await setPackEnabled(pn, true);
-                                alert(arr.length + "개 처리 (신규 " + cnt + "개)");
-                                manualTa.value = "";
-                                m.replaceContentPanel(renderPackUI, "파일 관리")
-                            } catch (err) {
-                                alert("JSON 파싱 실패: " + err.message)
-                            }
-                        };
-                        manualBtnRow.appendChild(manualBtn);
-                        nd.appendChild(manualBtnRow)
-                    }
-                });
-                panel.addBoxedField("", "", {
+                const curUrl = C.getCurUrl();
+                const enabledPacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(curUrl) : settings.config.urlPacks?.[curUrl] || [];
+
+                // ==========================================
+                // 1. 로어 파일 목록 카드 (addLongBox 개편으로 쏠림 해결)
+                // ==========================================
+                panel.addLongBox(true, {
                     onInit: async nd => {
-                        C.setFullWidth(nd);
+                        nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
+                        
+                        const t = document.createElement("div");
+                        t.textContent = "로어 파일 목록";
+                        t.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:8px;text-align:left;width:100%;";
+                        nd.appendChild(t);
+
                         const rawPacks = await db.packs.toArray();
                         const packs = [];
                         for (const p of rawPacks) {
@@ -15029,80 +14840,77 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 await db.packs.delete(p.name);
                                 continue
                             }
-                            if ((p.entryCount || 0) !== count) await db.packs.update(p.name, {
-                                entryCount: count
-                            });
-                            packs.push({
-                                ...p,
-                                entryCount: count
-                            })
+                            if ((p.entryCount || 0) !== count) await db.packs.update(p.name, { entryCount: count });
+                            packs.push({ ...p, entryCount: count });
                         }
+
                         if (!packs.length) {
                             const empty = document.createElement("div");
-                            empty.textContent = "등록된 팩이 없습니다.";
-                            empty.style.cssText = "color:#666;text-align:center;padding:20px;font-size:12px;";
+                            empty.textContent = "등록된 로어 파일이 없습니다.";
+                            empty.style.cssText = "color:#888888;text-align:center;padding:10px;font-size:12px;width:100%;";
                             nd.appendChild(empty);
                             return
                         }
-                        const curUrl = C.getCurUrl();
-                        const enabledPacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(curUrl) : settings.config.urlPacks?.[curUrl] || [];
+
                         for (const pack of packs) {
                             const packDiv = document.createElement("div");
-                            packDiv.style.cssText = "margin-bottom:8px;border:1px solid #333;border-radius:4px;overflow:hidden;";
+                            packDiv.style.cssText = "margin-bottom:8px;border:1px solid #eeeeee;border-radius:6px;overflow:hidden;width:100%;box-sizing:border-box;";
+                            
                             const header = document.createElement("div");
-                            header.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:10px 12px;background:#111;";
+                            header.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#FFFFFF;width:100%;box-sizing:border-box;";
+                            
                             const leftSide = document.createElement("div");
                             leftSide.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;";
+                            
                             const isEnabled = enabledPacks.includes(pack.name);
                             const swWrap = document.createElement("div");
                             swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;";
                             const swLabel = document.createElement("span");
                             swLabel.textContent = isEnabled ? "ON" : "OFF";
-                            swLabel.style.cssText = "font-size:10px;font-weight:bold;width:20px;text-align:center;color:" + (isEnabled ? "#4a7" : "#777") + ";";
+                            swLabel.style.cssText = "font-size:10px;font-weight:bold;width:20px;text-align:center;color:" + (isEnabled ? "#88b9c8" : "#888888") + ";";
                             const sw = document.createElement("div");
-                            sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#285" : "#444") + ";position:relative;";
+                            sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#88b9c8" : "#dddddd") + ";position:relative;";
                             const dot = document.createElement("div");
                             dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (isEnabled ? "14px" : "2px") + ";transition:left .2s;";
                             sw.appendChild(dot);
                             swWrap.appendChild(swLabel);
                             swWrap.appendChild(sw);
+                            
+                            // 스냅샷 및 팩 스위치 깜빡임 방지용 스크롤 상태 기억 갱신 적용
                             swWrap.onclick = async () => {
+                                const gridContainer = document.querySelector(".decentral-grid-container");
+                                const currentScrollTop = gridContainer ? gridContainer.scrollTop : 0;
+
                                 const curEnabled = (_w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(C.getCurUrl()) : settings.config.urlPacks?.[C.getCurUrl()] || []).includes(pack.name);
                                 await setPackEnabled(pack.name, !curEnabled);
-                                const nowEnabled = (_w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(C.getCurUrl()) : settings.config.urlPacks?.[C.getCurUrl()] || []).includes(pack.name);
-                                swLabel.textContent = nowEnabled ? "ON" : "OFF";
-                                swLabel.style.color = nowEnabled ? "#4a7" : "#777";
-                                sw.style.background = nowEnabled ? "#285" : "#444";
-                                dot.style.left = nowEnabled ? "14px" : "2px"
+                                
+                                await m.replaceContentPanel(renderPackUI, "로어 관리");
+
+                                const newGridContainer = document.querySelector(".decentral-grid-container");
+                                if (newGridContainer) newGridContainer.scrollTop = currentScrollTop;
                             };
+                            
                             leftSide.appendChild(swWrap);
                             const nameEl = document.createElement("span");
                             nameEl.textContent = pack.name + " (" + (pack.entryCount || 0) + "개)";
-                            nameEl.style.cssText = "font-size:13px;color:#ccc;font-weight:bold;";
+                            nameEl.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;";
                             leftSide.appendChild(nameEl);
                             header.appendChild(leftSide);
+                            
                             const actions = document.createElement("div");
-                            actions.style.cssText = "display:flex;gap:6px;";
-                            const B = "font-size:11px;padding:3px 8px;border-radius:3px;background:transparent;border:1px solid #555;color:#ccc;cursor:pointer;";
+                            actions.style.cssText = "display:flex;gap:4px;";
+                            
+                            // 내보내기, 임베딩, 정리 버튼 스타일 (테두리 및 텍스트 #bcd0d7 적용)
+                            const B_PACK = "font-size:11px;padding:3px 8px;border-radius:4px;background:#FFFFFF;border:1px solid #bcd0d7;color:#bcd0d7;cursor:pointer;";
+                            
                             const exportBtn = document.createElement("button");
                             exportBtn.textContent = "내보내기";
-                            exportBtn.style.cssText = B;
+                            exportBtn.style.cssText = B_PACK;
                             exportBtn.onclick = async () => {
                                 const entries = await db.entries.where("packName").equals(pack.name).toArray();
-                                if (!entries.length) {
-                                    alert("항목 없음.");
-                                    return
-                                }
-                                const clean = entries.map(({
-                                    id: id,
-                                    packName: packName,
-                                    project: project,
-                                    enabled: enabled,
-                                    ...rest
-                                }) => rest);
-                                const blob = new Blob([JSON.stringify(clean, null, 2)], {
-                                    type: "application/json"
-                                });
+                                if (!entries.length) { alert("항목이 없습니다."); return; }
+                                const clean = entries.map(({ id, packName, project, enabled, ...rest }) => rest);
+                                const blob = new Blob([JSON.stringify(clean, null, 2)], { type: "application/json" });
                                 const url = URL.createObjectURL(blob);
                                 const a = document.createElement("a");
                                 a.href = url;
@@ -15112,17 +14920,15 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 document.body.removeChild(a);
                                 URL.revokeObjectURL(url)
                             };
+                            
                             const embBtn = document.createElement("button");
                             embBtn.textContent = "임베딩";
-                            embBtn.style.cssText = B + "color:#4a9;border-color:#264;";
+                            embBtn.style.cssText = B_PACK;
                             embBtn.onclick = async () => {
                                 const apiType = settings.config.autoExtApiType || "key";
                                 const miss = apiType === "vertex" ? !settings.config.autoExtVertexJson : apiType === "firebase" ? !settings.config.autoExtFirebaseEmbedKey : !settings.config.autoExtKey;
-                                if (miss) {
-                                    alert(apiType === "firebase" ? "임베딩용 Gemini API 키 필요." : "API 설정 필요.");
-                                    return
-                                }
-                                if (!confirm("[" + pack.name + "] 임베딩 생성?")) return;
+                                if (miss) { alert("API 설정이 필요합니다."); return; }
+                                if (!confirm("[" + pack.name + "] 임베딩을 일괄 생성하시겠습니까?")) return;
                                 embBtn.disabled = true;
                                 const orig = embBtn.textContent;
                                 try {
@@ -15138,20 +14944,17 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                         embBtn.textContent = done + "/" + total
                                     });
                                     embBtn.textContent = "OK" + cnt;
-                                    setTimeout(() => {
-                                        embBtn.textContent = orig;
-                                        embBtn.disabled = false
-                                    }, 2e3)
+                                    setTimeout(() => { embBtn.textContent = orig; embBtn.disabled = false; }, 2000)
                                 } catch (e) {
                                     embBtn.textContent = "X";
                                     embBtn.disabled = false;
-                                    alert("실패:" + e.message)
+                                    alert("실패: " + e.message)
                                 }
                             };
+                            
                             const cleanBtn = document.createElement("button");
                             cleanBtn.textContent = "정리";
-                            cleanBtn.title = "API 호출 없이 stale embeddings 삭제";
-                            cleanBtn.style.cssText = B + "color:#da8;border-color:#642;";
+                            cleanBtn.style.cssText = B_PACK;
                             cleanBtn.onclick = async () => {
                                 cleanBtn.disabled = true;
                                 const orig = cleanBtn.textContent;
@@ -15159,43 +14962,254 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 try {
                                     const rpt = C.cleanupStaleEmbeddings ? await C.cleanupStaleEmbeddings(pack.name, {
                                         model: settings.config.embeddingModel || "gemini-embedding-001"
-                                    }) : {
-                                        removed: 0
-                                    };
+                                    }) : { removed: 0 };
                                     cleanBtn.textContent = "정리 " + rpt.removed;
-                                    alert("stale embedding 정리 완료: " + JSON.stringify(rpt))
+                                    alert("정리 완료: " + JSON.stringify(rpt))
                                 } catch (e) {
                                     cleanBtn.textContent = "X";
-                                    alert("정리 실패: " + e.message)
+                                    alert("실패: " + e.message)
                                 }
-                                setTimeout(() => {
-                                    cleanBtn.textContent = orig;
-                                    cleanBtn.disabled = false
-                                }, 1500)
+                                setTimeout(() => { cleanBtn.textContent = orig; cleanBtn.disabled = false; }, 1500)
                             };
+                            
+                            // 삭제 버튼 (볼드체 해제, 배경 #bcd0d7, 테두리 및 텍스트 #334a52 적용)
                             const delBtn = document.createElement("button");
                             delBtn.textContent = "삭제";
-                            delBtn.style.cssText = B + "color:#a55;border-color:#633;";
+                            delBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:4px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;cursor:pointer;font-weight:normal;";
                             delBtn.onclick = async () => {
-                                if (!confirm("[" + pack.name + "] 삭제?")) return;
+                                if (!confirm("[" + pack.name + "] 로어팩을 정말 삭제하시겠습니까?")) return;
                                 const es = await db.entries.where("packName").equals(pack.name).toArray();
                                 for (const e of es) await db.embeddings.where("entryId").equals(e.id).delete();
                                 await db.entries.where("packName").equals(pack.name).delete();
                                 await db.packs.delete(pack.name);
-                                m.replaceContentPanel(renderPackUI, "파일 관리")
+                                m.replaceContentPanel(renderPackUI, "로어 관리")
                             };
+                            
                             actions.appendChild(exportBtn);
                             actions.appendChild(embBtn);
                             actions.appendChild(cleanBtn);
                             actions.appendChild(delBtn);
                             header.appendChild(actions);
                             packDiv.appendChild(header);
-                            nd.appendChild(packDiv)
+                            nd.appendChild(packDiv);
                         }
                     }
-                })
+                });
+
+                // ==========================================
+                // 2. 백업 스냅샷 목록 카드 (addLongBox 개편 및 소제목 파스텔블루 적용)
+                // ==========================================
+                panel.addLongBox(true, {
+                    onInit: async nd => {
+                        nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
+                        
+                        const t = document.createElement("div");
+                        t.textContent = "스냅샷 복원";
+                        t.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:8px;text-align:left;width:100%;";
+                        nd.appendChild(t);
+
+                        const snaps = await db.snapshots.orderBy("timestamp").reverse().toArray();
+                        if (!snaps.length) {
+                            const empty = document.createElement("div");
+                            empty.textContent = "저장된 스냅샷이 없습니다.";
+                            empty.style.cssText = "color:#888888;font-size:12px;text-align:left;width:100%;";
+                            nd.appendChild(empty);
+                            return;
+                        }
+
+                        const list = document.createElement("div");
+                        list.style.cssText = "display:flex;flex-direction:column;gap:6px;max-height:160px;overflow-y:auto;width:100%;box-sizing:border-box;";
+                        for (const s of snaps) {
+                            const row = document.createElement("div");
+                            row.style.cssText = "display:flex;justify-content:space-between;align-items:center;padding:6px 10px;background:#FFFFFF;border:1px solid #eeeeee;border-radius:6px;width:100%;box-sizing:border-box;";
+                            
+                            const info = document.createElement("div");
+                            info.style.cssText = "display:flex;flex-direction:column;gap:2px;text-align:left;";
+                            const sTitle = document.createElement("span");
+                            sTitle.textContent = `[${s.packName}] ${s.label} (${s.data.length}개)`;
+                            sTitle.style.cssText = "font-size:12px;color:#2c3e50;font-weight:bold;";
+                            const sTime = document.createElement("span");
+                            sTime.textContent = new Date(s.timestamp).toLocaleString();
+                            sTime.style.cssText = "font-size:10px;color:#888888;";
+                            info.appendChild(sTitle);
+                            info.appendChild(sTime);
+                            
+                            const btnWrap = document.createElement("div");
+                            btnWrap.style.cssText = "display:flex;gap:4px;";
+                            
+                            // 복원 버튼 (배경: #bcd0d7 / 테두리 및 텍스트: #879aa0 적용)
+                            const rBtn = document.createElement("button");
+                            rBtn.textContent = "복원";
+                            rBtn.style.cssText = "padding:3px 8px;font-size:11px;border-radius:4px;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;cursor:pointer;font-weight:bold;";
+                            rBtn.onclick = async () => {
+                                if (confirm(`[${s.packName}] 팩을 이 시점으로 복원하시겠습니까?`)) {
+                                    await restoreSnapshot(s.id);
+                                    alert("복원이 완료되었습니다.");
+                                    m.replaceContentPanel(renderPackUI, "로어 관리")
+                                }
+                            };
+                            
+                            // 삭제 버튼 (배경: #bcd0d7 / 테두리 및 텍스트: #334a52 적용)
+                            const dBtn = document.createElement("button");
+                            dBtn.textContent = "삭제";
+                            dBtn.style.cssText = "padding:3px 8px;font-size:11px;border-radius:4px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;cursor:pointer;font-weight:normal;";
+                            dBtn.onclick = async () => {
+                                if (confirm("스냅샷을 삭제하시겠습니까?")) {
+                                    await db.snapshots.delete(s.id);
+                                    m.replaceContentPanel(renderPackUI, "로어 관리")
+                                }
+                            };
+                            
+                            btnWrap.appendChild(rBtn);
+                            btnWrap.appendChild(dBtn);
+                            row.appendChild(info);
+                            row.appendChild(btnWrap);
+                            list.appendChild(row);
+                        }
+                        nd.appendChild(list);
+                    }
+                });
+
+                // ==========================================
+                // 3. 로어 가져오기 카드 (addLongBox 개편 및 입력폼 흰색화, 대형버튼 테마 적용)
+                // ==========================================
+                panel.addLongBox(true, {
+                    onInit: nd => {
+                        nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
+                        
+                        const title = document.createElement("div");
+                        title.textContent = "로어 가져오기";
+                        title.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:8px;text-align:left;width:100%;";
+                        nd.appendChild(title);
+
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;gap:8px;align-items:center;margin-bottom:8px;width:100%;box-sizing:border-box;";
+                        
+                        const nameInput = document.createElement("input");
+                        nameInput.placeholder = "가져올 로어 파일 이름 입력";
+                        nameInput.style.cssText = "flex:1;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;height:32px;box-sizing:border-box;";
+                        row.appendChild(nameInput);
+
+                        const fileInput = document.createElement("input");
+                        fileInput.type = "file";
+                        fileInput.accept = ".json";
+                        fileInput.style.display = "none";
+                        
+                        // JSON 파일 가져오기 (큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #879aa0 적용)
+                        const importBtn = document.createElement("button");
+                        importBtn.textContent = "JSON 파일 가져오기";
+                        importBtn.style.cssText = "padding:6px 14px;font-size:12px;border-radius:6px;cursor:pointer;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;font-weight:bold;white-space:nowrap;height:32px;";
+                        importBtn.onclick = () => fileInput.click();
+                        
+                        fileInput.onchange = async ev => {
+                            const file = ev.target.files[0];
+                            if (!file) return;
+                            const packName = nameInput.value.trim() || file.name.replace(".json", "");
+                            try {
+                                const text = await file.text();
+                                const data = JSON.parse(text);
+                                const arr = Array.isArray(data) ? data : Array.isArray(data.entries) ? data.entries : [data];
+                                let count = 0;
+                                for (let e of arr) {
+                                    if (!e || !e.name) continue;
+                                    if (C.normalizeLoreEntry) e = C.normalizeLoreEntry(e, { source: "imported" });
+                                    if (!e.triggers) e.triggers = [e.name];
+                                    e.packName = packName;
+                                    e.project = settings.config.activeProject || "";
+                                    e.enabled = true;
+                                    e.src = e.src || "im";
+                                    e.source = e.source || "imported";
+                                    e.ts = e.ts || Date.now();
+                                    e.lastUpdated = Date.now();
+                                    const existing = await db.entries.where("packName").equals(packName).and(x => x.name === e.name).first();
+                                    if (existing) {
+                                        await db.entries.update(existing.id, e);
+                                        try { if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(existing.id) } catch (_) {}
+                                    } else {
+                                        await db.entries.add(e);
+                                        count++;
+                                    }
+                                }
+                                const totalCount = await db.entries.where("packName").equals(packName).count();
+                                let pack = await db.packs.get(packName);
+                                if (pack) await db.packs.update(packName, { entryCount: totalCount });
+                                else await db.packs.put({ name: packName, entryCount: totalCount, project: settings.config.activeProject || "" });
+                                await setPackEnabled(packName, true);
+                                alert(arr.length + "개 항목 처리 완료 (신규 " + count + "개)");
+                                m.replaceContentPanel(renderPackUI, "로어 관리")
+                            } catch (err) {
+                                alert("가져오기 실패: " + err.message)
+                            }
+                            fileInput.value = "";
+                        };
+                        
+                        row.appendChild(fileInput);
+                        row.appendChild(importBtn);
+                        nd.appendChild(row);
+
+                        const manualLbl = document.createElement("div");
+                        manualLbl.textContent = "또는 직접 JSON 내용 입력";
+                        manualLbl.style.cssText = "font-size:11px;color:#888888;margin:8px 0 4px;text-align:left;width:100%;";
+                        nd.appendChild(manualLbl);
+
+                        const manualTa = document.createElement("textarea");
+                        manualTa.placeholder = '[{"name":"이름","triggers":["키워드"],"type":"character","summary":"내용"}]';
+                        manualTa.style.cssText = "width:100%;height:80px;background:#FFFFFF;color:#2c3e50;border:1px solid #cccccc;border-radius:8px;padding:8px;font-size:12px;font-family:monospace;resize:vertical;box-sizing:border-box;margin-bottom:6px;";
+                        nd.appendChild(manualTa);
+
+                        const manualBtnRow = document.createElement("div");
+                        manualBtnRow.style.cssText = "display:flex;justify-content:flex-end;width:100%;";
+                        
+                        // 수동 추가 (큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #879aa0 적용)
+                        const manualBtn = document.createElement("button");
+                        manualBtn.textContent = "수동 추가";
+                        manualBtn.style.cssText = "padding:6px 14px;font-size:12px;border-radius:6px;cursor:pointer;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;font-weight:bold;height:32px;";
+                        manualBtn.onclick = async () => {
+                            const pn = nameInput.value.trim() || "수동추가";
+                            try {
+                                const txt = manualTa.value.trim();
+                                if (!txt) { alert("JSON 내용을 입력해주세요."); return; }
+                                const data = JSON.parse(txt);
+                                const arr = Array.isArray(data) ? data : Array.isArray(data.entries) ? data.entries : [data];
+                                let cnt = 0;
+                                for (let e of arr) {
+                                    if (!e || !e.name) continue;
+                                    if (C.normalizeLoreEntry) e = C.normalizeLoreEntry(e, { source: "imported" });
+                                    if (!e.triggers) e.triggers = [e.name];
+                                    e.packName = pn;
+                                    e.project = settings.config.activeProject || "";
+                                    e.enabled = true;
+                                    e.src = e.src || "im";
+                                    e.source = e.source || "imported";
+                                    e.ts = e.ts || Date.now();
+                                    e.lastUpdated = Date.now();
+                                    const ex = await db.entries.where("packName").equals(pn).and(x => x.name === e.name).first();
+                                    if (ex) {
+                                        await db.entries.update(ex.id, e);
+                                        try { if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(ex.id) } catch (_) {}
+                                    } else {
+                                        await db.entries.add(e);
+                                        cnt++;
+                                    }
+                                }
+                                const tc = await db.entries.where("packName").equals(pn).count();
+                                let pk = await db.packs.get(pn);
+                                if (pk) await db.packs.update(pn, { entryCount: tc });
+                                else await db.packs.put({ name: pn, entryCount: tc, project: settings.config.activeProject || "" });
+                                await setPackEnabled(pn, true);
+                                alert(arr.length + "개 항목 처리 완료 (신규 " + cnt + "개)");
+                                manualTa.value = "";
+                                m.replaceContentPanel(renderPackUI, "로어 관리")
+                            } catch (err) {
+                                alert("JSON 분석 실패: " + err.message)
+                            }
+                        };
+                        manualBtnRow.appendChild(manualBtn);
+                        nd.appendChild(manualBtnRow);
+                    }
+                });
             };
-            m.replaceContentPanel(renderPackUI, "파일 관리")
+            m.replaceContentPanel(renderPackUI, "로어 관리")
         })
     });
     _w.__LoreInj.__subFileLoaded = true
