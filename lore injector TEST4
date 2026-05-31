@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.4-2
+// @version     2.0.4-3
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -1520,10 +1520,10 @@ const DECENTRAL_CSS_VALUES = `
       color: #fff !important;
     }
 
-    /* 1단계 부모: 응답교정기 crr-tabs-container 스타일 1:1 매핑 */
+    /* 부모: 가로 탭 래퍼 */
     .decentral-menu-container {
         border-right: none !important;
-        border-bottom: 1px solid var(--decentral-border) !important; /* 부모 회색 실선 */
+        border-bottom: 1px solid var(--decentral-border) !important; /* 가로 밑줄 1px */
         display: flex !important;
         flex-direction: row !important;
         align-items: center !important;
@@ -1534,7 +1534,7 @@ const DECENTRAL_CSS_VALUES = `
         padding-top: 10px !important;
         padding-left: 20px !important;
         padding-right: 20px !important;
-        padding-bottom: 6px !important; /* 아래로 6px 밀어내기 동일화 */
+        padding-bottom: 6px !important; /* 교정기 6px 패딩 동기화 */
         margin-bottom: 12px !important;
         background-color: transparent !important;
         overflow-x: auto !important;
@@ -1547,26 +1547,26 @@ const DECENTRAL_CSS_VALUES = `
         display: none;
     }
 
-    /* 2단계 자식: 응답교정기 crr-tabs 레이아웃 스타일 1:1 매핑 */
+    /* 자식: 가로 탭 슬라이더 레이아웃 */
     .decentral-menu-element-container {
         display: flex !important;
-        gap: 17px !important; /* 탭 간격 17px */
-        margin-bottom: -7px !important; /* 강제 아래 마이너스 마진 상쇄 동일화 */
+        gap: 17px !important; /* 교정기 탭 간격 17px 동기화 */
+        margin-bottom: -7px !important; /* 밑줄 흡착을 위한 강제 -7px 마진 보정 */
         padding: 0 !important;
         height: auto !important;
         align-items: center !important;
     }
 
-    /* 3단계 손자: 응답교정기 crr-tab 버튼 스타일 1:1 매핑 */
+    /* 손자: 탭 글자 스타일 (밑줄 밀착 및 500 두께 동기화) */
     .decentral-menu-container .decentral-menu-element {
         background: none !important;
         border: none !important;
         font-size: 14px !important;
-        font-weight: 500 !important; /* 요청하신 최적 두께 유지 */
+        font-weight: 500 !important; /* 교정기 최적 굵기 적용 */
         color: var(--decentral-text-inactive) !important;
-        padding: 0 4px 6px 4px !important; /* 6px 바닥 여백 동일화 */
+        padding: 0 4px 6px 4px !important; /* 바닥 여백 동일화 */
         cursor: pointer !important;
-        border-bottom: 2px solid transparent !important; /* 투명 밑줄 선언 */
+        border-bottom: 2px solid transparent !important;
         border-radius: 0px !important;
         transition: 0.2s !important;
         white-space: nowrap !important;
@@ -1581,10 +1581,10 @@ const DECENTRAL_CSS_VALUES = `
         display: none !important;
     }
 
-    /* 활성화 시 밑줄 처리 (오차 없이 바닥 회색 실선 위에 밀착) */
+    /* 활성화 시 밑줄 및 진회색 글씨 적용 (굵어짐 차단 완료) */
     .decentral-menu-container .decentral-menu-element[active="true"] {
         color: var(--decentral-text) !important;
-        border-bottom: 2px solid var(--decentral-active-item) !important; /* 하늘색 선 밀착 */
+        border-bottom: 2px solid var(--decentral-active-item) !important; /* 부모 실선 위에 하늘색 선 합체 */
         background: none !important;
         font-weight: 500 !important;
     }
@@ -1628,7 +1628,7 @@ const DECENTRAL_CSS_VALUES = `
         min-height: 0;
         min-width: 0; 
         position: absolute;
-        box-sizing: border-box !important; /* 우측 쏠림 현상을 완전히 해결하는 핵심 가이드 */
+        box-sizing: border-box !important; /* 쏠림을 완전 종결하는 박스 연산 설계 */
     }
 
     .decentral-modal-footer {
@@ -1751,12 +1751,12 @@ const DECENTRAL_CSS_VALUES = `
       line-height: 1.4;
     }
     
-    /* 쏠림 방지를 위해 수집 영역 우측 마진 정밀 가이드 패딩 보정 */
+    /* 우측 내용물 쏠림 방지를 위해 수집 영역 우측 패딩 정밀 일치화 */
     .decentral-boxed-field .element-input-container {
       display: flex;
       margin-left: auto !important;
       align-items: center;
-      padding: 4px 16px !important; /* 16px 패딩 매핑으로 우측 쏠림 방지 */
+      padding: 4px 16px !important; /* 좌측 패딩인 16px과 상쇄하도록 우측에도 정확히 16px 주입 */
     }
 
     .decentral-boxed-field .element-input-container-long {
@@ -1965,12 +1965,10 @@ const DECENTRAL_CSS_VALUES = `
         background-color: var(--decentral-active-item) !important;
     }
 
-    /* ContentPanel 내부의 중복 타이틀 제거 규칙 */
     .decentral-vertical-container .decentral-modal-title-container:not(.top-static-title) {
         display: none !important;
     }
 
-    /* 팝업 다크테마 시 탭 연속 실선 색상 조정 */
     .decentral-color-container[theme="dark"] .decentral-menu-container {
         border-bottom-color: #42413D !important;
     }
@@ -1993,6 +1991,7 @@ const DECENTRAL_CSS_VALUES = `
             grid-template-columns: 100%; 
             column-count: 1;
             padding: 12px;
+            box-sizing: border-box !important;
         }
         .decentral-grid-element,
         .decentral-grid-element-long,
@@ -13763,529 +13762,461 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         isEntryEnabledForUrl: isEntryEnabledForUrl,
         setEntryEnabled: setEntryEnabled
     } = _w.__LoreInj;
-_w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
+(function() {
+    "use strict";
+    const _w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
+    const C = _w.__LoreCore;
+    const db = C.getDB();
+    const _ls = _w.localStorage;
+    const settings = _w.__LoreInj.settings;
+    const getChatKey = _w.__LoreInj.getChatKey;
+    const getTurnCounter = _w.__LoreInj.getTurnCounter;
+    const getCooldownMap = _w.__LoreInj.getCooldownMap;
+    const isEntryEnabledForUrl = _w.__LoreInj.isEntryEnabledForUrl;
+    const setEntryEnabled = _w.__LoreInj.setEntryEnabled;
+    const getInjLog = _w.__LoreInj.getInjLog;
+    const getExtLog = _w.__LoreInj.getExtLog;
+    const clearInjLog = _w.__LoreInj.clearInjLog;
+    const clearExtLog = _w.__LoreInj.clearExtLog;
+    const setPackEnabled = _w.__LoreInj.setPackEnabled;
+    const getAutoExtPackForUrl = _w.__LoreInj.getAutoExtPackForUrl;
+    const setAutoExtPackForUrl = _w.__LoreInj.setAutoExtPackForUrl;
+    const restoreSnapshot = _w.__LoreInj.restoreSnapshot;
+    const OOC_FORMATS = _w.__LoreInj.OOC_FORMATS;
+    const resetSettingsKeepApi = _w.__LoreInj.resetSettingsKeepApi;
 
-// ================================================================================
-// [1] 활성 로어 탭 (로어 목록 + 중복 병합 수동 카드 통합)
-// ================================================================================
-_w.__LoreInj.registerSubMenu("lore", function(modal) {
-    modal.createSubMenu("활성 로어", m => {
-        const renderActiveLoreUI = async panel => {
-            const _url = C.getCurUrl();
-            const activePacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(_url) : settings.config.urlPacks?.[_url] || [];
-            if (!activePacks.length) {
-                panel.addText("활성화된 팩이 없습니다. '로어 관리' 탭에서 활성화하세요.");
-                return;
-            }
-            const entries = await db.entries.toArray();
-            const filtered = entries.filter(e => activePacks.includes(e.packName));
-            if (!filtered.length) {
-                panel.addText("활성 항목 없음.");
-                return;
-            }
-            const byPack = {};
-            filtered.forEach(e => {
-                (byPack[e.packName] = byPack[e.packName] || []).push(e);
-            });
-            for (const [pk, items] of Object.entries(byPack)) {
+    _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
+
+    // --------------------------------------------------------------------------------
+    // [1] 활성 로어 탭 (로어 목록 + 중복 병합 수동 카드 통합)
+    // --------------------------------------------------------------------------------
+    _w.__LoreInj.registerSubMenu("lore", function(modal) {
+        modal.createSubMenu("활성 로어", m => {
+            const renderActiveLoreUI = async panel => {
+                const _url = C.getCurUrl();
+                const activePacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(_url) : settings.config.urlPacks?.[_url] || [];
+                
+                // 로어 목록 렌더링 영역
+                if (!activePacks.length) {
+                    panel.addText("활성화된 팩이 없습니다. '로어 관리' 탭에서 활성화하세요.");
+                } else {
+                    const entries = await db.entries.toArray();
+                    const filtered = entries.filter(e => activePacks.includes(e.packName));
+                    if (!filtered.length) {
+                        panel.addText("활성 항목 없음.");
+                    } else {
+                        const byPack = {};
+                        filtered.forEach(e => {
+                            (byPack[e.packName] = byPack[e.packName] || []).push(e);
+                        });
+                        for (const [pk, items] of Object.entries(byPack)) {
+                            panel.addBoxedField("", "", {
+                                onInit: nd => {
+                                    C.setFullWidth(nd);
+                                    nd.style.cssText += "background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:12px;";
+                                    const headerRow = document.createElement("div");
+                                    headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #eeeeee;padding-bottom:6px;cursor:pointer;";
+                                    const curUrl = C.getCurUrl();
+                                    const disabledEntries = settings.config.urlDisabledEntries?.[curUrl] || [];
+                                    const allItemsEnabled = items.every(e => !disabledEntries.includes(e.id));
+                                    const pkSw = document.createElement("div");
+                                    pkSw.style.cssText = "width:28px;height:14px;border-radius:7px;background:" + (allItemsEnabled ? "#88b9c8" : "#cbd5e0") + ";position:relative;cursor:pointer;flex-shrink:0;margin-right:8px;";
+                                    const pkDot = document.createElement("div");
+                                    pkDot.style.cssText = "width:10px;height:10px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (allItemsEnabled ? "16px" : "2px") + ";transition:left .2s;";
+                                    pkSw.appendChild(pkDot);
+                                    pkSw.onclick = async ev => {
+                                        ev.stopPropagation();
+                                        const newState = !allItemsEnabled;
+                                        const ud = JSON.parse(JSON.stringify(settings.config.urlDisabledEntries || {}));
+                                        ud[curUrl] = ud[curUrl] || [];
+                                        const itemIds = items.map(e => e.id);
+                                        if (newState) {
+                                            ud[curUrl] = ud[curUrl].filter(id => !itemIds.includes(id));
+                                        } else {
+                                            for (const id of itemIds) {
+                                                if (!ud[curUrl].includes(id)) ud[curUrl].push(id);
+                                            }
+                                        }
+                                        settings.config.urlDisabledEntries = ud;
+                                        settings.save();
+                                        m.replaceContentPanel(renderActiveLoreUI, "활성 로어");
+                                    };
+                                    const title = document.createElement("div");
+                                    title.style.cssText = "font-size:14px;font-weight:bold;color:#2c3e50;flex:1;";
+                                    title.textContent = pk + " (" + items.length + "개)";
+                                    const arrow = document.createElement("span");
+                                    arrow.textContent = "▼";
+                                    arrow.style.cssText = "font-size:12px;color:#888;";
+                                    headerRow.appendChild(pkSw);
+                                    headerRow.appendChild(title);
+                                    headerRow.appendChild(arrow);
+                                    nd.appendChild(headerRow);
+                                    items.sort((a, b) => (a.type || "").localeCompare(b.type || ""));
+                                    const listContainer = document.createElement("div");
+                                    listContainer.style.cssText = "display:none;flex-direction:column;gap:0;";
+                                    let isExpanded = false;
+                                    headerRow.onclick = () => {
+                                        isExpanded = !isExpanded;
+                                        listContainer.style.display = isExpanded ? "flex" : "none";
+                                        arrow.textContent = isExpanded ? "▲" : "▼";
+                                    };
+                                    for (const e of items) {
+                                        const row = document.createElement("div");
+                                        row.style.cssText = "padding:8px 0;border-bottom:1px solid #eeeeee;display:flex;flex-direction:column;";
+                                        const header = document.createElement("div");
+                                        header.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+                                        const left = document.createElement("div");
+                                        left.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;";
+                                        const isEnabled = isEntryEnabledForUrl(e);
+                                        const swWrap = document.createElement("div");
+                                        swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;background:#FFFFFF;padding:2px 8px;border-radius:12px;border:1px solid #cccccc;flex-shrink:0;";
+                                        const swLabel = document.createElement("span");
+                                        swLabel.textContent = isEnabled ? "ON" : "OFF";
+                                        swLabel.style.cssText = "font-size:10px;font-weight:bold;width:20px;text-align:center;color:" + (isEnabled ? "#88b9c8" : "#777") + ";";
+                                        const sw = document.createElement("div");
+                                        sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#88b9c8" : "#cbd5e0") + ";position:relative;";
+                                        const dot = document.createElement("div");
+                                        dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (isEnabled ? "14px" : "2px") + ";transition:left .2s;";
+                                        sw.appendChild(dot);
+                                        swWrap.appendChild(swLabel);
+                                        swWrap.appendChild(sw);
+                                        swWrap.onclick = ev => {
+                                            ev.stopPropagation();
+                                            const ns = !isEntryEnabledForUrl(e);
+                                            setEntryEnabled(e, ns);
+                                            swLabel.textContent = ns ? "ON" : "OFF";
+                                            swLabel.style.color = ns ? "#88b9c8" : "#777";
+                                            sw.style.background = ns ? "#88b9c8" : "#cbd5e0";
+                                            dot.style.left = ns ? "14px" : "2px";
+                                        };
+                                        const nameSpan = document.createElement("span");
+                                        nameSpan.textContent = "[" + e.type + "] " + e.name;
+                                        nameSpan.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;cursor:pointer;flex:1;";
+                                        const embStatusSpan = document.createElement("span");
+                                        embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;";
+                                        const updateEmbStatus = async () => {
+                                            try {
+                                                const emb = await db.embeddings.where({
+                                                    entryId: e.id,
+                                                    field: "summary"
+                                                }).first() || await db.embeddings.where("entryId").equals(e.id).first();
+                                                if (emb) {
+                                                    const ch = C.embeddingSourceHash ? C.embeddingSourceHash(e, emb.field || "summary") : emb.hash || "";
+                                                    const targetModel = settings.config.embeddingModel || "gemini-embedding-001";
+                                                    if ((emb.sourceHash || emb.hash) === ch && (!emb.packName || emb.packName === e.packName)) {
+                                                        const needsRegen = emb.model && emb.model !== targetModel || emb.schemaVersion && emb.schemaVersion < 2 || emb.taskType !== "RETRIEVAL_DOCUMENT" && targetModel.includes("embedding-001");
+                                                        if (needsRegen) {
+                                                            embStatusSpan.textContent = "재생성";
+                                                            embStatusSpan.style.background = "#eeeeee";
+                                                            embStatusSpan.style.color = "#da8";
+                                                        } else {
+                                                            embStatusSpan.textContent = "임베딩";
+                                                            embStatusSpan.style.background = "#88b9c8";
+                                                            embStatusSpan.style.color = "#FFFFFF";
+                                                        }
+                                                    } else {
+                                                        embStatusSpan.textContent = "변경됨";
+                                                        embStatusSpan.style.background = "#eeeeee";
+                                                        embStatusSpan.style.color = "#da8";
+                                                    }
+                                                } else {
+                                                    embStatusSpan.textContent = "미임베딩";
+                                                    embStatusSpan.style.background = "#eeeeee";
+                                                    embStatusSpan.style.color = "#888";
+                                                }
+                                            } catch (ex) {}
+                                        };
+                                        updateEmbStatus();
+                                        nameSpan.appendChild(embStatusSpan);
+                                        left.appendChild(swWrap);
+                                        left.appendChild(nameSpan);
+                                        const right = document.createElement("div");
+                                        right.style.cssText = "display:flex;gap:6px;";
+                                        const B = "font-size:11px;padding:3px 8px;border-radius:6px;background:#FFFFFF;border:1px solid #ddd;color:#555;cursor:pointer;font-weight:600;";
+                                        const embGenBtn = document.createElement("button");
+                                        embGenBtn.textContent = "임베딩";
+                                        embGenBtn.style.cssText = B;
+                                        embGenBtn.onclick = async ev => {
+                                            ev.stopPropagation();
+                                            embGenBtn.disabled = true;
+                                            embGenBtn.textContent = "...";
+                                            try {
+                                                await C.ensureEmbedding(e, {
+                                                    apiType: settings.config.autoExtApiType || "key",
+                                                    key: settings.config.autoExtKey,
+                                                    vertexJson: settings.config.autoExtVertexJson,
+                                                    vertexLocation: settings.config.autoExtVertexLocation || "global",
+                                                    vertexProjectId: settings.config.autoExtVertexProjectId,
+                                                    firebaseEmbedKey: settings.config.autoExtFirebaseEmbedKey,
+                                                    model: settings.config.embeddingModel || "gemini-embedding-001"
+                                                });
+                                                embGenBtn.textContent = "OK";
+                                                updateEmbStatus();
+                                            } catch (err) {
+                                                embGenBtn.textContent = "X";
+                                                alert("실패:" + err.message);
+                                            }
+                                            setTimeout(() => {
+                                                embGenBtn.textContent = "임베딩";
+                                                embGenBtn.disabled = false;
+                                            }, 1500);
+                                        };
+                                        const copyBtn = document.createElement("button");
+                                        copyBtn.textContent = "복사";
+                                        copyBtn.style.cssText = B;
+                                        copyBtn.onclick = ev => {
+                                            ev.stopPropagation();
+                                            const clean = { ...e };
+                                            delete clean.id;
+                                            delete clean.packName;
+                                            delete clean.project;
+                                            delete clean.enabled;
+                                            navigator.clipboard.writeText(JSON.stringify(clean, null, 2)).then(() => alert("복사됨.")).catch(() => alert("실패"));
+                                        };
+                                        const editBtn = document.createElement("button");
+                                        editBtn.textContent = "수정";
+                                        editBtn.style.cssText = B;
+                                        const delBtn = document.createElement("button");
+                                        delBtn.textContent = "삭제";
+                                        delBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:6px;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;cursor:pointer;font-weight:600;";
+                                        const histBtn = document.createElement("button");
+                                        histBtn.textContent = "이력";
+                                        histBtn.style.cssText = B;
+                                        const anchorBtn = document.createElement("button");
+                                        const _renderAnchor = () => {
+                                            const on = !!e.anchor;
+                                            anchorBtn.textContent = "앵커";
+                                            anchorBtn.style.cssText = B + (on ? "background:#88b9c8 !important;color:#FFFFFF !important;border-color:#88b9c8 !important;" : "");
+                                        };
+                                        _renderAnchor();
+                                        anchorBtn.onclick = async ev => {
+                                            ev.stopPropagation();
+                                            e.anchor = !e.anchor;
+                                            try {
+                                                await db.entries.put(e);
+                                                _renderAnchor();
+                                            } catch (err) {
+                                                alert("오류: " + err.message);
+                                            }
+                                        };
+                                        right.appendChild(embGenBtn);
+                                        right.appendChild(copyBtn);
+                                        right.appendChild(histBtn);
+                                        right.appendChild(anchorBtn);
+                                        right.appendChild(editBtn);
+                                        right.appendChild(delBtn);
+                                        header.appendChild(left);
+                                        header.appendChild(right);
+                                        row.appendChild(header);
+                                        listContainer.appendChild(row);
+                                    }
+                                    nd.appendChild(listContainer);
+                                }
+                            });
+                        }
+                    }
+                }
+
+                // 2. 중복 로어 병합 카드 삽입 (목록 아래에 안전한 유기적 스코프 묶음)
+                const state = _w.__loreMergeState || (_w.__loreMergeState = {
+                    threshold: .88,
+                    maxChars: 1200,
+                    groups: null
+                });
                 panel.addBoxedField("", "", {
                     onInit: nd => {
                         C.setFullWidth(nd);
-                        nd.style.cssText += "background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:12px;";
-                        const headerRow = document.createElement("div");
-                        headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #eeeeee;padding-bottom:6px;cursor:pointer;";
-                        const curUrl = C.getCurUrl();
-                        const disabledEntries = settings.config.urlDisabledEntries?.[curUrl] || [];
-                        const allItemsEnabled = items.every(e => !disabledEntries.includes(e.id));
-                        const pkSw = document.createElement("div");
-                        pkSw.style.cssText = "width:28px;height:14px;border-radius:7px;background:" + (allItemsEnabled ? "#88b9c8" : "#cbd5e0") + ";position:relative;cursor:pointer;flex-shrink:0;margin-right:8px;";
-                        const pkDot = document.createElement("div");
-                        pkDot.style.cssText = "width:10px;height:10px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (allItemsEnabled ? "16px" : "2px") + ";transition:left .2s;";
-                        pkSw.appendChild(pkDot);
-                        pkSw.onclick = async ev => {
-                            ev.stopPropagation();
-                            const newState = !allItemsEnabled;
-                            const ud = JSON.parse(JSON.stringify(settings.config.urlDisabledEntries || {}));
-                            ud[curUrl] = ud[curUrl] || [];
-                            const itemIds = items.map(e => e.id);
-                            if (newState) {
-                                ud[curUrl] = ud[curUrl].filter(id => !itemIds.includes(id));
-                            } else {
-                                for (const id of itemIds) {
-                                    if (!ud[curUrl].includes(id)) ud[curUrl].push(id);
-                                }
-                            }
-                            settings.config.urlDisabledEntries = ud;
-                            settings.save();
-                            m.replaceContentPanel(renderActiveLoreUI, "활성 로어");
+                        nd.style.cssText += "background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-top:16px;padding:12px;";
+                        const t = document.createElement("div");
+                        t.textContent = "중복 로어 병합";
+                        t.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;margin-bottom:4px;";
+                        nd.appendChild(t);
+                        const d = document.createElement("div");
+                        d.innerHTML = '임베딩 유사도로 중복 후보를 찾아 그룹별 수동 승인.';
+                        d.style.cssText = "font-size:11px;color:#555;margin-bottom:10px;line-height:1.5;";
+                        nd.appendChild(d);
+                        const row = document.createElement("div");
+                        row.style.cssText = "display:flex;gap:12px;margin-bottom:8px;align-items:center;";
+                        const mk = (label, getter, setter, min, max, step) => {
+                            const f = document.createElement("div");
+                            f.style.flex = "1";
+                            const l = document.createElement("div");
+                            l.textContent = label;
+                            l.style.cssText = "font-size:12px;color:#555;margin-bottom:4px;";
+                            const i = document.createElement("input");
+                            i.type = "number";
+                            i.value = getter();
+                            i.min = min;
+                            i.max = max;
+                            i.step = step;
+                            i.style.cssText = "width:100%;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;";
+                            i.onchange = () => {
+                                const v = parseFloat(i.value);
+                                if (!isNaN(v)) setter(v);
+                            };
+                            f.appendChild(l);
+                            f.appendChild(i);
+                            return f;
                         };
-                        const title = document.createElement("div");
-                        title.style.cssText = "font-size:14px;font-weight:bold;color:#2c3e50;flex:1;";
-                        title.textContent = pk + " (" + items.length + "개)";
-                        const arrow = document.createElement("span");
-                        arrow.textContent = "▼";
-                        arrow.style.cssText = "font-size:12px;color:#888;";
-                        headerRow.appendChild(pkSw);
-                        headerRow.appendChild(title);
-                        headerRow.appendChild(arrow);
-                        nd.appendChild(headerRow);
-                        items.sort((a, b) => (a.type || "").localeCompare(b.type || ""));
-                        const listContainer = document.createElement("div");
-                        listContainer.style.cssText = "display:none;flex-direction:column;gap:0;";
-                        let isExpanded = false;
-                        headerRow.onclick = () => {
-                            isExpanded = !isExpanded;
-                            listContainer.style.display = isExpanded ? "flex" : "none";
-                            arrow.textContent = isExpanded ? "▲" : "▼";
-                        };
-                        for (const e of items) {
-                            const row = document.createElement("div");
-                            row.style.cssText = "padding:8px 0;border-bottom:1px solid #eeeeee;display:flex;flex-direction:column;";
-                            const header = document.createElement("div");
-                            header.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
-                            const left = document.createElement("div");
-                            left.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;";
-                            const isEnabled = isEntryEnabledForUrl(e);
-                            const swWrap = document.createElement("div");
-                            swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;background:#FFFFFF;padding:2px 8px;border-radius:12px;border:1px solid #cccccc;flex-shrink:0;";
-                            const swLabel = document.createElement("span");
-                            swLabel.textContent = isEnabled ? "ON" : "OFF";
-                            swLabel.style.cssText = "font-size:10px;font-weight:bold;width:20px;text-align:center;color:" + (isEnabled ? "#88b9c8" : "#777") + ";";
-                            const sw = document.createElement("div");
-                            sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#88b9c8" : "#cbd5e0") + ";position:relative;";
-                            const dot = document.createElement("div");
-                            dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (isEnabled ? "14px" : "2px") + ";transition:left .2s;";
-                            sw.appendChild(dot);
-                            swWrap.appendChild(swLabel);
-                            swWrap.appendChild(sw);
-                            swWrap.onclick = ev => {
-                                ev.stopPropagation();
-                                const ns = !isEntryEnabledForUrl(e);
-                                setEntryEnabled(e, ns);
-                                swLabel.textContent = ns ? "ON" : "OFF";
-                                swLabel.style.color = ns ? "#88b9c8" : "#777";
-                                sw.style.background = ns ? "#88b9c8" : "#cbd5e0";
-                                dot.style.left = ns ? "14px" : "2px";
-                            };
-                            const nameSpan = document.createElement("span");
-                            nameSpan.textContent = "[" + e.type + "] " + e.name;
-                            nameSpan.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;cursor:pointer;flex:1;";
-                            const embStatusSpan = document.createElement("span");
-                            embStatusSpan.style.cssText = "margin-left:6px;font-size:10px;padding:1px 4px;border-radius:3px;";
-                            const updateEmbStatus = async () => {
-                                try {
-                                    const emb = await db.embeddings.where({
-                                        entryId: e.id,
-                                        field: "summary"
-                                    }).first() || await db.embeddings.where("entryId").equals(e.id).first();
-                                    if (emb) {
-                                        const ch = C.embeddingSourceHash ? C.embeddingSourceHash(e, emb.field || "summary") : emb.hash || "";
-                                        const targetModel = settings.config.embeddingModel || "gemini-embedding-001";
-                                        if ((emb.sourceHash || emb.hash) === ch && (!emb.packName || emb.packName === e.packName)) {
-                                            const needsRegen = emb.model && emb.model !== targetModel || emb.schemaVersion && emb.schemaVersion < 2 || emb.taskType !== "RETRIEVAL_DOCUMENT" && targetModel.includes("embedding-001");
-                                            if (needsRegen) {
-                                                embStatusSpan.textContent = "재생성";
-                                                embStatusSpan.style.background = "#eeeeee";
-                                                embStatusSpan.style.color = "#da8";
-                                            } else {
-                                                embStatusSpan.textContent = "임베딩";
-                                                embStatusSpan.style.background = "#88b9c8";
-                                                embStatusSpan.style.color = "#FFFFFF";
-                                            }
-                                        } else {
-                                            embStatusSpan.textContent = "변경됨";
-                                            embStatusSpan.style.background = "#eeeeee";
-                                            embStatusSpan.style.color = "#da8";
-                                        }
-                                    } else {
-                                        embStatusSpan.textContent = "미임베딩";
-                                        embStatusSpan.style.background = "#eeeeee";
-                                        embStatusSpan.style.color = "#888";
-                                    }
-                                } catch (ex) {}
-                            };
-                            updateEmbStatus();
-                            nameSpan.appendChild(embStatusSpan);
-                            left.appendChild(swWrap);
-                            left.appendChild(nameSpan);
-                            const right = document.createElement("div");
-                            right.style.cssText = "display:flex;gap:6px;";
-                            
-                            // 소형 버튼 테마: 연회색 테두리와 진회색 텍스트 (#ddd / #555 / 둥글게 6px)
-                            const B = "font-size:11px;padding:3px 8px;border-radius:6px;background:#FFFFFF;border:1px solid #ddd;color:#555;cursor:pointer;font-weight:600;";
-                            const embGenBtn = document.createElement("button");
-                            embGenBtn.textContent = "임베딩";
-                            embGenBtn.style.cssText = B;
-                            embGenBtn.onclick = async ev => {
-                                ev.stopPropagation();
-                                embGenBtn.disabled = true;
-                                embGenBtn.textContent = "...";
-                                try {
-                                    await C.ensureEmbedding(e, {
-                                        apiType: settings.config.autoExtApiType || "key",
-                                        key: settings.config.autoExtKey,
-                                        vertexJson: settings.config.autoExtVertexJson,
-                                        vertexLocation: settings.config.autoExtVertexLocation || "global",
-                                        vertexProjectId: settings.config.autoExtVertexProjectId,
-                                        firebaseEmbedKey: settings.config.autoExtFirebaseEmbedKey,
-                                        model: settings.config.embeddingModel || "gemini-embedding-001"
-                                    });
-                                    embGenBtn.textContent = "OK";
-                                    updateEmbStatus();
-                                } catch (err) {
-                                    embGenBtn.textContent = "X";
-                                    alert("실패:" + err.message);
-                                }
-                                setTimeout(() => {
-                                    embGenBtn.textContent = "임베딩";
-                                    embGenBtn.disabled = false;
-                                }, 1500);
-                            };
-                            const copyBtn = document.createElement("button");
-                            copyBtn.textContent = "복사";
-                            copyBtn.style.cssText = B;
-                            copyBtn.onclick = ev => {
-                                ev.stopPropagation();
-                                const clean = { ...e };
-                                delete clean.id;
-                                delete clean.packName;
-                                delete clean.project;
-                                delete clean.enabled;
-                                navigator.clipboard.writeText(JSON.stringify(clean, null, 2)).then(() => alert("복사됨.")).catch(() => alert("실패"));
-                            };
-                            const editBtn = document.createElement("button");
-                            editBtn.textContent = "수정";
-                            editBtn.style.cssText = B;
-                            
-                            // 삭제 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #879aa0
-                            const delBtn = document.createElement("button");
-                            delBtn.textContent = "삭제";
-                            delBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:6px;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;cursor:pointer;font-weight:600;";
-                            
-                            const histBtn = document.createElement("button");
-                            histBtn.textContent = "이력";
-                            histBtn.style.cssText = B;
-                            const anchorBtn = document.createElement("button");
-                            const _renderAnchor = () => {
-                                const on = !!e.anchor;
-                                anchorBtn.textContent = "앵커";
-                                anchorBtn.style.cssText = B + (on ? "background:#88b9c8 !important;color:#FFFFFF !important;border-color:#88b9c8 !important;" : "");
-                            };
-                            _renderAnchor();
-                            anchorBtn.onclick = async ev => {
-                                ev.stopPropagation();
-                                e.anchor = !e.anchor;
-                                try {
-                                    await db.entries.put(e);
-                                    _renderAnchor();
-                                } catch (err) {
-                                    alert("앵커 토글 실패: " + err.message);
-                                    e.anchor = !e.anchor;
-                                    _renderAnchor();
-                                }
-                            };
-                            right.appendChild(embGenBtn);
-                            right.appendChild(copyBtn);
-                            right.appendChild(histBtn);
-                            right.appendChild(anchorBtn);
-                            right.appendChild(editBtn);
-                            right.appendChild(delBtn);
-                            header.appendChild(left);
-                            header.appendChild(right);
-                            row.appendChild(header);
-                            listContainer.appendChild(row);
-                        }
-                        nd.appendChild(listContainer);
+                        row.appendChild(mk("유사도 임계값", () => state.threshold, v => state.threshold = v, .7, .99, .01));
+                        row.appendChild(mk("최대 글자수 (summary)", () => state.maxChars, v => state.maxChars = v, 200, 3e3, 50));
+                        nd.appendChild(row);
+                        
+                        const runBtn = document.createElement("button");
+                        runBtn.textContent = "병합 후보 찾기";
+                        runBtn.style.cssText = "width:100%;padding:10px;background:#bcd0d7;color:#879aa0;border:1px solid #879aa0;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;";
+                        nd.appendChild(runBtn);
                     }
                 });
-            }
+            };
+            m.replaceContentPanel(renderActiveLoreUI, "활성 로어");
+        });
+    });
 
-            // 중복 로어 병합 카드를 목록 아래에 마운트
-            const state = _w.__loreMergeState || (_w.__loreMergeState = {
-                threshold: .88,
-                maxChars: 1200,
-                groups: null
-            });
-            panel.addBoxedField("", "", {
-                onInit: nd => {
-                    C.setFullWidth(nd);
-                    nd.style.cssText += "background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-top:16px;padding:12px;";
-                    const t = document.createElement("div");
-                    t.textContent = "중복 로어 병합";
-                    t.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;margin-bottom:4px;";
-                    nd.appendChild(t);
-                    const d = document.createElement("div");
-                    d.innerHTML = '임베딩 유사도로 중복 후보를 찾아 그룹별 수동 승인.';
-                    d.style.cssText = "font-size:11px;color:#555;margin-bottom:10px;line-height:1.5;";
-                    nd.appendChild(d);
-                    const row = document.createElement("div");
-                    row.style.cssText = "display:flex;gap:12px;margin-bottom:8px;align-items:center;";
-                    const mk = (label, getter, setter, min, max, step) => {
-                        const f = document.createElement("div");
-                        f.style.flex = "1";
-                        const l = document.createElement("div");
-                        l.textContent = label;
-                        l.style.cssText = "font-size:12px;color:#555;margin-bottom:4px;";
-                        const i = document.createElement("input");
-                        i.type = "number";
-                        i.value = getter();
-                        i.min = min;
-                        i.max = max;
-                        i.step = step;
-                        i.style.cssText = "width:100%;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;";
-                        i.onchange = () => {
-                            const v = parseFloat(i.value);
-                            if (!isNaN(v)) setter(v);
+    // --------------------------------------------------------------------------------
+    // [2] 세션 상태 탭
+    // --------------------------------------------------------------------------------
+    _w.__LoreInj.registerSubMenu("session", function(modal) {
+        modal.createSubMenu("세션 상태", m => {
+            const renderSessionStatus = async panel => {
+                const chatKey = getChatKey();
+                const turnCounter = getTurnCounter(chatKey);
+                const cMap = getCooldownMap(chatKey);
+                const urlPacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(C.getCurUrl()) : settings.config.urlPacks?.[C.getCurUrl()] || [];
+                let allEntries = [];
+                if (urlPacks.length > 0) {
+                    const all = await db.entries.toArray();
+                    allEntries = all.filter(e => urlPacks.includes(e.packName) && isEntryEnabledForUrl(e));
+                }
+                panel.addBoxedField("", "", {
+                    onInit: nd => {
+                        C.setFullWidth(nd);
+                        const headerRow = document.createElement("div");
+                        headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #eeeeee;padding-bottom:8px;";
+                        const title = document.createElement("div");
+                        title.textContent = `현재 세션 상태 (턴: ${turnCounter})`;
+                        title.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;";
+                        const clearAllBtn = document.createElement("button");
+                        clearAllBtn.textContent = "세션 전체 초기화";
+                        clearAllBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:8px;cursor:pointer;background:#bcd0d7;color:#879aa0;border:1px solid #879aa0;font-weight:bold;";
+                        clearAllBtn.onclick = async () => {
+                            if (!confirm("이 채팅방의 세션 수치를 전체 초기화하시겠습니까?")) return;
+                            try {
+                                const curUrl = C.getCurUrl();
+                                if (settings.config.urlCooldownMaps) delete settings.config.urlCooldownMaps[chatKey];
+                                const lastMention = JSON.parse(_ls.getItem("lore-last-mention") || "{}");
+                                delete lastMention[chatKey];
+                                _ls.setItem("lore-last-mention", JSON.stringify(lastMention));
+                                const turnCounters = JSON.parse(_ls.getItem("lore-turn-counters") || "{}");
+                                delete turnCounters[chatKey];
+                                _ls.setItem("lore-turn-counters", JSON.stringify(turnCounters));
+                                settings.save();
+                                m.replaceContentPanel(renderSessionStatus, "세션 상태");
+                            } catch (e) {
+                                alert("오류: " + e.message);
+                            }
                         };
-                        f.appendChild(l);
-                        f.appendChild(i);
-                        return f;
-                    };
-                    row.appendChild(mk("유사도 임계값", () => state.threshold, v => state.threshold = v, .7, .99, .01));
-                    row.appendChild(mk("최대 글자수 (summary)", () => state.maxChars, v => state.maxChars = v, 200, 3e3, 50));
-                    nd.appendChild(row);
-                    
-                    // 대형 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #879aa0 / 둥글게 8px
-                    const runBtn = document.createElement("button");
-                    runBtn.textContent = "병합 후보 찾기";
-                    runBtn.style.cssText = "width:100%;padding:10px;background:#bcd0d7;color:#879aa0;border:1px solid #879aa0;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;";
-                    const runStatus = document.createElement("div");
-                    runStatus.style.cssText = "font-size:11px;color:#888;margin-top:6px;text-align:center;";
-                    runBtn.onclick = async () => {
-                        runBtn.disabled = true;
-                        runBtn.textContent = "검색 중...";
-                        try {
-                            const _url = C.getCurUrl();
-                            const activePacks = settings.config.urlPacks?.[_url] || [];
-                            const entries = (await db.entries.toArray()).filter(e => activePacks.includes(e.packName));
-                            if (entries.length < 2) {
-                                runStatus.textContent = "활성 엔트리 2개 미만.";
-                                runStatus.style.color = "#d66";
-                                return;
-                            }
-                            const embs = await db.embeddings.where("entryId").anyOf(entries.map(e => e.id)).toArray();
-                            const entryById = {};
-                            entries.forEach(e => entryById[e.id] = e);
-                            const embMap = {};
-                            for (const eb of embs) {
-                                if (eb.field !== "summary") continue;
-                                const ent = entryById[eb.entryId];
-                                if (!ent) continue;
-                                if (eb.packName && eb.packName !== ent.packName) continue;
-                                if (C.embeddingSourceHash && (eb.sourceHash || eb.hash) !== C.embeddingSourceHash(ent, "summary")) continue;
-                                embMap[eb.entryId] = eb.vector;
-                            }
-                            const withEmb = entries.filter(e => embMap[e.id]);
-                            if (withEmb.length < 2) {
-                                runStatus.textContent = "임베딩 수동 생성 필요.";
-                                runStatus.style.color = "#d66";
-                                return;
-                            }
-                            const cos = (a, b) => {
-                                let d = 0, na = 0, nb = 0;
-                                const L = Math.min(a.length, b.length);
-                                for (let i = 0; i < L; i++) {
-                                    d += a[i] * b[i]; na += a[i] * a[i]; nb += b[i] * b[i];
-                                }
-                                return d / (Math.sqrt(na) * Math.sqrt(nb) || 1);
-                            };
-                            const parent = {};
-                            const find = x => {
-                                let root = x;
-                                while (parent[root] !== root) root = parent[root];
-                                while (parent[x] !== root) {
-                                    const next = parent[x]; parent[x] = root; x = next;
-                                }
-                                return root;
-                            };
-                            const uni = (a, b) => { parent[find(a)] = find(b); };
-                            withEmb.forEach(e => parent[e.id] = e.id);
-                            const pairs = [];
-                            for (let i = 0; i < withEmb.length; i++) {
-                                for (let j = i + 1; j < withEmb.length; j++) {
-                                    if (!typeCompatible(withEmb[i], withEmb[j])) continue;
-                                    const s = cos(embMap[withEmb[i].id], embMap[withEmb[j].id]);
-                                    if (s >= state.threshold) {
-                                        pairs.push({ a: withEmb[i].id, b: withEmb[j].id, sim: s });
-                                        uni(withEmb[i].id, withEmb[j].id);
-                                    }
-                                }
-                            }
-                            const groupMap = {};
-                            withEmb.forEach(e => {
-                                const r = find(e.id); (groupMap[r] = groupMap[r] || []).push(e);
-                            });
-                            const groups = Object.values(groupMap).filter(g => g.length >= 2).map(g => {
-                                const ids = new Set(g.map(e => e.id));
-                                const maxSim = pairs.filter(p => ids.has(p.a) && ids.has(p.b)).reduce((m, p) => Math.max(m, p.sim), 0);
-                                return { entries: g, sim: maxSim };
-                            }).sort((a, b) => b.sim - a.sim);
-                            state.groups = groups;
-                            runStatus.textContent = groups.length > 0 ? "후보 " + groups.length + "개 그룹 발견." : "임계값 이상 후보 없음.";
-                            runStatus.style.color = groups.length > 0 ? "#88b9c8" : "#888";
-                            m.replaceContentPanel(renderActiveLoreUI, "활성 로어");
-                        } catch (e) {
-                            runStatus.textContent = "실패: " + e.message;
-                            runStatus.style.color = "#d66";
-                        }
-                        runBtn.textContent = "병합 후보 찾기";
-                        runBtn.disabled = false;
-                    };
-                    nd.appendChild(runBtn);
-                    nd.appendChild(runStatus);
-                }
-            });
-        };
-        m.replaceContentPanel(renderActiveLoreUI, "활성 로어");
-    });
-});
-
-// ================================================================================
-// [2] 세션 상태 탭 (원형 계승)
-// ================================================================================
-_w.__LoreInj.registerSubMenu("session", function(modal) {
-    modal.createSubMenu("세션 상태", m => {
-        const renderSessionStatus = async panel => {
-            const chatKey = getChatKey();
-            const turnCounter = getTurnCounter(chatKey);
-            const cMap = getCooldownMap(chatKey);
-            const urlPacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(C.getCurUrl()) : settings.config.urlPacks?.[C.getCurUrl()] || [];
-            let allEntries = [];
-            if (urlPacks.length > 0) {
-                const all = await db.entries.toArray();
-                allEntries = all.filter(e => urlPacks.includes(e.packName) && isEntryEnabledForUrl(e));
-            }
-            panel.addBoxedField("", "", {
-                onInit: nd => {
-                    C.setFullWidth(nd);
-                    const headerRow = document.createElement("div");
-                    headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #eeeeee;padding-bottom:8px;";
-                    const title = document.createElement("div");
-                    title.textContent = `현재 세션 상태 (턴: ${turnCounter})`;
-                    title.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;";
-                    const clearAllBtn = document.createElement("button");
-                    clearAllBtn.textContent = "세션 전체 초기화";
-                    clearAllBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:8px;cursor:pointer;background:#bcd0d7;color:#879aa0;border:1px solid #879aa0;font-weight:bold;";
-                    clearAllBtn.onclick = async () => {
-                        if (!confirm("이 채팅방의 세션 수치를 전체 초기화하시겠습니까?")) return;
-                        try {
-                            const curUrl = C.getCurUrl();
-                            if (settings.config.urlCooldownMaps) delete settings.config.urlCooldownMaps[chatKey];
-                            const lastMention = JSON.parse(_ls.getItem("lore-last-mention") || "{}");
-                            delete lastMention[chatKey];
-                            _ls.setItem("lore-last-mention", JSON.stringify(lastMention));
-                            const turnCounters = JSON.parse(_ls.getItem("lore-turn-counters") || "{}");
-                            delete turnCounters[chatKey];
-                            _ls.setItem("lore-turn-counters", JSON.stringify(turnCounters));
-                            _ls.removeItem("lore-recent-injections:" + chatKey);
-                            _ls.removeItem("lore-fe-recent-" + chatKey);
-                            settings.save();
-                            m.replaceContentPanel(renderSessionStatus, "세션 상태");
-                        } catch (e) {
-                            alert("초기화 실패: " + e.message);
-                        }
-                    };
-                    headerRow.appendChild(title);
-                    headerRow.appendChild(clearAllBtn);
-                    nd.appendChild(headerRow);
-                }
-            });
-        };
-        m.replaceContentPanel(renderSessionStatus, "세션 상태");
-    });
-});
-
-// ================================================================================
-// [3] 로어 관리 탭 (순서: 파일 목록 -> 스냅샷 목록 -> 파일 가져오기 및 수동)
-// ================================================================================
-_w.__LoreInj.registerSubMenu("file", function(modal) {
-    modal.createSubMenu("로어 관리", m => {
-        const renderLoreManageUI = async panel => {
-            
-            // 1. 로어 파일 목록 (최상단 배치)
-            panel.addBoxedField("", "", {
-                onInit: async nd => {
-                    C.setFullWidth(nd);
-                    const title = document.createElement("div");
-                    title.textContent = "로어 파일 목록";
-                    title.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;margin-bottom:8px;";
-                    nd.appendChild(title);
-                    
-                    const rawPacks = await db.packs.toArray();
-                    const packs = [];
-                    for (const p of rawPacks) {
-                        const count = await db.entries.where("packName").equals(p.name).count();
-                        if (count <= 0) {
-                            await db.packs.delete(p.name);
-                            continue;
-                        }
-                        packs.push({ ...p, entryCount: count });
+                        headerRow.appendChild(title);
+                        headerRow.appendChild(clearAllBtn);
+                        nd.appendChild(headerRow);
                     }
-                    if (!packs.length) {
-                        nd.appendChild(Object.assign(document.createElement("div"), {
-                            textContent: "등록된 팩이 없습니다.",
-                            style: "color:#888;font-size:12px;text-align:center;padding:10px;"
-                        }));
-                    } else {
-                        const curUrl = C.getCurUrl();
-                        const enabledPacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(curUrl) : settings.config.urlPacks?.[curUrl] || [];
-                        for (const pack of packs) {
-                            const packDiv = document.createElement("div");
-                            packDiv.style.cssText = "margin-bottom:8px;border:1px solid #cccccc;border-radius:8px;padding:8px;background:#FFFFFF;";
-                            const header = document.createElement("div");
-                            header.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
-                            const leftSide = document.createElement("div");
-                            leftSide.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;";
-                            const isEnabled = enabledPacks.includes(pack.name);
-                            const swWrap = document.createElement("div");
-                            swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;";
-                            const swLabel = document.createElement("span");
-                            swLabel.textContent = isEnabled ? "ON" : "OFF";
-                            swLabel.style.cssText = "font-size:10px;font-weight:bold;width:20px;text-align:center;color:" + (isEnabled ? "#88b9c8" : "#777") + ";";
-                            const sw = document.createElement("div");
-                            sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#88b9c8" : "#cbd5e0") + ";position:relative;";
-                            const dot = document.createElement("div");
-                            dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (isEnabled ? "14px" : "2px") + ";transition:left .2s;";
-                            sw.appendChild(dot);
-                            swWrap.appendChild(swLabel);
-                            swWrap.appendChild(sw);
-                            swWrap.onclick = async () => {
-                                const curEnabled = (_w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(C.getCurUrl()) : settings.config.urlPacks?.[C.getCurUrl()] || []).includes(pack.name);
-                                await setPackEnabled(pack.name, !curEnabled);
-                                m.replaceContentPanel(renderLoreManageUI, "로어 관리");
-                            };
-                            leftSide.appendChild(swWrap);
-                            const nameEl = document.createElement("span");
-                            nameEl.textContent = pack.name + " (" + (pack.entryCount || 0) + "개)";
-                            nameEl.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;";
-                            leftSide.appendChild(nameEl);
-                            header.appendChild(leftSide);
-                            
-                            const actions = document.createElement("div");
-                            actions.style.cssText = "display:flex;gap:6px;";
-                            const B = "font-size:11px;padding:3px 8px;border-radius:6px;background:#FFFFFF;border:1px solid #ddd;color:#555;cursor:pointer;font-weight:600;";
-                            const exportBtn = document.createElement("button");
-                            exportBtn.textContent = "내보내기";
-                            exportBtn.style.cssText = B;
-                            const embBtn = document.createElement("button");
-                            embBtn.textContent = "임베딩";
-                            embBtn.style.cssText = B;
-                            const cleanBtn = document.createElement("button");
-                            cleanBtn.textContent = "정리";
-                            cleanBtn.style.cssText = B;
-                            
-                            // 삭제 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #879aa0 / 둥글게 6px
-                            const delBtn = document.createElement("button");
-                            delBtn.textContent = "삭제";
-                            delBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:6px;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;cursor:pointer;font-weight:600;";
-                            
-                            actions.appendChild(exportBtn);
-                            actions.appendChild(embBtn);
-                            actions.appendChild(cleanBtn);
-                            actions.appendChild(delBtn);
-                            header.appendChild(actions);
-                            packDiv.appendChild(header);
-                            nd.appendChild(packDiv);
+                });
+            };
+            m.replaceContentPanel(renderSessionStatus, "세션 상태");
+        });
+    });
+
+    // --------------------------------------------------------------------------------
+    // [3] 로어 관리 탭 (파일 목록 -> 스냅샷 목록 -> 파일 가져오기 및 수동)
+    // --------------------------------------------------------------------------------
+    _w.__LoreInj.registerSubMenu("file", function(modal) {
+        modal.createSubMenu("로어 관리", m => {
+            const renderLoreManageUI = async panel => {
+                
+                // 1. 로어 파일 목록 (최상단 배치)
+                panel.addBoxedField("", "", {
+                    onInit: async nd => {
+                        C.setFullWidth(nd);
+                        const title = document.createElement("div");
+                        title.textContent = "로어 파일 목록";
+                        title.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;margin-bottom:8px;";
+                        nd.appendChild(title);
+                        
+                        const rawPacks = await db.packs.toArray();
+                        const packs = [];
+                        for (const p of rawPacks) {
+                            const count = await db.entries.where("packName").equals(p.name).count();
+                            if (count <= 0) {
+                                await db.packs.delete(p.name);
+                                continue;
+                            }
+                            packs.push({ ...p, entryCount: count });
+                        }
+                        if (!packs.length) {
+                            nd.appendChild(Object.assign(document.createElement("div"), {
+                                textContent: "등록된 팩이 없습니다.",
+                                style: "color:#888;font-size:12px;text-align:center;padding:10px;"
+                            }));
+                        } else {
+                            const curUrl = C.getCurUrl();
+                            const enabledPacks = _w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(curUrl) : settings.config.urlPacks?.[curUrl] || [];
+                            for (const pack of packs) {
+                                const packDiv = document.createElement("div");
+                                packDiv.style.cssText = "margin-bottom:8px;border:1px solid #cccccc;border-radius:8px;padding:8px;background:#FFFFFF;";
+                                const header = document.createElement("div");
+                                header.style.cssText = "display:flex;justify-content:space-between;align-items:center;";
+                                const leftSide = document.createElement("div");
+                                leftSide.style.cssText = "display:flex;align-items:center;gap:8px;flex:1;";
+                                const isEnabled = enabledPacks.includes(pack.name);
+                                const swWrap = document.createElement("div");
+                                swWrap.style.cssText = "display:flex;align-items:center;gap:6px;cursor:pointer;";
+                                const swLabel = document.createElement("span");
+                                swLabel.textContent = isEnabled ? "ON" : "OFF";
+                                swLabel.style.cssText = "font-size:10px;font-weight:bold;width:20px;text-align:center;color:" + (isEnabled ? "#88b9c8" : "#777") + ";";
+                                const sw = document.createElement("div");
+                                sw.style.cssText = "width:24px;height:12px;border-radius:6px;background:" + (isEnabled ? "#88b9c8" : "#cbd5e0") + ";position:relative;";
+                                const dot = document.createElement("div");
+                                dot.style.cssText = "width:8px;height:8px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (isEnabled ? "14px" : "2px") + ";transition:left .2s;";
+                                sw.appendChild(dot);
+                                swWrap.appendChild(swLabel);
+                                swWrap.appendChild(sw);
+                                swWrap.onclick = async () => {
+                                    const curEnabled = (_w.__LoreInj.getActivePacksForUrl ? _w.__LoreInj.getActivePacksForUrl(C.getCurUrl()) : settings.config.urlPacks?.[C.getCurUrl()] || []).includes(pack.name);
+                                    await setPackEnabled(pack.name, !curEnabled);
+                                    m.replaceContentPanel(renderLoreManageUI, "로어 관리");
+                                };
+                                leftSide.appendChild(swWrap);
+                                const nameEl = document.createElement("span");
+                                nameEl.textContent = pack.name + " (" + (pack.entryCount || 0) + "개)";
+                                nameEl.style.cssText = "font-size:13px;color:#2c3e50;font-weight:bold;";
+                                leftSide.appendChild(nameEl);
+                                header.appendChild(leftSide);
+                                
+                                const actions = document.createElement("div");
+                                actions.style.cssText = "display:flex;gap:6px;";
+                                const B = "font-size:11px;padding:3px 8px;border-radius:6px;background:#FFFFFF;border:1px solid #ddd;color:#555;cursor:pointer;font-weight:600;";
+                                const exportBtn = document.createElement("button");
+                                exportBtn.textContent = "내보내기";
+                                exportBtn.style.cssText = B;
+                                const embBtn = document.createElement("button");
+                                embBtn.textContent = "임베딩";
+                                embBtn.style.cssText = B;
+                                const cleanBtn = document.createElement("button");
+                                cleanBtn.textContent = "정리";
+                                cleanBtn.style.cssText = B;
+                                
+                                const delBtn = document.createElement("button");
+                                delBtn.textContent = "삭제";
+                                delBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:6px;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;cursor:pointer;font-weight:600;";
+                                
+                                actions.appendChild(exportBtn);
+                                actions.appendChild(embBtn);
+                                actions.appendChild(cleanBtn);
+                                actions.appendChild(delBtn);
+                                header.appendChild(actions);
+                                packDiv.appendChild(header);
+                                nd.appendChild(packDiv);
+                            }
                         }
                     }
                 }
@@ -14373,7 +14304,6 @@ _w.__LoreInj.registerSubMenu("file", function(modal) {
                     fileInput.accept = ".json";
                     fileInput.style.display = "none";
                     
-                    // 대형 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #879aa0 / 둥글게 8px
                     const importBtn = document.createElement("button");
                     importBtn.textContent = "JSON 파일 가져오기";
                     importBtn.style.cssText = "padding:6px 14px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;color:#879aa0;border:1px solid #879aa0;font-weight:bold;white-space:nowrap;";
@@ -14420,7 +14350,7 @@ _w.__LoreInj.registerSubMenu("file", function(modal) {
 });
 
 // ================================================================================
-// [4] 설정 탭 (로어설정 본체 + 하단 API설정 병합)
+// [4] 설정 탭 (로어설정 본체 + 하단 API설정 병합 / 빠른설정 제거)
 // ================================================================================
 _w.__LoreInj.registerSubMenu("main", function(modal) {
     modal.createSubMenu("설정", m => {
@@ -14487,7 +14417,6 @@ _w.__LoreInj.registerSubMenu("extract", function(modal) {
                     title.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;margin-bottom:8px;";
                     nd.appendChild(title);
                     
-                    // 큰 버튼: 배경 #bcd0d7 / 테두리 및 텍스트 #879aa0 / 둥글게 8px
                     const btnRun = document.createElement("button");
                     btnRun.textContent = "수동 추출 실행";
                     btnRun.style.cssText = "padding:8px 16px;font-size:12px;border-radius:8px;cursor:pointer;background:#bcd0d7;color:#879aa0;border:1px solid #879aa0;font-weight:bold;width:100%;margin-top:10px;";
@@ -14526,7 +14455,7 @@ _w.__LoreInj.registerSubMenu("log", function(modal) {
                         arrow.style.cssText = "font-size:11px;color:#888;";
                         const t = document.createElement("div");
                         t.textContent = `${title} (${items.length})`;
-                        t.style.cssText = `font-size:14px;color:#2c3e50;font-weight:bold;`; // 진회색화 일치
+                        t.style.cssText = `font-size:14px;color:#2c3e50;font-weight:bold;`;
                         leftWrap.appendChild(arrow);
                         leftWrap.appendChild(t);
                         hRow.appendChild(leftWrap);
@@ -14546,7 +14475,7 @@ _w.__LoreInj.registerSubMenu("log", function(modal) {
 
             makeLogBox("주입 기록", iLog, (clear, i, nd) => {
                 const r = document.createElement("div");
-                r.style.cssText = "margin-bottom:6px;border-bottom:1px dashed #eee;padding-bottom:4px;font-size:11px;color:#555;"; // 가독성을 위한 단색 정제
+                r.style.cssText = "margin-bottom:6px;border-bottom:1px dashed #eee;padding-bottom:4px;font-size:11px;color:#555;";
                 r.innerHTML = `<span>${i.turn}턴 (${i.time}) - 주입 성공</span>`;
                 nd.appendChild(r);
             });
@@ -14562,10 +14491,11 @@ _w.__LoreInj.registerSubMenu("log", function(modal) {
     });
 });
 
-// 로딩 무결성 수립용 플래그 강제 승인 세션
 _w.__LoreInj.__subSnapshotLoaded = true;
 _w.__LoreInj.__subApiLoaded = true;
 _w.__LoreInj.__subHelpLoaded = true;
+
+})();
 (async function() {
     "use strict";
     const _w = typeof unsafeWindow !== "undefined" ? unsafeWindow : window;
