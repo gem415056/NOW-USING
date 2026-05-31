@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.2
+// @version     2.0.3
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -1397,23 +1397,23 @@ const DECENTRAL_CSS_VALUES = `
      * 변수 선언부 
      */
     .decentral-color-container {
-        --decentral-text: #2c3e50; /* 가독성을 위한 부드러운 진회색 */
+        --decentral-text: #2c3e50; /* 교정기 스타일 진회색 */
         --decentral-text-inverted: #FFFFFF;
-        --decentral-text-formal: #555555; /* 부드러운 설명용 진회색 */
-        --decentral-text-inactive-hover: #1a202c;
-        --decentral-text-inactive: #718096;
+        --decentral-text-formal: #555555; /* 가독성 높은 카드 내 진회색 본문 */
+        --decentral-text-inactive-hover: #111111;
+        --decentral-text-inactive: #888888;
         --decentral-background: #FFFFFF;
-        --decentral-background-menu: #f7fafc;
+        --decentral-background-menu: transparent; /* 교정기처럼 메뉴바 배경 투명화 */
         --decentral-hover: #edf2f7;
-        --decentral-border: #e2e8f0;
+        --decentral-border: #eeeeee;
         --decentral-active-item: #88b9c8; /* 지정 하늘색 */
         --decentral-inactive-item: #cbd5e0;
-        --decentral-active-text: #2c3e50;
-        --decentral-background-active-item: rgba(136, 185, 200, 0.15);
-        --decentral-text-background: #F1F5F9;
-        --decentral-text-border: #cbd5e0;
-        --decentral-switch-background: #F9F9F9; /* 카드의 연회색 배경 유지 */
-        --decentral-switch-inactive: #cbd5e0;
+        --decentral-active-text: #111111;
+        --decentral-background-active-item: transparent;
+        --decentral-text-background: #F9F9F9;
+        --decentral-text-border: #ddd;
+        --decentral-switch-background: #F9F9F9; /* 연회색 카드배경 적용 */
+        --decentral-switch-inactive: #ccc;
     }
 
     .decentral-color-container[theme="dark"] {
@@ -1422,27 +1422,27 @@ const DECENTRAL_CSS_VALUES = `
         --decentral-text-formal: #aaa;
         --decentral-text-inactive-hover: #fff;
         --decentral-text-inactive: #888;
-        --decentral-background: #242321; /* 다크모드 차콜 브라운 */
-        --decentral-background-menu: #1a1918;
+        --decentral-background: #242321; /* 교정기 차콜 브라운 */
+        --decentral-background-menu: transparent;
         --decentral-hover: #333;
         --decentral-border: #42413D;
         --decentral-active-item: #88b9c8;
         --decentral-inactive-item: #444;
         --decentral-active-text: #fff;
-        --decentral-background-active-item: rgba(136, 185, 200, 0.1);
+        --decentral-background-active-item: transparent;
         --decentral-text-background: #141413;
         --decentral-text-border: #42413D;
-        --decentral-switch-background: #141413;
+        --decentral-switch-background: #1a1918;
         --decentral-switch-inactive: #444;
     }
 
     /*
-     * 모달 컨테이너 선언
+     * 모달 컨테이너 선언 (바깥배경 터치 이벤트 활성화)
      */
     .decentral-modal-container {
         display: flex;
         flex-direction: column;
-        z-index: 2147483647 !important; /* 응답교정기와 레이어 우선순위 싱크 */
+        z-index: 2147483647 !important;
         margin: auto;
         pointer-events: auto;
         background-color: rgba(0,0,0,0.5);
@@ -1455,36 +1455,35 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 모달 베이스 선언 (기본 모바일 타겟 600px 제한)
+     * 모달 베이스 선언 (응답교정기 팝업 크기 100% 동일화)
      */
     .decentral-modal {
         display: flex;
-        flex-direction: column !important; /* 세로방향 정렬로 변경하여 [타이틀->탭] 구조로 */
-        min-width: 300px;
-        max-width: 600px !important;
-        min-height: 640px;
-        max-height: 90%;
-        width: 100%;
-        height: 75% !important;
-        border-radius: 16px !important; /* 모서리 둥글게 16px */
+        flex-direction: column !important;
+        width: 600px !important;
+        max-width: 90vw !important;
+        height: calc(66vh - 20px) !important;
+        max-height: calc(66vh - 20px) !important;
+        border-radius: 16px !important; /* 둥근 모서리 16px */
         background-color: var(--decentral-background);
         margin: auto;
         color: var(--decentral-text);
         box-shadow: 0 8px 40px rgba(0,0,0,0.2) !important;
         overflow: hidden;
+        box-sizing: border-box;
     }
 
     /*
-     * 모달 헤더(제목) 선언
+     * 모달 헤더(제목) 및 X 닫기 버튼
      */
     .decentral-modal-title-icon {
-      display: none !important; /* 타이틀 옆 설정 이모지(톱니바퀴) 완전 삭제 */
+      display: none !important; /* 톱니바퀴 아이콘 완전 제거 */
     }
 
     .decentral-modal-title-container {
       display: flex;
       flex-direction: row;
-      padding: 15px 20px;
+      padding: 20px 24px;
       align-items: center;
       border-bottom: 1px solid var(--decentral-border);
       flex-shrink: 0;
@@ -1492,7 +1491,7 @@ const DECENTRAL_CSS_VALUES = `
 
     .decental-modal-title-text {
       font-weight: bold;
-      font-size: 15px;
+      font-size: 16px;
       color: var(--decentral-text) !important;
     }
     
@@ -1503,77 +1502,111 @@ const DECENTRAL_CSS_VALUES = `
       align-items: center;
     }
 
+    /* 교정기 스타일의 ✕ 닫기 버튼 */
+    .decentral-close-button {
+      background: none !important;
+      border: none !important;
+      font-size: 14px !important;
+      cursor: pointer !important;
+      padding: 4px 8px !important;
+      border-radius: 6px !important;
+      color: #666 !important;
+      transition: 0.2s !important;
+      font-weight: bold !important;
+      line-height: 1 !important;
+    }
+
+    .decentral-close-button:hover {
+      background: #eee !important;
+      color: #222 !important;
+    }
+
+    .decentral-color-container[theme="dark"] .decentral-close-button {
+      color: #aaa !important;
+    }
+
+    .decentral-color-container[theme="dark"] .decentral-close-button:hover {
+      background: #333 !important;
+      color: #fff !important;
+    }
+
     /*
-     * 모달 상단 메뉴 탭 컨테이너 선언
+     * 모달 상단 메뉴 탭 컨테이너 선언 (응답교정기 탭 스타일 복제)
      */
     .decentral-menu-container {
         border-right: none !important;
         border-bottom: 1px solid var(--decentral-border) !important;
-        display: flex !important; /* 모바일 강제 노출 활성화 */
-        flex-direction: row !important; /* 가로형 정렬 */
+        display: flex !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: flex-start !important;
         width: 100% !important;
         min-width: 100% !important;
         height: auto !important;
-        min-height: 48px !important;
-        padding: 8px 16px !important;
-        background-color: var(--decentral-background-menu) !important;
+        padding: 0px 16px 6px 16px !important;
+        margin-top: 10px !important;
+        margin-bottom: 12px !important;
+        background-color: transparent !important;
         color: var(--decentral-text-inactive);
         font-weight: 400;
         user-select: none;
-        overflow-x: auto !important; /* 메뉴가 넘칠 경우 가로 스크롤 활성화 */
+        overflow-x: auto !important;
         overflow-y: hidden !important;
-        gap: 8px !important;
+        gap: 17px !important; /* 탭 간격 17px 동일화 */
         box-sizing: border-box;
+        flex-shrink: 0;
     }
 
-    /* 가로 메뉴 스크롤바 디자인 제거 */
     .decentral-menu-container::-webkit-scrollbar {
         display: none;
     }
 
-    /* 모달 메뉴 요소 */
+    /* 탭 내부 요소 (글자로만 이루어지며 아래 밑줄이 생기는 형태) */
     .decentral-menu-container .decentral-menu-element {
-        display: inline-flex !important;
-        align-items: center;
-        justify-content: center;
-        font-size: 13px !important;
+        background: none !important;
+        border: none !important;
+        font-size: 14px !important;
         font-weight: 600 !important;
-        padding: 6px 12px !important;
-        border-radius: 8px !important; /* 둥근 탭 메뉴 */
-        width: auto !important;
+        color: var(--decentral-text-inactive) !important;
+        padding: 0 4px 6px 4px !important;
+        cursor: pointer !important;
+        border-bottom: 2px solid transparent !important;
+        border-radius: 0px !important; /* 둥근 박스 요소 제거 */
+        transition: 0.2s !important;
         white-space: nowrap !important;
-        border: 1px solid transparent !important;
-        transition: all 0.2s ease !important;
-        cursor: pointer;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        width: auto !important;
     }
     
     .decentral-menu-element-container .decentral-sub-menu-container {
-        display: none !important; /* 탭 아래의 서브메뉴 표시 제거 */
+        display: none !important;
     }
 
-    /* 활성화된 가로 탭 디자인 지정 */
+    /* 가로형 선택 탭 활성화 테두리 (border-bottom 2px 지정 하늘색 적용) */
     .decentral-menu-container .decentral-menu-element[active="true"] {
-        color: var(--decentral-text-inverted) !important;
-        background-color: var(--decentral-active-item) !important; /* 하늘색 */
+        color: var(--decentral-text) !important;
+        border-bottom: 2px solid var(--decentral-active-item) !important; /* 하늘색 실선 */
+        background: none !important;
         font-weight: 700 !important;
     }
 
     .decentral-menu-element:not([active="true"]):hover {
-        background-color: var(--decentral-hover) !important;
+        color: var(--decentral-text-inactive-hover) !important;
+        background: none !important;
     }
 
-    /* 선택 메뉴 좌측 보더 규칙 무효화 */
     .decentral-menu-container .decentral-menu-element[active="true"]:before {
         display: none !important;
     }
 
-    /* 모바일 임시메뉴 비활성화 */
     .decentral-mobile-menu-container {
         display: none !important;
     }
     
     /*
-     * 모달 우측 컨텐츠 선언
+     * 모달 컨텐츠 정렬
      */
     .decentral-grid-container {
       display: flex;
@@ -1613,7 +1646,7 @@ const DECENTRAL_CSS_VALUES = `
       font-size: 13px;
       font-weight: bold;
       padding-bottom: 8px;
-      color: var(--decentral-active-item) !important; /* 하위 타이틀 지정 하늘색 */
+      color: var(--decentral-active-item) !important; /* 하위 카테고리 지정 하늘색 */
       user-select: none;
       width: 100%;
       align-items: bottom;
@@ -1661,14 +1694,14 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 카드형 박스 필드 선언 (모서리가 둥글고 정돈된 디자인)
+     * 카드형 박스 필드 선언 (둥근 가두리 정렬 및 진회색 텍스트 전환)
      */
     .decentral-boxed-field {
       display: flex;
       width: 100%;
       background-color: var(--decentral-switch-background);
       border: 1px solid var(--decentral-text-border);
-      border-radius: 8px !important; /* 모서리 둥글게 */
+      border-radius: 8px !important;
       user-select: none;
       padding: 12px 0px;
       box-sizing: border-box;
@@ -1701,7 +1734,7 @@ const DECENTRAL_CSS_VALUES = `
       box-sizing: border-box;
     }
 
-    /* 진회색 텍스트 보정 */
+    /* 카드 내 텍스트 진회색 보정으로 가독성 보장 */
     .decentral-boxed-field .element-title {
       font-size: 13px;
       font-weight: bold;
@@ -1746,7 +1779,7 @@ const DECENTRAL_CSS_VALUES = `
     .decentral-boxed-field .element-large-input { width: 128px; }
 
     /*
-     * 스위치 스타일 (ON: 지정 하늘색)
+     * 스위치 스타일 
      */
     .element-switch {
       appearance: none;
@@ -1781,7 +1814,7 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 인풋 및 공용 컨트롤 컴포넌트 
+     * 공용 컨트롤 인풋
      */
     .decentral-text-field {
       background-color: var(--decentral-text-background);
@@ -1904,7 +1937,7 @@ const DECENTRAL_CSS_VALUES = `
 
     .decentral-option-group { 
         font-size: 11px; 
-        color: #BCD0D7 !important; /* 설명용 연청회색 */
+        color: #BCD0D7 !important; /* 요약 설명용 연청회색 */
         font-weight: bold; 
         margin: 6px 0px 4px 6px; 
     }
@@ -1918,7 +1951,6 @@ const DECENTRAL_CSS_VALUES = `
         height: 100% 
     }
 
-    /* 모바일 삼선 버튼 및 모바일 임시메뉴 완전 파괴 */
     .decentral-mobile-menu-button {
       display: none !important;
     }
@@ -1927,27 +1959,35 @@ const DECENTRAL_CSS_VALUES = `
         background-color: var(--decentral-active-item) !important;
     }
 
-    /* ContentPanel 내부에 생성되는 하위 중복 타이틀 숨김 */
+    /* ContentPanel 내부의 중복 타이틀 제거 규칙 */
     .decentral-vertical-container .decentral-modal-title-container:not(.top-static-title) {
         display: none !important;
     }
 
-    /* 모바일 디바이스 뷰포트 최적화 수렴 (둥근 차콜 팝업 싱크) */
+    /* 팝업 다크테마 시 탭 연속 실선 색상 조정 */
+    .decentral-color-container[theme="dark"] .decentral-menu-container {
+        border-bottom-color: #42413D !important;
+    }
+    .decentral-color-container[theme="dark"] .decentral-menu-element[active="true"] {
+        color: #fff !important;
+    }
+
+    /* 모바일 콤팩트 규격 최적화 (가로폭 92% / 최대 380px 싱크) */
     @media screen and (max-width:600px) {
         .decentral-modal {
-            width: 92% !important; /* 좌우 여백을 주어 공중에 띄우는 이쁜 차콜 팝업 구현 */
-            max-width: 380px !important; /* 모바일 전용 슬림 콤팩트 규격 */
+            width: 92% !important; /* 공중에 이쁘게 띄우는 가로 폭 실현 */
+            max-width: 380px !important; /* 모바일 전용 슬림 콤팩트 크기 */
             height: 75% !important;
             margin: auto !important;
         }
 
         .decentral-menu-container {
-            display: flex !important; /* 모바일에서도 탭바가 숨겨지지 않고 무조건 보임 */
+            display: flex !important; /* 탭 목록 무조건 노출 */
             flex-direction: row !important;
             width: 100% !important;
             overflow-x: auto !important;
-            padding: 6px 12px !important;
-            gap: 6px !important;
+            padding: 0px 16px 6px 16px !important;
+            gap: 12px !important; /* 탭 밀착 방지 간격 */
         }
 
         .decentral-grid {
@@ -2156,23 +2196,26 @@ class DecentrallizedModal {
         this.__container = setupClassNode("div", "decentral-modal-container decentral-color-container", node => {
             node.id = `decentral-container-${this.baseId}`
         });
+        // 어두운 바깥 배경(Backdrop) 터치 시 팝업을 안전하게 해제 (응답교정기 기능 동기화)
         this.__container.onclick = e => {
-            e.stopPropagation()
+            if (e.target === this.__container) {
+                this.close();
+            }
         };
         this.__modal = setupClassNode("div", "decentral-modal", node => {
             node.id = `decentral-container-${this.baseId}`
         });
         this.__container.appendChild(this.__modal);
 
-        // 1. 최상단 고정 타이틀 주입 (🎀 로어 인젝터)
+        // 1. 최상단 고정 타이틀 주입 (✕ 문자형 닫기 단추 적용)
         const topTitleContainer = setupClassNode("div", "decentral-modal-title-container top-static-title", node => {
             node.append(setupClassNode("p", "decental-modal-title-text", textNode => {
                 textNode.innerText = "🎀 로어 인젝터";
             }));
             node.append(setupClassNode("div", "decentral-modal-button-container", btnNode => {
-                btnNode.append(setupClassNode("div", "decentral-close-button", svgNode => {
-                    svgNode.innerHTML = DECENTRAL_CLOSE_ICON_SVG;
-                    svgNode.onclick = () => this.close();
+                btnNode.append(setupClassNode("button", "decentral-close-button", closeBtn => {
+                    closeBtn.innerText = "✕";
+                    closeBtn.onclick = () => this.close();
                 }));
             }));
         });
