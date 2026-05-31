@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.4-2
+// @version     2.0.4-3
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -1613,10 +1613,10 @@ const DECENTRAL_CSS_VALUES = `
     }
     
     /*
-     * 모달 컨텐츠 정렬 (절대 좌표 해제로 쏠림 현상 방지)
+     * 모달 컨텐츠 정렬
      */
     .decentral-grid-container {
-      display: block !important; /* flex에서 block으로 변경하여 스크롤 흐름 안정화 */
+      display: block !important;
       width: 100% !important;
       height: 100% !important;
       overflow-y: auto !important;
@@ -1627,7 +1627,7 @@ const DECENTRAL_CSS_VALUES = `
     .decentral-grid {
         display: grid !important;
         width: 100% !important;
-        position: relative !important; /* absolute 해제로 팝업 내 쏠림 현상 해결 */
+        position: relative !important;
         grid-template-columns: repeat(2, 1fr) !important;
         gap: 12px !important;
         padding: 16px !important;
@@ -1649,7 +1649,7 @@ const DECENTRAL_CSS_VALUES = `
       font-size: 13px;
       font-weight: bold;
       padding-bottom: 8px;
-      color: #74a1c0 !important; /* 소제목 전용 파스텔 블루 지정 */
+      color: #74a1c0 !important; /* 소제목 지정 색상 */
       user-select: none;
       width: 100%;
       align-items: bottom;
@@ -1701,7 +1701,7 @@ const DECENTRAL_CSS_VALUES = `
      */
     .decentral-boxed-field {
       display: flex !important;
-      align-items: center !important; /* 수직 정중앙 정렬로 내부 쏠림/어긋남 해결 */
+      align-items: center !important; /* 수직 정중앙 정렬 */
       width: 100%;
       background-color: var(--decentral-switch-background) !important;
       border: 1px solid var(--decentral-text-border) !important;
@@ -13755,6 +13755,89 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         setEntryEnabled: setEntryEnabled
     } = _w.__LoreInj;
     _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
+    // 병합 연산용 헬퍼 함수군 이식 (실행 시 에러 방지)
+    function summaryValue(summary) {
+        if (!summary) return "";
+        if (typeof summary === "object" && !Array.isArray(summary)) return String(summary.full || summary.compact || summary.micro || "");
+        return String(summary || "")
+    }
+
+    function canonicalMergeType(type) {
+        const t = String(type || "").toLowerCase();
+        if (t === "character" || t === "identity" || t === "persona") return "character";
+        if (t === "rel" || t === "relationship") return "relationship";
+        if (t === "prom" || t === "promise") return "promise";
+        if (t === "location" || t === "place") return "location";
+        if (t === "item" || t === "object") return "item";
+        if (t === "event" || t === "scene") return "event";
+        if (t === "concept" || t === "setting" || t === "world") return "setting";
+        return t || "misc"
+    }
+
+    function typeCompatible(a, b) {
+        return canonicalMergeType(a && a.type) === canonicalMergeType(b && b.type)
+    }
+
+    function uniq(arr) {
+        return Array.from(new Set((arr || []).filter(Boolean)))
+    }
+
+    function mergeObj(a, b) {
+        const out = a && typeof a === "object" && !Array.isArray(a) ? JSON.parse(JSON.stringify(a)) : {};
+        if (b && typeof b === "object" && !Array.isArray(b)) {
+            for (const [k, v] of Object.entries(b)) {
+                if (Array.isArray(v)) out[k] = uniq([...Array.isArray(out[k]) ? out[k] : [], ...v]);
+                else if (v && typeof v === "object" && !Array.isArray(v)) out[k] = mergeObj(out[k], v);
+                else if (v !== undefined && v !== null && v !== "") out[k] = v
+            }
+        }
+        return out
+    }
+
+    function mergeSummaries(a, b, maxChars) {
+        const av = a && typeof a === "object" && !Array.isArray(a) ? a : { full: summaryValue(a) };
+        const bv = b && typeof b === "object" && !Array.isArray(b) ? b : { full: summaryValue(b) };
+        const join = (x, y, max) => {
+            x = String(x || "").trim();
+            y = String(y || "").trim();
+            if (!x) return y.slice(0, max);
+            if (!y || x.includes(y)) return x.slice(0, max);
+            return (x + " / " + y).slice(0, max)
+        };
+        return {
+            full: join(av.full || av.compact || av.micro, bv.full || bv.compact || bv.micro, maxChars || 1200),
+            compact: join(av.compact || av.micro, bv.compact || bv.micro, 180),
+            micro: bv.micro || av.micro || ""
+        }
+    }
+
+    function mergeDraftWithOriginals(draft, entries, maxChars) {
+        const sorted = [...entries].sort((a, b) => (a.lastUpdated || a.ts || 0) - (b.lastUpdated || b.ts || 0));
+        const anchored = sorted.find(e => e.anchor);
+        const base = JSON.parse(JSON.stringify(anchored || sorted[0] || {}));
+        for (const e of sorted) {
+            base.triggers = uniq([...base.triggers || [], ...e.triggers || []]).slice(0, 12);
+            base.entities = uniq([...base.entities || [], ...e.entities || []]);
+            base.parties = uniq([...base.parties || [], ...e.parties || []]);
+            base.detail = mergeObj(base.detail, e.detail);
+            base.call = mergeObj(base.call, e.call);
+            base.callState = mergeObj(base.callState, e.callState);
+            base.timeline = mergeObj(base.timeline, e.timeline);
+            base.eventHistory = uniq([...base.eventHistory || [], ...e.eventHistory || []]);
+            base.callHistory = uniq([...base.callHistory || [], ...e.callHistory || []]);
+            base.summary = mergeSummaries(base.summary, e.summary, maxChars);
+            base.inject = mergeSummaries(base.inject, e.inject || e.summary, Math.min(maxChars || 1200, 700))
+        }
+        const merged = mergeObj(base, draft || {});
+        merged.triggers = uniq([...base.triggers || [], ...draft && draft.triggers || []]).slice(0, 12);
+        merged.entities = uniq([...base.entities || [], ...draft && draft.entities || []]);
+        merged.eventHistory = uniq([...base.eventHistory || [], ...draft && draft.eventHistory || []]);
+        merged.callHistory = uniq([...base.callHistory || [], ...draft && draft.callHistory || []]);
+        merged.summary = mergeSummaries(base.summary, draft && draft.summary, maxChars || 1200);
+        merged.inject = mergeSummaries(base.inject, draft && draft.inject || draft && draft.summary, Math.min(maxChars || 1200, 700));
+        return merged
+    }
+
     _w.__LoreInj.registerMenu = _w.__LoreInj.registerMenu || function() {};
     _w.__LoreInj.registerMenu("lore", function(modal) {
         modal.createMenu("활성 로어", m => {
@@ -13784,20 +13867,19 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #eeeeee;padding-bottom:6px;cursor:pointer;";
                             const curUrl = C.getCurUrl();
                             const disabledEntries = settings.config.urlDisabledEntries?.[curUrl] || [];
-                            const allItemsEnabled = items.every(e => !disabledEntries.includes(e.id));
+                            let allItemsEnabled = items.every(e => !disabledEntries.includes(e.id));
                             const pkSw = document.createElement("div");
                             pkSw.style.cssText = "width:28px;height:14px;border-radius:7px;background:" + (allItemsEnabled ? "#88b9c8" : "#dddddd") + ";position:relative;cursor:pointer;flex-shrink:0;margin-right:8px;";
                             const pkDot = document.createElement("div");
                             pkDot.style.cssText = "width:10px;height:10px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (allItemsEnabled ? "16px" : "2px") + ";transition:left .2s;";
                             pkSw.appendChild(pkDot);
                             
-                            // 팩 전체 스위치 토글 클릭 시 깜빡임(스크롤 초기화) 방지 보간 로직 적용
+                            // 팩 전체 스위치 토글 클릭 시 깜빡임(스크롤/새로고침 현상) 완전히 무력화하는 직접 DOM 업데이트 주입
                             pkSw.onclick = async ev => {
                                 ev.stopPropagation();
-                                const gridContainer = document.querySelector(".decentral-grid-container");
-                                const currentScrollTop = gridContainer ? gridContainer.scrollTop : 0; // 현재 스크롤 위치 보존
-                                
                                 const newState = !allItemsEnabled;
+                                
+                                // 1. 로컬 저장소 설정값 즉시 수치 업데이트
                                 const ud = JSON.parse(JSON.stringify(settings.config.urlDisabledEntries || {}));
                                 ud[curUrl] = ud[curUrl] || [];
                                 const itemIds = items.map(e => e.id);
@@ -13811,10 +13893,27 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 settings.config.urlDisabledEntries = ud;
                                 settings.save();
                                 
-                                await m.replaceContentPanel(renderPanel, "활성 로어");
+                                // 2. 부모 스위치 비주얼 즉시 변환
+                                allItemsEnabled = newState;
+                                pkSw.style.background = newState ? "#88b9c8" : "#dddddd";
+                                pkDot.style.left = newState ? "16px" : "2px";
                                 
-                                const newGridContainer = document.querySelector(".decentral-grid-container");
-                                if (newGridContainer) newGridContainer.scrollTop = currentScrollTop; // 스크롤 위치 복구
+                                // 3. 하위 자식 스위치들 비주얼 깜빡임 전혀 없이 0ms 즉시 동적 갱신
+                                const rows = listContainer.children;
+                                for (const row of rows) {
+                                    const swWrap = row.querySelector("div[style*='cursor:pointer']");
+                                    if (swWrap) {
+                                        const swLabel = swWrap.querySelector("span");
+                                        const sw = swWrap.querySelector("div[style*='width:24px']");
+                                        const dot = sw?.querySelector("div");
+                                        if (swLabel && sw && dot) {
+                                            swLabel.textContent = newState ? "ON" : "OFF";
+                                            swLabel.style.color = newState ? "#88b9c8" : "#888888";
+                                            sw.style.background = newState ? "#88b9c8" : "#dddddd";
+                                            dot.style.left = newState ? "14px" : "2px";
+                                        }
+                                    }
+                                }
                             };
                             const title = document.createElement("div");
                             title.style.cssText = "font-size:14px;font-weight:bold;color:#2c3e50;flex:1;";
@@ -13912,7 +14011,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 const right = document.createElement("div");
                                 right.style.cssText = "display:flex;gap:6px;";
                                 
-                                // 작은 기능 버튼 스타일 (연회색 테두리와 진회색 텍스트 일치화)
+                                // 작은 기능 버튼 스타일 (연회색 테두리와 진회색 텍스트)
                                 const B = "font-size:11px;padding:3px 8px;border-radius:4px;background:#FFFFFF;border:1px solid #cccccc;color:#333333;cursor:pointer;";
                                 
                                 const embGenBtn = document.createElement("button");
@@ -14112,7 +14211,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     }
                                 };
                                 delBtn.onclick = async () => {
-                                    if (confirm("[" + e.name + "] 항목을 삭제하시겠습니까?")) {
+                                    if (confirm("삭제하시겠습니까?")) {
                                         await db.entries.delete(e.id);
                                         try {
                                             await db.embeddings.where("entryId").equals(e.id).delete()
@@ -14138,39 +14237,45 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                     })
                 }
 
-                // [중복 로어 병합 카드 통합 이식 영역 (소제목 색상: #74a1c0 지정)]
+                // [중복 로어 병합 카드 통합 이식 영역 (소제목 색상: #74a1c0 지정 및 addLongBox 개편으로 내부 쏠림 원천 해결)]
                 const state = _w.__loreMergeState || (_w.__loreMergeState = {
                     threshold: .88,
                     maxChars: 1200,
                     groups: null
                 });
-                panel.addBoxedField("", "", {
+                
+                panel.addLongBox(true, {
                     onInit: nd => {
-                        C.setFullWidth(nd);
-                        nd.style.cssText += "background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:12px;";
+                        // 박스 가로 너비 100% 꽉 채우고 균등 패딩 적용하여 내부 요소 쏠림 전면 해결
+                        nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
+                        
                         const t = document.createElement("div");
                         t.textContent = "중복 로어 병합";
-                        t.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:4px;";
+                        t.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:4px;width:100%;text-align:left;";
                         nd.appendChild(t);
+                        
                         const d = document.createElement("div");
                         d.innerHTML = '활성 팩 내에서 의미가 겹치는 유사 로어를 한데 묶어 정리합니다.';
-                        d.style.cssText = "font-size:11px;color:#555555;margin-bottom:10px;line-height:1.5;";
+                        d.style.cssText = "font-size:11px;color:#555555;margin-bottom:10px;line-height:1.5;width:100%;text-align:left;";
                         nd.appendChild(d);
+                        
                         const row = document.createElement("div");
-                        row.style.cssText = "display:flex;gap:12px;margin-bottom:8px;align-items:center;";
+                        row.style.cssText = "display:flex;gap:12px;margin-bottom:8px;align-items:center;width:100%;";
                         const mk = (label, getter, setter, min, max, step) => {
                             const f = document.createElement("div");
                             f.style.flex = "1";
+                            f.style.display = "flex";
+                            f.style.flexDirection = "column";
                             const l = document.createElement("div");
                             l.textContent = label;
-                            l.style.cssText = "font-size:12px;color:#555555;margin-bottom:4px;";
+                            l.style.cssText = "font-size:12px;color:#555555;margin-bottom:4px;text-align:left;";
                             const i = document.createElement("input");
                             i.type = "number";
                             i.value = getter();
                             i.min = min;
                             i.max = max;
                             i.step = step;
-                            i.style.cssText = "width:100%;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;";
+                            i.style.cssText = "width:100%;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;height:32px;";
                             i.onchange = () => {
                                 const v = parseFloat(i.value);
                                 if (!isNaN(v)) setter(v)
@@ -14185,7 +14290,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         
                         // 일괄 모드 변경 드롭다운 컴포넌트 이식
                         const bulkRow = document.createElement("div");
-                        bulkRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:10px;padding:8px;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;";
+                        bulkRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:10px;padding:8px;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;width:100%;box-sizing:border-box;";
                         const bulkLbl = document.createElement("div");
                         bulkLbl.textContent = "일괄 변경";
                         bulkLbl.style.cssText = "font-size:11px;color:#555555;white-space:nowrap;";
@@ -14217,9 +14322,9 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         // 병합 후보 찾기 버튼 (배경: #bcd0d7 / 테두리 및 텍스트: #334a52 지정)
                         const runBtn = document.createElement("button");
                         runBtn.textContent = "병합 후보 찾기";
-                        runBtn.style.cssText = "width:100%;padding:10px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;margin-top:10px;";
+                        runBtn.style.cssText = "width:100%;padding:10px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;margin-top:10px;box-sizing:border-box;height:36px;border-width:1px;";
                         const runStatus = document.createElement("div");
-                        runStatus.style.cssText = "font-size:11px;color:#888;margin-top:6px;text-align:center;";
+                        runStatus.style.cssText = "font-size:11px;color:#888;margin-top:6px;text-align:center;width:100%;";
                         runBtn.onclick = async () => {
                             runBtn.disabled = true;
                             runBtn.textContent = "검색 중...";
@@ -14306,9 +14411,21 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     }
                                 }).sort((a, b) => b.sim - a.sim);
                                 state.groups = groups;
-                                runStatus.textContent = groups.length > 0 ? `${groups.length}개 그룹 발견` : "중복 후보가 발견되지 않았습니다.";
-                                runStatus.style.color = groups.length > 0 ? "#74a1c0" : "#888888";
-                                m.replaceContentPanel(renderPanel, "활성 로어")
+                                
+                                // 새로고침(깜빡임) 없이 동적 갱신 수렴을 위해 패널 교체 전 스크롤 상태 보존 및 API 유실 방지
+                                const gridContainer = document.querySelector(".decentral-grid-container");
+                                const currentScroll = gridContainer ? gridContainer.scrollTop : 0;
+                                
+                                await m.replaceContentPanel(renderPanel, "활성 로어");
+                                
+                                const newGrid = document.querySelector(".decentral-grid-container");
+                                if (newGrid) newGrid.scrollTop = currentScroll;
+                                
+                                const updatedStatus = document.querySelector(".decentral-grid-container div[style*='text-align:center']");
+                                if (updatedStatus) {
+                                    updatedStatus.textContent = groups.length > 0 ? `${groups.length}개 그룹 발견` : "중복 후보가 발견되지 않았습니다.";
+                                    updatedStatus.style.color = groups.length > 0 ? "#74a1c0" : "#888888";
+                                }
                             } catch (e) {
                                 runStatus.textContent = "조회 에러: " + e.message;
                                 runStatus.style.color = "#da8"
@@ -14323,7 +14440,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         if (C.__lastMergeUndo && C.__lastMergeUndo.originals && C.__lastMergeUndo.originals.length) {
                             const undoBtn = document.createElement("button");
                             undoBtn.textContent = "직전 병합 복원 (" + C.__lastMergeUndo.originals.length + "개 항목)";
-                            undoBtn.style.cssText = "width:100%;padding:8px;margin-top:10px;background:#FFFFFF;color:#555555;border:1px solid #cccccc;border-radius:8px;cursor:pointer;font-size:12px;";
+                            undoBtn.style.cssText = "width:100%;padding:8px;margin-top:10px;background:#FFFFFF;color:#555555;border:1px solid #cccccc;border-radius:8px;cursor:pointer;font-size:12px;box-sizing:border-box;";
                             undoBtn.onclick = async () => {
                                 if (!confirm("직전 병합 내역을 취소합니까?")) return;
                                 try {
@@ -14356,15 +14473,14 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                     }
                 });
                 
-                // 중복 발견 그룹 동적 리스트 렌더링
+                // 중복 발견 그룹 동적 리스트 렌더링 (addLongBox 구조로 변경하여 쏠림 해결 및 소제목 색상 정렬)
                 if (state.groups && state.groups.length > 0) {
                     for (const [gi, grp] of state.groups.entries()) {
-                        panel.addBoxedField("", "", {
+                        panel.addLongBox(true, {
                             onInit: nd => {
-                                C.setFullWidth(nd);
-                                nd.style.cssText += "background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:12px;";
+                                nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:12px;box-sizing:border-box;";
                                 const hdr = document.createElement("div");
-                                hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #eeeeee;";
+                                hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #eeeeee;width:100%;";
                                 const title = document.createElement("div");
                                 title.textContent = "그룹 " + (gi + 1) + " (유사도 " + (grp.sim * 100).toFixed(1) + "%)";
                                 title.style.cssText = "font-size:13px;color:#74a1c0;font-weight:bold;";
@@ -14378,13 +14494,13 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 nd.appendChild(hdr);
                                 for (const e of grp.entries) {
                                     const row = document.createElement("div");
-                                    row.style.cssText = "padding:6px 0;border-bottom:1px dashed #eee;font-size:11px;color:#555;";
+                                    row.style.cssText = "padding:6px 0;border-bottom:1px dashed #eee;font-size:11px;color:#555;width:100%;text-align:left;";
                                     const safeSum = (summaryValue(e.summary) || "(설명 요약 없음)").slice(0, 150).replace(/</g, "&lt;");
                                     row.innerHTML = '<span style="color:#2c3e50;font-weight:bold;">[' + e.type + "] " + e.name + '</span> <span style="color:#888;">(' + e.packName + ")</span>" + (e.anchor ? ' <span style="color:#88b9c8;font-weight:bold;">[앵커]</span>' : "") + '<br><span style="font-size:10px;color:#888;">' + safeSum + "</span>";
                                     nd.appendChild(row)
                                 }
                                 const ctrl = document.createElement("div");
-                                ctrl.style.cssText = "margin-top:10px;display:flex;gap:8px;align-items:center;";
+                                ctrl.style.cssText = "margin-top:10px;display:flex;gap:8px;align-items:center;width:100%;";
                                 const modeSel = document.createElement("select");
                                 modeSel.className = "lore-merge-mode-sel";
                                 modeSel.style.cssText = "padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:11px;flex:1;height:32px;box-sizing:border-box;";
@@ -14405,14 +14521,14 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 
                                 const execBtn = document.createElement("button");
                                 execBtn.textContent = "병합";
-                                execBtn.style.cssText = "font-size:11px;padding:5px 12px;border-radius:4px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;cursor:pointer;font-weight:bold;";
+                                execBtn.style.cssText = "font-size:11px;padding:5px 12px;border-radius:4px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;cursor:pointer;font-weight:normal;";
                                 
                                 ctrl.appendChild(modeSel);
                                 ctrl.appendChild(previewBtn);
                                 ctrl.appendChild(execBtn);
                                 nd.appendChild(ctrl);
                                 const preview = document.createElement("div");
-                                preview.style.cssText = "margin-top:8px;padding:8px;background:#FFFFFF;border:1px solid #eeeeee;border-radius:8px;font-size:11px;color:#555555;display:none;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;";
+                                preview.style.cssText = "margin-top:8px;padding:8px;background:#FFFFFF;border:1px solid #eeeeee;border-radius:8px;font-size:11px;color:#555555;display:none;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;width:100%;text-align:left;";
                                 nd.appendChild(preview);
                                 let mergedDraft = null;
                                 const mkKeepLongest = entries => {
@@ -14451,7 +14567,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     try {
                                         if (modeSel.value === "keep-longest") mergedDraft = mkKeepLongest(grp.entries);
                                         else mergedDraft = await mkLlmMerge(grp.entries);
-                                        preview.innerHTML = `<pre style="white-space:pre-wrap;margin:0;font-size:11px;color:#555555;font-family:inherit;">` + JSON.stringify(mergedDraft, null, 2).replace(/</g, "&lt;") + "</pre>"
+                                        preview.innerHTML = `<pre style="white-space:pre-wrap;margin:0;font-size:11px;color:#555555;font-family:inherit;width:100%;text-align:left;">` + JSON.stringify(mergedDraft, null, 2).replace(/</g, "&lt;") + "</pre>"
                                     } catch (e) {
                                         preview.textContent = "실패: " + e.message;
                                         mergedDraft = null
