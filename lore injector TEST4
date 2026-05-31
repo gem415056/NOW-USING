@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.8-1
+// @version     2.0.8-2
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -1489,18 +1489,22 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     .decentral-modal-title-container {
-      display: flex;
-      flex-direction: row;
-      padding: 20px 24px;
-      align-items: center;
+      display: flex !important;
+      align-items: center !important;
+      justify-content: space-between !important;
+      padding: 28px 28px 10px 28px !important; /* 교정기 팝업과 동일한 상단 여백 확보 */
       border-bottom: none !important;
       flex-shrink: 0;
+      width: 100% !important;
+      box-sizing: border-box !important;
     }
 
     .decental-modal-title-text {
-      font-weight: bold;
-      font-size: 16px;
+      margin: 0 !important;
+      font-weight: 700 !important;
+      font-size: 17px !important; /* 교정기 🎀 로어 인젝터 타이틀 폰트 크기 동기화 */
       color: var(--decentral-text) !important;
+      line-height: 1.2 !important;
     }
     
     .decentral-modal-button-container {
@@ -3468,18 +3472,20 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         const fbScriptKey = prefix + "FirebaseScript";
         const fbEmbKey = prefix + "FirebaseEmbedKey";
         // 배경 흰색, 테두리 회색, 8px 라운드 처리로 표준화
-        const S = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;height:32px;";
+        const S = "width:100%;padding:6px 8px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:12px;box-sizing:border-box;height:32px;text-align:left !important;";
         const typeRow = document.createElement("div");
-        typeRow.style.cssText = "display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;";
+        typeRow.style.cssText = "display:flex;gap:6px;margin-bottom:8px;flex-wrap:wrap;justify-content:flex-start !important;align-items:center !important;text-align:left !important;width:100% !important;box-sizing:border-box;";
         const btnKey = document.createElement("button");
         const btnVertex = document.createElement("button");
         const btnFirebase = document.createElement("button");
         const keyArea = document.createElement("div");
+        keyArea.style.cssText = "width:100% !important;text-align:left !important;box-sizing:border-box;";
         const vertexArea = document.createElement("div");
+        vertexArea.style.cssText = "width:100% !important;text-align:left !important;box-sizing:border-box;";
         const firebaseArea = document.createElement("div");
+        firebaseArea.style.cssText = "width:100% !important;text-align:left !important;box-sizing:border-box;";
         const curMode = () => config[apiTypeKey] || "key";
-        // OFF 상태: 회색 테두리/진회색 텍스트 | ON 상태: 배경 #bcd0d7/테두리 및 텍스트 #334a52 정밀 매핑
-        const sty = on => `padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid ${on?"#334a52":"#cccccc"};background:${on?"#bcd0d7":"#FFFFFF"};color:${on?"#334a52":"#333333"};font-weight:${on?"bold":"normal"};height:32px;box-sizing:border-box;`;
+        const sty = on => `padding:6px 12px;font-size:12px;border-radius:6px;cursor:pointer;border:1px solid ${on?"#334a52":"#cccccc"};background:${on?"#bcd0d7":"#FFFFFF"};color:${on?"#334a52":"#333333"};font-weight:${on?"bold":"normal"};height:32px;`;
         const updateBtns = () => {
             const m = curMode();
             btnKey.style.cssText = sty(m === "key");
@@ -13185,17 +13191,12 @@ function createLongSemiFlatGridElement(titleText, lambda) {
     if (!_w.__LoreInj.__menuQueue) _w.__LoreInj.__menuQueue = [];
     if (!_w.__LoreInj.__subMenuQueue) _w.__LoreInj.__subMenuQueue = [];
     const MENU_ORDER = {
-        main: 10,
-        lore: 20,
-        file: 30,
-        extract: 40,
-        merge: 50,
-        snapshot: 60,
-        refiner: 70,
-        log: 80,
-        session: 90,
-        api: 100,
-        help: 110
+        lore: 10,     // 활성 로어
+        session: 20,  // 세션 상태
+        extract: 30,  // 추출/변환
+        main: 40,     // 설정
+        file: 50,     // 로어 관리
+        log: 60       // 실행 로그
     };
 
     function stableMenuQueue(queue, prefix) {
@@ -13695,16 +13696,20 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         testRow.appendChild(testResult);
                         nd.appendChild(testRow);
                         
-                        // 모델 일치화 왼쪽 정렬 강제 적용
+                        // 지식 자동 추출용 모델 (Gemini 3.x 및 2.x 전체 라인업 보강)
                         addSelect(nd, "지식 자동 추출용 모델", settings.config.autoExtModel || "gemini-3-flash-preview", [
                             ["Gemini 3.x", [
                                 ["3.5 Flash (권장)", "gemini-3.5-flash"],
-                                ["3.0 Flash", "gemini-3-flash-preview"],
-                                ["3.1 Pro", "gemini-3.1-pro-preview"]
+                                ["3.1 Flash Lite", "gemini-3.1-flash-lite-preview"],
+                                ["3.1 Pro", "gemini-3.1-pro-preview"],
+                                ["3.0 Flash", "gemini-3-flash-preview"]
                             ]],
                             ["Gemini 2.x", [
                                 ["2.5 Pro", "gemini-2.5-pro"],
-                                ["2.0 Flash", "gemini-2.0-flash"]
+                                ["2.5 Flash", "gemini-2.5-flash"],
+                                ["2.5 Flash Lite", "gemini-2.5-flash-lite"],
+                                ["2.0 Flash", "gemini-2.0-flash"],
+                                ["2.0 Flash Lite", "gemini-2.0-flash-lite"]
                             ]],
                             ["기타 수동 입력", [
                                 ["직접 입력", "_custom"]
@@ -13714,27 +13719,40 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             settings.save()
                         }, { customKey: "autoExtCustomModel" });
                         
+                        // 지식 후보 재정렬 모델 (Rerank 모델 라인업 동시 보강)
                         addSelect(nd, "지식 후보 재정렬 모델", settings.config.rerankModel || "gemini-3-flash-preview", [
-                            ["Gemini", [
-                                ["3.1 Flash Lite", "gemini-3.1-flash-lite-preview"],
+                            ["Gemini 3.x", [
+                                ["3.1 Flash Lite (추천)", "gemini-3.1-flash-lite-preview"],
                                 ["3.5 Flash", "gemini-3.5-flash"],
-                                ["3.0 Flash", "gemini-3-flash-preview"],
-                                ["2.5 Flash Lite", "gemini-2.5-flash-lite"]
+                                ["3.1 Pro", "gemini-3.1-pro-preview"],
+                                ["3.0 Flash", "gemini-3-flash-preview"]
+                            ]],
+                            ["Gemini 2.x", [
+                                ["2.5 Pro", "gemini-2.5-pro"],
+                                ["2.5 Flash", "gemini-2.5-flash"],
+                                ["2.5 Flash Lite", "gemini-2.5-flash-lite"],
+                                ["2.0 Flash", "gemini-2.0-flash"],
+                                ["2.0 Flash Lite", "gemini-2.0-flash-lite"]
                             ]]
                         ], v => {
                             settings.config.rerankModel = v;
                             settings.save()
                         });
                         
+                        // 중요 장면 판단 모델 (Judge 모델 라인업 일제 보강)
                         addSelect(nd, "중요 장면 판단 모델", settings.config.temporalRecallJudgeModel || "gemini-3.1-flash-lite-preview", [
                             ["Gemini 3.x", [
                                 ["3.1 Flash Lite (기본)", "gemini-3.1-flash-lite-preview"],
                                 ["3.5 Flash", "gemini-3.5-flash"],
+                                ["3.1 Pro", "gemini-3.1-pro-preview"],
                                 ["3.0 Flash", "gemini-3-flash-preview"]
                             ]],
                             ["Gemini 2.x", [
+                                ["2.5 Pro", "gemini-2.5-pro"],
+                                ["2.5 Flash", "gemini-2.5-flash"],
                                 ["2.5 Flash Lite", "gemini-2.5-flash-lite"],
-                                ["2.0 Flash", "gemini-2.0-flash"]
+                                ["2.0 Flash", "gemini-2.0-flash"],
+                                ["2.0 Flash Lite", "gemini-2.0-flash-lite"]
                             ]],
                             ["기타 수동 입력", [
                                 ["직접 입력", "_custom"]
@@ -16289,10 +16307,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         title.textContent = "현재 세션 상태 (턴: " + turnCounter + ")";
                         title.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;";
                         
-                        // 세션 전체 초기화 버튼 (배경: #bcd0d7 / 테두리 및 텍스트 #879aa0)
+                        // 세션 전체 초기화 버튼 (배경: #bcd0d7 / 테두리 및 텍스트 #334a52)
                         const clearAllBtn = document.createElement("button");
                         clearAllBtn.textContent = "세션 전체 초기화";
-                        clearAllBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:6px;cursor:pointer;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;font-weight:bold;height:28px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border-width:1px;";
+                        clearAllBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:6px;cursor:pointer;background:#bcd0d7;border:1px solid #334a52;color:#334a52;font-weight:bold;height:28px;display:inline-flex;align-items:center;justify-content:center;box-sizing:border-box;border-width:1px;";
                         clearAllBtn.onclick = async () => {
                             if (!confirm("이 대화방의 모든 지식 재사용 쿨타임과 누적 턴 카운트를 초기화하시겠습니까?")) return;
                             try {
