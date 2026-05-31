@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.4
+// @version     2.0.4-1
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -1560,6 +1560,16 @@ const DECENTRAL_CSS_VALUES = `
         display: none;
     }
 
+    /* 탭 메뉴 감싸는 컨테이너 정렬 (높이를 100% 늘려 바닥 밀착 보장) */
+    .decentral-menu-element-container {
+        display: inline-flex !important;
+        align-items: flex-end !important;
+        height: 100% !important;
+        margin: 0 !important;
+        padding: 0 !important;
+        box-sizing: border-box !important;
+    }
+
     /* 탭 메뉴 글자 스타일 (밑줄 밀착 완료) */
     .decentral-menu-container .decentral-menu-element {
         background: none !important;
@@ -1567,17 +1577,18 @@ const DECENTRAL_CSS_VALUES = `
         font-size: 14px !important;
         font-weight: 500 !important;
         color: var(--decentral-text-inactive) !important;
-        padding: 0 4px 6px 4px !important; /* 글자 아래 6px 여백 후 바로 선이 배치되게 설계 */
-        margin-bottom: -1px !important; /* 탭 선이 메뉴 하단 1px 회색 실선과 완벽히 겹치도록 정밀 마이너스 마진 보정 */
+        padding: 0 4px 6px 4px !important; /* 바닥 실선 정밀 정렬 두께 */
+        margin-bottom: -1px !important; /* 탭 선이 메뉴 하단 1px 회색 실선과 완벽히 겹치도록 정밀 보정 */
         cursor: pointer !important;
         border-bottom: 2px solid transparent !important; /* 호버 대기 실선 */
         border-radius: 0px !important;
         transition: 0.2s !important;
         white-space: nowrap !important;
         display: inline-flex !important;
-        align-items: center !important;
+        align-items: flex-end !important; /* 글자를 컨테이너의 맨 아래로 고정 */
         justify-content: center !important;
         width: auto !important;
+        height: 100% !important; /* 감싸는 div 높이와 동일하게 100% 연장 */
         box-sizing: border-box !important;
     }
     
