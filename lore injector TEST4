@@ -1990,7 +1990,7 @@ const DECENTRAL_CSS_VALUES = `
         .decentral-grid {
             grid-template-columns: 100% !important; /* 1열로 강제 고정하여 우측 잘림 해소 */
             column-count: 1 !important;
-            padding: 12px 0px !important; /* 모바일 본문 중복 패딩 해제 */
+            padding: 0px 0px !important; /* 모바일 상단 패딩만 정밀 제로(0px)화하여 이격 완전 소멸 */
         }
         .decentral-grid-element,
         .decentral-grid-element-long,
