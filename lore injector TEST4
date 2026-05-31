@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.4-1
+// @version     2.0.4-2
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -1530,7 +1530,7 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 모달 상단 메뉴 탭 컨테이너 선언 (밑줄 밀착 완료)
+     * 모달 상단 메뉴 탭 컨테이너 선언
      */
     .decentral-menu-container {
         border-right: none !important;
@@ -1613,30 +1613,25 @@ const DECENTRAL_CSS_VALUES = `
     }
     
     /*
-     * 모달 컨텐츠 정렬
+     * 모달 컨텐츠 정렬 (절대 좌표 해제로 쏠림 현상 방지)
      */
     .decentral-grid-container {
-      display: flex;
-      width: 100%;
-      height: 100%;
-      overflow-y: auto;
-      overflow-x: hidden;
-      min-height: 0;
-      min-width: 0; 
-      position: relative;
+      display: block !important; /* flex에서 block으로 변경하여 스크롤 흐름 안정화 */
+      width: 100% !important;
+      height: 100% !important;
+      overflow-y: auto !important;
+      overflow-x: hidden !important;
+      position: relative !important;
     }
 
     .decentral-grid {
-        display: grid;
-        width: 100%;
-        min-width: 200px;
-        grid-template-columns: repeat(2, 1fr);
-        gap: 12px;
-        grid-row-gap: 0.3em;
-        padding: 16px;
-        min-height: 0;
-        min-width: 0; 
-        position: absolute;
+        display: grid !important;
+        width: 100% !important;
+        position: relative !important; /* absolute 해제로 팝업 내 쏠림 현상 해결 */
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 12px !important;
+        padding: 16px !important;
+        box-sizing: border-box !important;
     }
 
     .decentral-modal-footer {
@@ -1647,13 +1642,14 @@ const DECENTRAL_CSS_VALUES = `
       flex-shrink: 0;
     }
 
+    /* 소제목의 색상을 #74a1c0로 조정 */
     .decentral-element-title {
       display: flex;
       flex-direction: row;
       font-size: 13px;
       font-weight: bold;
       padding-bottom: 8px;
-      color: var(--decentral-active-item) !important; /* 지식 카테고리 제목 하늘색 */
+      color: #74a1c0 !important; /* 소제목 전용 파스텔 블루 지정 */
       user-select: none;
       width: 100%;
       align-items: bottom;
@@ -1701,10 +1697,11 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     /*
-     * 카드형 박스 필드 선언 (둥근 가두리 8px, 흰색 배경화)
+     * 카드형 박스 필드 선언 (둥근 가두리 8px, 흰색 배경화, 수직 정중앙 정렬)
      */
     .decentral-boxed-field {
-      display: flex;
+      display: flex !important;
+      align-items: center !important; /* 수직 정중앙 정렬로 내부 쏠림/어긋남 해결 */
       width: 100%;
       background-color: var(--decentral-switch-background) !important;
       border: 1px solid var(--decentral-text-border) !important;
@@ -1715,7 +1712,8 @@ const DECENTRAL_CSS_VALUES = `
     }
 
     .decentral-padded-boxed-field {
-      display: flex;
+      display: flex !important;
+      align-items: center !important; /* 수직 정중앙 정렬 */
       width: 100%;
       background-color: var(--decentral-switch-background) !important;
       border: 1px solid var(--decentral-text-border) !important;
@@ -1728,14 +1726,14 @@ const DECENTRAL_CSS_VALUES = `
     .decentral-boxed-field .element-text-container {
       display: flex;
       flex-direction: column;
-      justify-items: center;
+      justify-content: center;
       padding: 4px 16px;
     }
     
     .decentral-boxed-field .element-text-container-full {
       display: flex;
       flex-direction: column;
-      justify-items: center;
+      justify-content: center;
       padding: 4px 16px;
       width: 100%;
       box-sizing: border-box;
@@ -1983,15 +1981,15 @@ const DECENTRAL_CSS_VALUES = `
         }
 
         .decentral-grid {
-            grid-template-columns: 100%; 
-            column-count: 1;
-            padding: 12px;
+            grid-template-columns: 100% !important; /* 1열로 강제 고정하여 우측 잘림 해소 */
+            column-count: 1 !important;
+            padding: 12px !important;
         }
         .decentral-grid-element,
         .decentral-grid-element-long,
         .decentral-grid-element-long-semi-flat,
         .decentral-grid-element-long-flat {
-            grid-column: 1 / 1;
+            grid-column: 1 / 1 !important;
         }
     }
     
@@ -13792,8 +13790,13 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                             const pkDot = document.createElement("div");
                             pkDot.style.cssText = "width:10px;height:10px;border-radius:50%;background:#fff;position:absolute;top:2px;left:" + (allItemsEnabled ? "16px" : "2px") + ";transition:left .2s;";
                             pkSw.appendChild(pkDot);
+                            
+                            // 팩 전체 스위치 토글 클릭 시 깜빡임(스크롤 초기화) 방지 보간 로직 적용
                             pkSw.onclick = async ev => {
                                 ev.stopPropagation();
+                                const gridContainer = document.querySelector(".decentral-grid-container");
+                                const currentScrollTop = gridContainer ? gridContainer.scrollTop : 0; // 현재 스크롤 위치 보존
+                                
                                 const newState = !allItemsEnabled;
                                 const ud = JSON.parse(JSON.stringify(settings.config.urlDisabledEntries || {}));
                                 ud[curUrl] = ud[curUrl] || [];
@@ -13807,7 +13810,11 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 }
                                 settings.config.urlDisabledEntries = ud;
                                 settings.save();
-                                m.replaceContentPanel(renderPanel, "활성 로어")
+                                
+                                await m.replaceContentPanel(renderPanel, "활성 로어");
+                                
+                                const newGridContainer = document.querySelector(".decentral-grid-container");
+                                if (newGridContainer) newGridContainer.scrollTop = currentScrollTop; // 스크롤 위치 복구
                             };
                             const title = document.createElement("div");
                             title.style.cssText = "font-size:14px;font-weight:bold;color:#2c3e50;flex:1;";
@@ -13905,8 +13912,8 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 const right = document.createElement("div");
                                 right.style.cssText = "display:flex;gap:6px;";
                                 
-                                // 작은 제어 버튼 스타일 지침 수렴 (연회색 테두리 + 진회색 텍스트)
-                                const B = "font-size:11px;padding:3px 8px;border-radius:4px;background:#FFFFFF;border:1px solid #cccccc;color:#555555;cursor:pointer;";
+                                // 작은 기능 버튼 스타일 (연회색 테두리와 진회색 텍스트 일치화)
+                                const B = "font-size:11px;padding:3px 8px;border-radius:4px;background:#FFFFFF;border:1px solid #cccccc;color:#333333;cursor:pointer;";
                                 
                                 const embGenBtn = document.createElement("button");
                                 embGenBtn.textContent = "임베딩";
@@ -13954,10 +13961,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 editBtn.textContent = "수정";
                                 editBtn.style.cssText = B;
                                 
-                                // 삭제 버튼 스타일 지침 수렴 (배경: #bcd0d7 / 테두리 및 텍스트: #879aa0)
+                                // 삭제 버튼 (볼드체 해제, 배경 #bcd0d7, 테두리 및 텍스트 #334a52 적용)
                                 const delBtn = document.createElement("button");
                                 delBtn.textContent = "삭제";
-                                delBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:4px;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;cursor:pointer;font-weight:bold;";
+                                delBtn.style.cssText = "font-size:11px;padding:3px 8px;border-radius:4px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;cursor:pointer;font-weight:normal;";
                                 
                                 const histBtn = document.createElement("button");
                                 histBtn.textContent = "이력";
@@ -14027,7 +14034,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                             vbtns.style.cssText = "display:flex;gap:4px;flex-shrink:0;";
                                             const resBtn = document.createElement("button");
                                             resBtn.textContent = "복원";
-                                            resBtn.style.cssText = "padding:3px 8px;font-size:10px;border-radius:4px;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;cursor:pointer;font-weight:bold;";
+                                            resBtn.style.cssText = "padding:3px 8px;font-size:10px;border-radius:4px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;cursor:pointer;font-weight:normal;";
                                             resBtn.onclick = async ev2 => {
                                                 ev2.stopPropagation();
                                                 if (!confirm("이 시점으로 복원하시겠습니까?")) return;
@@ -14068,7 +14075,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 btnRow.style.cssText = "display:flex;justify-content:flex-end;gap:6px;";
                                 const saveBtn = document.createElement("button");
                                 saveBtn.textContent = "저장";
-                                saveBtn.style.cssText = "font-size:11px;padding:4px 10px;border-radius:4px;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;cursor:pointer;font-weight:bold;";
+                                saveBtn.style.cssText = "font-size:11px;padding:4px 10px;border-radius:4px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;cursor:pointer;font-weight:normal;";
                                 const cancelBtn = document.createElement("button");
                                 cancelBtn.textContent = "닫기";
                                 cancelBtn.style.cssText = B;
@@ -14131,7 +14138,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                     })
                 }
 
-                // [중복 로어 병합 카드 통합 이식 영역]
+                // [중복 로어 병합 카드 통합 이식 영역 (소제목 색상: #74a1c0 지정)]
                 const state = _w.__loreMergeState || (_w.__loreMergeState = {
                     threshold: .88,
                     maxChars: 1200,
@@ -14143,7 +14150,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         nd.style.cssText += "background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:12px;";
                         const t = document.createElement("div");
                         t.textContent = "중복 로어 병합";
-                        t.style.cssText = "font-size:14px;color:#88b9c8;font-weight:bold;margin-bottom:4px;";
+                        t.style.cssText = "font-size:14px;color:#74a1c0;font-weight:bold;margin-bottom:4px;";
                         nd.appendChild(t);
                         const d = document.createElement("div");
                         d.innerHTML = '활성 팩 내에서 의미가 겹치는 유사 로어를 한데 묶어 정리합니다.';
@@ -14176,10 +14183,41 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                         row.appendChild(mk("최대 글자수", () => state.maxChars, v => state.maxChars = v, 200, 3e3, 50));
                         nd.appendChild(row);
                         
-                        // 큰 실행 버튼 제어 지침 수렴 (배경: #bcd0d7 / 테두리 및 텍스트: #879aa0)
+                        // 일괄 모드 변경 드롭다운 컴포넌트 이식
+                        const bulkRow = document.createElement("div");
+                        bulkRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:10px;padding:8px;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;";
+                        const bulkLbl = document.createElement("div");
+                        bulkLbl.textContent = "일괄 변경";
+                        bulkLbl.style.cssText = "font-size:11px;color:#555555;white-space:nowrap;";
+                        const bulkSel = document.createElement("select");
+                        bulkSel.style.cssText = "flex:1;padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:11px;height:32px;box-sizing:border-box;";
+                        [
+                            ["", "-- 선택하여 모든 그룹에 일괄 적용 --"],
+                            ["keep-longest", "가장 긴 항목 유지 + 키워드 합집합 (안전)"],
+                            ["llm-summarize", "LLM 요약 병합 (API 호출, 품질↑)"]
+                        ].forEach(([v, l]) => {
+                            const o = document.createElement("option");
+                            o.value = v;
+                            o.textContent = l;
+                            bulkSel.appendChild(o)
+                        });
+                        bulkSel.onchange = () => {
+                            if (!bulkSel.value) return;
+                            const sels = document.querySelectorAll("select.lore-merge-mode-sel");
+                            sels.forEach(s => {
+                                s.value = bulkSel.value;
+                                s.dispatchEvent(new Event('change', { bubbles: true }));
+                            });
+                            bulkSel.value = ""
+                        };
+                        bulkRow.appendChild(bulkLbl);
+                        bulkRow.appendChild(bulkSel);
+                        nd.appendChild(bulkRow);
+                        
+                        // 병합 후보 찾기 버튼 (배경: #bcd0d7 / 테두리 및 텍스트: #334a52 지정)
                         const runBtn = document.createElement("button");
                         runBtn.textContent = "병합 후보 찾기";
-                        runBtn.style.cssText = "width:100%;padding:10px;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;margin-top:10px;";
+                        runBtn.style.cssText = "width:100%;padding:10px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;border-radius:8px;cursor:pointer;font-size:12px;font-weight:bold;margin-top:10px;";
                         const runStatus = document.createElement("div");
                         runStatus.style.cssText = "font-size:11px;color:#888;margin-top:6px;text-align:center;";
                         runBtn.onclick = async () => {
@@ -14269,7 +14307,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 }).sort((a, b) => b.sim - a.sim);
                                 state.groups = groups;
                                 runStatus.textContent = groups.length > 0 ? `${groups.length}개 그룹 발견` : "중복 후보가 발견되지 않았습니다.";
-                                runStatus.style.color = groups.length > 0 ? "#88b9c8" : "#888888";
+                                runStatus.style.color = groups.length > 0 ? "#74a1c0" : "#888888";
                                 m.replaceContentPanel(renderPanel, "활성 로어")
                             } catch (e) {
                                 runStatus.textContent = "조회 에러: " + e.message;
@@ -14329,7 +14367,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #eeeeee;";
                                 const title = document.createElement("div");
                                 title.textContent = "그룹 " + (gi + 1) + " (유사도 " + (grp.sim * 100).toFixed(1) + "%)";
-                                title.style.cssText = "font-size:13px;color:#88b9c8;font-weight:bold;";
+                                title.style.cssText = "font-size:13px;color:#74a1c0;font-weight:bold;";
                                 const types = [...new Set(grp.entries.map(e => e.type))];
                                 const typeWarn = "타입: " + types[0];
                                 const warn = document.createElement("div");
@@ -14349,7 +14387,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 ctrl.style.cssText = "margin-top:10px;display:flex;gap:8px;align-items:center;";
                                 const modeSel = document.createElement("select");
                                 modeSel.className = "lore-merge-mode-sel";
-                                modeSel.style.cssText = "padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:11px;flex:1;";
+                                modeSel.style.cssText = "padding:6px;border:1px solid #cccccc;border-radius:8px;background:#FFFFFF;color:#2c3e50;font-size:11px;flex:1;height:32px;box-sizing:border-box;";
                                 [
                                     ["keep-longest", "길이 긴 항목 보존 (안전)"],
                                     ["llm-summarize", "LLM 인공지능 요약 병합"]
@@ -14360,14 +14398,14 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     modeSel.appendChild(o)
                                 });
                                 
-                                const B = "font-size:11px;padding:5px 12px;border-radius:4px;background:#FFFFFF;border:1px solid #cccccc;color:#555555;cursor:pointer;";
+                                const B = "font-size:11px;padding:5px 12px;border-radius:4px;background:#FFFFFF;border:1px solid #cccccc;color:#333333;cursor:pointer;";
                                 const previewBtn = document.createElement("button");
                                 previewBtn.textContent = "프리뷰";
                                 previewBtn.style.cssText = B;
                                 
                                 const execBtn = document.createElement("button");
                                 execBtn.textContent = "병합";
-                                execBtn.style.cssText = "font-size:11px;padding:5px 12px;border-radius:4px;background:#bcd0d7;border:1px solid #879aa0;color:#879aa0;cursor:pointer;font-weight:bold;";
+                                execBtn.style.cssText = "font-size:11px;padding:5px 12px;border-radius:4px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;cursor:pointer;font-weight:bold;";
                                 
                                 ctrl.appendChild(modeSel);
                                 ctrl.appendChild(previewBtn);
@@ -14401,7 +14439,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                         maxRetries: 2
                                     });
                                     if (!res.text) throw new Error("API 연동 실패");
-                                    let txt = res.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
+                                    let txt = res.text.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim();
                                     const m1 = txt.match(/\{[\s\S]*\}/);
                                     if (m1) txt = m1[0];
                                     const parsed = JSON.parse(txt);
@@ -14585,417 +14623,19 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         return merged
     }
     _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
+    // 로어 병합 서브메뉴는 활성 로어 하단으로 완전 흡수 통합되었으므로 메뉴바 비노출 처리
+    /*
     _w.__LoreInj.registerSubMenu("merge", function(modal) {
         modal.createSubMenu("로어 병합 (중복 정리)", m => {
             const renderMerge = async panel => {
-                const state = _w.__loreMergeState || (_w.__loreMergeState = {
-                    threshold: .88,
-                    maxChars: 1200,
-                    groups: null
-                });
-                panel.addBoxedField("", "", {
-                    onInit: nd => {
-                        C.setFullWidth(nd);
-                        const t = document.createElement("div");
-                        t.textContent = "중복 로어 병합";
-                        t.style.cssText = "font-size:14px;color:#4a9;font-weight:bold;margin-bottom:4px;";
-                        nd.appendChild(t);
-                        const d = document.createElement("div");
-                        d.innerHTML = '임베딩 유사도로 중복 후보를 찾아 그룹별 수동 승인. 캐릭터/관계/약속/장소/사건처럼 대분류가 다른 로어는 유사해도 한 엔트리로 접지 않고 같은 대분류 안에서만 병합 후보를 만든다.<br><span style="color:#da8;">※ 현재 페이지에서 활성화(ON)된 팩의 엔트리만 대상 — 다른 페이지나 비활성 팩의 로어는 건드리지 않음.</span>';
-                        d.style.cssText = "font-size:11px;color:#888;margin-bottom:10px;line-height:1.5;";
-                        nd.appendChild(d);
-                        const row = document.createElement("div");
-                        row.style.cssText = "display:flex;gap:12px;margin-bottom:8px;align-items:center;";
-                        const mk = (label, getter, setter, min, max, step) => {
-                            const f = document.createElement("div");
-                            f.style.flex = "1";
-                            const l = document.createElement("div");
-                            l.textContent = label;
-                            l.style.cssText = "font-size:12px;color:#888;margin-bottom:4px;";
-                            const i = document.createElement("input");
-                            i.type = "number";
-                            i.value = getter();
-                            i.min = min;
-                            i.max = max;
-                            i.step = step;
-                            i.style.cssText = "width:100%;padding:6px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:12px;box-sizing:border-box;";
-                            i.onchange = () => {
-                                const v = parseFloat(i.value);
-                                if (!isNaN(v)) setter(v)
-                            };
-                            f.appendChild(l);
-                            f.appendChild(i);
-                            return f
-                        };
-                        row.appendChild(mk("유사도 임계값", () => state.threshold, v => state.threshold = v, .7, .99, .01));
-                        row.appendChild(mk("최대 글자수 (summary)", () => state.maxChars, v => state.maxChars = v, 200, 3e3, 50));
-                        nd.appendChild(row);
-                        const runBtn = document.createElement("button");
-                        runBtn.textContent = "병합 후보 찾기";
-                        runBtn.style.cssText = "width:100%;padding:10px;background:#258;color:#fff;border:none;border-radius:4px;cursor:pointer;font-size:12px;font-weight:bold;";
-                        const runStatus = document.createElement("div");
-                        runStatus.style.cssText = "font-size:11px;color:#888;margin-top:6px;text-align:center;";
-                        runBtn.onclick = async () => {
-                            runBtn.disabled = true;
-                            runBtn.textContent = "검색 중...";
-                            try {
-                                const _url = C.getCurUrl();
-                                const activePacks = settings.config.urlPacks?.[_url] || [];
-                                const entries = (await db.entries.toArray()).filter(e => activePacks.includes(e.packName));
-                                if (entries.length < 2) {
-                                    runStatus.textContent = "활성 엔트리 2개 미만.";
-                                    runStatus.style.color = "#d66";
-                                    return
-                                }
-                                const embs = await db.embeddings.where("entryId").anyOf(entries.map(e => e.id)).toArray();
-                                const entryById = {};
-                                entries.forEach(e => entryById[e.id] = e);
-                                const embMap = {};
-                                for (const eb of embs) {
-                                    if (eb.field !== "summary") continue;
-                                    const ent = entryById[eb.entryId];
-                                    if (!ent) continue;
-                                    if (eb.packName && eb.packName !== ent.packName) continue;
-                                    if (C.embeddingSourceHash && (eb.sourceHash || eb.hash) !== C.embeddingSourceHash(ent, "summary")) continue;
-                                    embMap[eb.entryId] = eb.vector
-                                }
-                                const withEmb = entries.filter(e => embMap[e.id]);
-                                if (withEmb.length < 2) {
-                                    runStatus.textContent = "임베딩 있는 엔트리 2개 미만. 먼저 파일 탭에서 임베딩 생성 필요.";
-                                    runStatus.style.color = "#d66";
-                                    return
-                                }
-                                const cos = (a, b) => {
-                                    let d = 0,
-                                        na = 0,
-                                        nb = 0;
-                                    const L = Math.min(a.length, b.length);
-                                    for (let i = 0; i < L; i++) {
-                                        d += a[i] * b[i];
-                                        na += a[i] * a[i];
-                                        nb += b[i] * b[i]
-                                    }
-                                    return d / (Math.sqrt(na) * Math.sqrt(nb) || 1)
-                                };
-                                const parent = {};
-                                const find = x => {
-                                    let root = x;
-                                    while (parent[root] !== root) root = parent[root];
-                                    while (parent[x] !== root) {
-                                        const next = parent[x];
-                                        parent[x] = root;
-                                        x = next
-                                    }
-                                    return root
-                                };
-                                const uni = (a, b) => {
-                                    parent[find(a)] = find(b)
-                                };
-                                withEmb.forEach(e => parent[e.id] = e.id);
-                                const pairs = [];
-                                for (let i = 0; i < withEmb.length; i++) {
-                                    for (let j = i + 1; j < withEmb.length; j++) {
-                                        if (!typeCompatible(withEmb[i], withEmb[j])) continue;
-                                        const s = cos(embMap[withEmb[i].id], embMap[withEmb[j].id]);
-                                        if (s >= state.threshold) {
-                                            pairs.push({
-                                                a: withEmb[i].id,
-                                                b: withEmb[j].id,
-                                                sim: s
-                                            });
-                                            uni(withEmb[i].id, withEmb[j].id)
-                                        }
-                                    }
-                                }
-                                const groupMap = {};
-                                withEmb.forEach(e => {
-                                    const r = find(e.id);
-                                    (groupMap[r] = groupMap[r] || []).push(e)
-                                });
-                                const groups = Object.values(groupMap).filter(g => g.length >= 2).map(g => {
-                                    const ids = new Set(g.map(e => e.id));
-                                    const maxSim = pairs.filter(p => ids.has(p.a) && ids.has(p.b)).reduce((m, p) => Math.max(m, p.sim), 0);
-                                    return {
-                                        entries: g,
-                                        sim: maxSim
-                                    }
-                                }).sort((a, b) => b.sim - a.sim);
-                                state.groups = groups;
-                                runStatus.textContent = groups.length > 0 ? "후보 " + groups.length + "개 그룹 발견." : "임계값 이상 후보 없음.";
-                                runStatus.style.color = groups.length > 0 ? "#4a9" : "#888";
-                                m.replaceContentPanel(renderMerge, "로어 병합")
-                            } catch (e) {
-                                runStatus.textContent = "실패: " + e.message;
-                                runStatus.style.color = "#d66"
-                            }
-                            runBtn.textContent = "병합 후보 찾기";
-                            runBtn.disabled = false
-                        };
-                        nd.appendChild(runBtn);
-                        nd.appendChild(runStatus);
-                        const bulkRow = document.createElement("div");
-                        bulkRow.style.cssText = "display:flex;gap:8px;align-items:center;margin-top:10px;padding:8px;background:#111;border:1px solid #333;border-radius:4px;";
-                        const bulkLbl = document.createElement("div");
-                        bulkLbl.textContent = "일괄 모드 변경";
-                        bulkLbl.style.cssText = "font-size:11px;color:#888;white-space:nowrap;";
-                        const bulkSel = document.createElement("select");
-                        bulkSel.style.cssText = "flex:1;padding:6px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:11px;";
-                        [
-                            ["", "-- 선택하여 모든 그룹에 일괄 적용 --"],
-                            ["keep-longest", "가장 긴 항목 유지 + 키워드 합집합 (안전)"],
-                            ["llm-summarize", "LLM 요약 병합 (API 호출, 품질↑)"]
-                        ].forEach(([v, l]) => {
-                            const o = document.createElement("option");
-                            o.value = v;
-                            o.textContent = l;
-                            bulkSel.appendChild(o)
-                        });
-                        bulkSel.onchange = () => {
-                            if (!bulkSel.value) return;
-                            const sels = document.querySelectorAll("select.lore-merge-mode-sel");
-                            sels.forEach(s => {
-                                s.value = bulkSel.value
-                            });
-                            bulkSel.value = ""
-                        };
-                        bulkRow.appendChild(bulkLbl);
-                        bulkRow.appendChild(bulkSel);
-                        nd.appendChild(bulkRow);
-                        if (C.__lastMergeUndo && C.__lastMergeUndo.originals && C.__lastMergeUndo.originals.length) {
-                            const undoBtn = document.createElement("button");
-                            undoBtn.textContent = "직전 병합 취소 (" + C.__lastMergeUndo.originals.length + "개 엔트리 복원)";
-                            undoBtn.style.cssText = "width:100%;padding:8px;margin-top:10px;background:transparent;color:#da8;border:1px solid #642;border-radius:4px;cursor:pointer;font-size:12px;";
-                            undoBtn.onclick = async () => {
-                                if (!confirm("직전 병합을 취소하고 원본 엔트리들을 복원할 것?")) return;
-                                try {
-                                    const undo = C.__lastMergeUndo;
-                                    if (undo.mergedId !== undefined && undo.mergedId !== null) {
-                                        await db.entries.delete(undo.mergedId);
-                                        try {
-                                            await db.embeddings.where("entryId").equals(undo.mergedId).delete()
-                                        } catch (_) {}
-                                    }
-                                    for (const snap of undo.originals) {
-                                        await db.entries.put(snap)
-                                    }
-                                    const packs = new Set(undo.originals.map(e => e.packName));
-                                    for (const pk of packs) {
-                                        const cnt = await db.entries.where("packName").equals(pk).count();
-                                        await db.packs.update(pk, {
-                                            entryCount: cnt
-                                        })
-                                    }
-                                    C.__lastMergeUndo = null;
-                                    alert("복원 완료.");
-                                    m.replaceContentPanel(renderMerge, "로어 병합")
-                                } catch (e) {
-                                    alert("실패: " + e.message)
-                                }
-                            };
-                            nd.appendChild(undoBtn)
-                        }
-                    }
-                });
-                if (!state.groups) return;
-                if (state.groups.length === 0) {
-                    panel.addText("후보 없음. 임계값을 낮춰 재시도할 수 있음.");
-                    return
-                }
-                for (const [gi, grp] of state.groups.entries()) {
-                    panel.addBoxedField("", "", {
-                        onInit: nd => {
-                            C.setFullWidth(nd);
-                            nd.style.cssText += "background:#1a1a1a;border:1px solid #333;border-radius:6px;margin-bottom:12px;padding:10px;";
-                            const hdr = document.createElement("div");
-                            hdr.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid #333;";
-                            const title = document.createElement("div");
-                            title.textContent = "그룹 " + (gi + 1) + " — " + grp.entries.length + "개 / 유사도 " + (grp.sim * 100).toFixed(1) + "%";
-                            title.style.cssText = "font-size:13px;color:#4a9;font-weight:bold;";
-                            const types = [...new Set(grp.entries.map(e => e.type))];
-                            const typeWarn = types.length > 1 ? "타입 불일치: " + types.join(", ") : "타입: " + types[0];
-                            const warn = document.createElement("div");
-                            warn.textContent = typeWarn;
-                            warn.style.cssText = "font-size:10px;color:" + (types.length > 1 ? "#d96" : "#888") + ";";
-                            hdr.appendChild(title);
-                            hdr.appendChild(warn);
-                            nd.appendChild(hdr);
-                            if (types.length > 1) {
-                                const typeNote = document.createElement("div");
-                                typeNote.style.cssText = "margin-bottom:8px;padding:6px 8px;background:#2a1a0a;border:1px solid #642;border-radius:4px;font-size:10px;color:#da8;line-height:1.5;";
-                                typeNote.innerHTML = "<b>타입이 다를 때의 영향</b><br>• 주입 시 주제별 분류(캐릭터/장소/사건 등)가 무너져 관련 없는 맥락에서 소환될 수 있음<br>• 트리거 키워드가 뒤섞여 오탐 증가<br>• 병합 후에는 한쪽 타입으로 고정되므로 나머지 주제성은 손실";
-                                nd.appendChild(typeNote)
-                            }
-                            for (const e of grp.entries) {
-                                const row = document.createElement("div");
-                                row.style.cssText = "padding:6px 0;border-bottom:1px dashed #222;font-size:11px;color:#aaa;";
-                                const safeSum = (summaryValue(e.summary) || "(요약 없음)").slice(0, 150).replace(/</g, "&lt;");
-                                row.innerHTML = '<span style="color:#ccc;font-weight:bold;">[' + e.type + "] " + e.name + '</span> <span style="color:#888;">(' + e.packName + ")</span>" + (e.anchor ? ' <span style="color:#fc4;">앵커</span>' : "") + '<br><span style="font-size:10px;">' + safeSum + "</span>";
-                                nd.appendChild(row)
-                            }
-                            const ctrl = document.createElement("div");
-                            ctrl.style.cssText = "margin-top:10px;display:flex;gap:8px;align-items:center;";
-                            const modeSel = document.createElement("select");
-                            modeSel.className = "lore-merge-mode-sel";
-                            modeSel.style.cssText = "padding:6px;border:1px solid #333;border-radius:4px;background:#0a0a0a;color:#ccc;font-size:11px;flex:1;";
-                            [
-                                ["keep-longest", "가장 긴 항목 유지 + 키워드 합집합 (안전)"],
-                                ["llm-summarize", "LLM 요약 병합 (API 호출, 품질↑)"]
-                            ].forEach(([v, l]) => {
-                                const o = document.createElement("option");
-                                o.value = v;
-                                o.textContent = l;
-                                modeSel.appendChild(o)
-                            });
-                            const previewBtn = document.createElement("button");
-                            previewBtn.textContent = "프리뷰";
-                            previewBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:4px;background:transparent;border:1px solid #446;color:#88c;cursor:pointer;";
-                            const execBtn = document.createElement("button");
-                            execBtn.textContent = "병합 실행";
-                            execBtn.style.cssText = "padding:6px 12px;font-size:11px;border-radius:4px;background:#285;border:none;color:#fff;cursor:pointer;font-weight:bold;";
-                            ctrl.appendChild(modeSel);
-                            ctrl.appendChild(previewBtn);
-                            ctrl.appendChild(execBtn);
-                            nd.appendChild(ctrl);
-                            const preview = document.createElement("div");
-                            preview.style.cssText = "margin-top:8px;padding:8px;background:#0a0a0a;border:1px solid #222;border-radius:4px;font-size:11px;color:#ccc;display:none;white-space:pre-wrap;word-break:break-all;max-height:300px;overflow-y:auto;";
-                            nd.appendChild(preview);
-                            let mergedDraft = null;
-                            const mkKeepLongest = entries => {
-                                const sorted = [...entries].sort((a, b) => summaryValue(b.summary).length - summaryValue(a.summary).length);
-                                return mergeDraftWithOriginals(sorted[0] || {}, entries, state.maxChars)
-                            };
-                            const mkLlmMerge = async entries => {
-                                const clean = entries.map(({
-                                    id: id,
-                                    packName: packName,
-                                    project: project,
-                                    enabled: enabled,
-                                    ...rest
-                                }) => rest);
-                                const prompt = "다음은 중복으로 판단된 로어 엔트리들이다. 하나의 로어 JSON으로 병합하라.\n" + "원칙:\n1. 핵심 정보는 누락하지 않는다. 각 입력 엔트리를 체크리스트처럼 대조해 이름/관계/상태/약속/사건/원인/미해결 훅을 모두 보존한다\n2. 불필요한 반복·수식어만 제거한다. 서로 다른 사실을 요약 편의상 삭제하지 않는다\n3. summary는 {full, compact, micro} 객체로 병합한다. full은 " + state.maxChars + "자 이내 self-contained, compact는 관계/상태/훅 보존, micro는 안정 회상 핸들+현재 상태\n4. eventHistory/callHistory/callState/timeline/entities/detail은 합집합으로 통합한다. 충돌하는 상태는 최신 timeline/lastUpdated를 우선하되 과거 상태는 eventHistory에 남긴다\n5. embed_text에는 이름/별칭/관계어/사건 원인/이해관계/장소/미해결 훅을 포함한다\n6. triggers는 필수 키워드만 유지하되 양쪽 인물명과 고유명사는 보존한다 (최대 12개)\n7. type은 가장 구체적인 것 유지. 타입이 다르면 summary.full에 각 타입의 역할을 설명한다\n8. 출력은 순수 JSON 객체 하나만. 입력에 없던 설정을 창작하지 않는다.\n\n" + "입력:\n" + JSON.stringify(clean, null, 2);
-                                const res = await C.callGeminiApi(prompt, {
-                                    apiType: settings.config.autoExtApiType || "key",
-                                    key: settings.config.autoExtKey,
-                                    vertexJson: settings.config.autoExtVertexJson,
-                                    vertexLocation: settings.config.autoExtVertexLocation || "global",
-                                    vertexProjectId: settings.config.autoExtVertexProjectId,
-                                    firebaseScript: settings.config.autoExtFirebaseScript,
-                                    model: settings.config.autoExtModel,
-                                    maxRetries: 2
-                                });
-                                if (!res.text) throw new Error("LLM 응답 없음: " + (res.error || ""));
-                                let txt = res.text.trim().replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "").trim();
-                                const m1 = txt.match(/\{[\s\S]*\}/);
-                                if (m1) txt = m1[0];
-                                const parsed = JSON.parse(txt);
-                                return mergeDraftWithOriginals(parsed, entries, state.maxChars)
-                            };
-                            const buildPreview = async () => {
-                                preview.style.display = "block";
-                                preview.textContent = "생성 중...";
-                                try {
-                                    if (modeSel.value === "keep-longest") mergedDraft = mkKeepLongest(grp.entries);
-                                    else mergedDraft = await mkLlmMerge(grp.entries);
-                                    const sumLen = summaryValue(mergedDraft.summary).length;
-                                    const over = sumLen > state.maxChars;
-                                    const color = over ? "#d66" : "#4a9";
-                                    preview.innerHTML = '<div style="color:' + color + ';font-weight:bold;margin-bottom:6px;">병합 미리보기 (summary ' + sumLen + "자" + (over ? " — 상한(" + state.maxChars + ") 초과" : "") + ')</div><pre style="white-space:pre-wrap;margin:0;font-size:11px;color:#ccc;">' + JSON.stringify(mergedDraft, null, 2).replace(/</g, "&lt;") + "</pre>"
-                                } catch (e) {
-                                    preview.textContent = "X " + e.message;
-                                    mergedDraft = null
-                                }
-                            };
-                            previewBtn.onclick = buildPreview;
-                            execBtn.onclick = async () => {
-                                if (!mergedDraft) {
-                                    await buildPreview();
-                                    if (!mergedDraft) return
-                                }
-                                const sumLen = summaryValue(mergedDraft.summary).length;
-                                if (sumLen > state.maxChars) {
-                                    if (!confirm("summary가 상한(" + state.maxChars + "자)을 " + (sumLen - state.maxChars) + "자 초과. 그래도 적용?")) return
-                                }
-                                if (types.length > 1) {
-                                    if (!confirm("타입 불일치 (" + types.join(", ") + "). 계속?")) return
-                                }
-                                if (!confirm(grp.entries.length + "개 엔트리를 하나로 병합할 것?")) return;
-                                try {
-                                    const originals = grp.entries.map(e => JSON.parse(JSON.stringify(e)));
-                                    for (const e of grp.entries) {
-                                        try {
-                                            if (C.saveEntryVersion) await C.saveEntryVersion(e, "pre_merge")
-                                        } catch (_) {}
-                                    }
-                                    const anchored = grp.entries.find(e => e.anchor);
-                                    const target = anchored || grp.entries[0];
-                                    const toDelete = grp.entries.filter(e => e.id !== target.id);
-                                    const finalEntry = {
-                                        ...mergedDraft,
-                                        id: target.id,
-                                        packName: target.packName,
-                                        project: target.project
-                                    };
-                                    await db.entries.put(finalEntry);
-                                    for (const e of toDelete) {
-                                        await db.entries.delete(e.id);
-                                        try {
-                                            if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(e.id);
-                                            else await db.embeddings.where("entryId").equals(e.id).delete()
-                                        } catch (_) {}
-                                    }
-                                    try {
-                                        if (C.invalidateEntryEmbeddings) await C.invalidateEntryEmbeddings(target.id);
-                                        else await db.embeddings.where("entryId").equals(target.id).delete()
-                                    } catch (_) {}
-                                    const packs = new Set(grp.entries.map(e => e.packName));
-                                    for (const pk of packs) {
-                                        const cnt = await db.entries.where("packName").equals(pk).count();
-                                        await db.packs.update(pk, {
-                                            entryCount: cnt
-                                        })
-                                    }
-                                    C.__lastMergeUndo = {
-                                        mergedId: target.id,
-                                        originals: originals
-                                    };
-                                    state.groups = state.groups.filter((_, i) => i !== gi);
-                                    let embedMsg = "";
-                                    try {
-                                        const apiType = settings.config.autoExtApiType || "key";
-                                        const apiOpts = {
-                                            apiType: apiType,
-                                            key: settings.config.autoExtKey,
-                                            vertexJson: settings.config.autoExtVertexJson,
-                                            vertexLocation: settings.config.autoExtVertexLocation || "global",
-                                            vertexProjectId: settings.config.autoExtVertexProjectId,
-                                            firebaseEmbedKey: settings.config.autoExtFirebaseEmbedKey,
-                                            model: settings.config.embeddingModel || "gemini-embedding-001"
-                                        };
-                                        const hasApi = apiType === "vertex" ? !!settings.config.autoExtVertexJson : apiType === "firebase" ? !!settings.config.autoExtFirebaseEmbedKey : !!settings.config.autoExtKey;
-                                        if (hasApi) {
-                                            await C.ensureEmbedding(finalEntry, apiOpts);
-                                            embedMsg = "임베딩 재생성 완료."
-                                        } else {
-                                            embedMsg = "API 미설정 — 파일 탭에서 수동 임베딩 필요."
-                                        }
-                                    } catch (embErr) {
-                                        embedMsg = "임베딩 재생성 실패: " + (embErr.message || embErr)
-                                    }
-                                    alert("병합 완료. " + embedMsg);
-                                    m.replaceContentPanel(renderMerge, "로어 병합")
-                                } catch (e) {
-                                    alert("실패: " + e.message)
-                                }
-                            }
-                        }
-                    })
-                }
+                ... (기존 merge 렌더링 코드 보존용 주석화) ...
             };
             m.replaceContentPanel(renderMerge, "로어 병합")
         })
     });
+    */
     _w.__LoreInj.__subMergeLoaded = true
-})();
+    })();
 (async function() {
     "use strict";
     if (document.readyState === "loading") await new Promise(r => document.addEventListener("DOMContentLoaded", r));
