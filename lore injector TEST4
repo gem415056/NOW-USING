@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (CSS 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.0.8-2
+// @version     2.0.8-3
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -1492,7 +1492,8 @@ const DECENTRAL_CSS_VALUES = `
       display: flex !important;
       align-items: center !important;
       justify-content: space-between !important;
-      padding: 28px 28px 10px 28px !important; /* 교정기 팝업과 동일한 상단 여백 확보 */
+      padding: 28px 28px 0px 28px !important; /* 아래 패딩을 0으로 좁힘 */
+      margin-bottom: 16px !important; /* 응답교정기와 동일한 16px 수직 여백 확보 */
       border-bottom: none !important;
       flex-shrink: 0;
       width: 100% !important;
@@ -1546,17 +1547,16 @@ const DECENTRAL_CSS_VALUES = `
         width: 100% !important;
         min-width: 100% !important;
         height: auto !important;
-        padding-top: 10px !important;
+        padding-top: 0px !important; /* 타이틀 마진이 밀어주므로 상단 중복 패딩 제거 */
         padding-left: 20px !important;
         padding-right: 20px !important;
-        padding-bottom: 6px !important;
-        margin-bottom: 12px !important;
+        padding-bottom: 6px !important; /* 아래로 6px 밀어내기 동일화 */
+        margin-bottom: 16px !important; /* 탭 하단과의 여백도 16px 콤팩트 매핑 */
         background-color: transparent !important;
         overflow-x: auto !important;
         overflow-y: hidden !important;
-        gap: 17px !important;
-        box-sizing: border-box !important;
         flex-shrink: 0;
+        box-sizing: border-box !important;
     }
 
     .decentral-menu-container::-webkit-scrollbar {
@@ -15391,9 +15391,9 @@ function createLongSemiFlatGridElement(titleText, lambda) {
         }
         return opts
     }
-    _w.__LoreInj.registerSubMenu = _w.__LoreInj.registerSubMenu || function() {};
-    _w.__LoreInj.registerSubMenu("extract", function(modal) {
-        modal.createSubMenu("추출/변환", m => {
+    _w.__LoreInj.registerMenu = _w.__LoreInj.registerMenu || function() {};
+    _w.__LoreInj.registerMenu("extract", function(modal) {
+        modal.createMenu("추출/변환", m => {
             m.replaceContentPanel(panel => {
                 
                 // ==========================================
