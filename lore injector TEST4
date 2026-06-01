@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (스타일 전부 변경)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.1.0
+// @version     2.1.1
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -13187,8 +13187,8 @@ function createLongSemiFlatGridElement(titleText, lambda) {
     const MENU_ORDER = {
         lore: 10,     // 활성 로어
         session: 20,  // 세션 상태
-        extract: 30,  // 추출/변환
-        main: 40,     // 설정
+        main: 30,     // 설정
+        extract: 40,  // 추출/변환
         file: 50,     // 로어 관리
         log: 60       // 실행 로그
     };
