@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 AI 응답 교정기 (Response Refiner V2.3.2)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.3.4
+// @version      2.3.4-a
 // @description  팁탭 입력창에 과도하게 엔터가 입력되는 현상 수정
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -392,31 +392,53 @@ If issues are found:
                             const normalizedText = correctedText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
                             
                             if (textarea.tagName === 'TEXTAREA' || textarea.tagName === 'INPUT') {
-                                textarea.value = normalizedText;
+                                // 1. 일반 텍스트 상자일 경우: React의 감시망을 우회하는 데이터 주입법 적용
+                                try {
+                                    const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
+                                    nativeValueSetter.call(textarea, normalizedText);
+                                } catch (e) {
+                                    textarea.value = normalizedText;
+                                }
                                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
                                 textarea.dispatchEvent(new Event('change', { bubbles: true }));
                             } else {
-                                // 원래 성공률이 높았던 오리지널 강제 덮어쓰기 방식으로 복구 (글 겹침 원천 방지)
+                                // 2. 에디터 상자(ProseMirror)일 경우: 사람의 입력 패턴을 그대로 흉내 냄
                                 try {
-                                    // 1. HUD 간격 우회 및 문단 규격화가 처리된 HTML 생성
                                     const safeHtml = plainTextToSafeHtml(normalizedText);
                                     
-                                    // 2. 에디터의 내부 HTML 자체를 덮어쓰기 (앞/뒤 추가 절대 불가능)
-                                    textarea.innerHTML = safeHtml;
+                                    // 가. 에디터에 포커스를 주어 활성화 상태로 만듭니다.
+                                    textarea.focus();
                                     
-                                    // 3. 에디터의 MutationObserver 및 React가 바뀐 HTML 구조를 인지하도록 가상 입력 이벤트 전달
+                                    // 나. 에디터 안의 모든 내용(기존 글)을 드래그 선택합니다. (Ctrl+A 효과)
+                                    const range = document.createRange();
+                                    range.selectNodeContents(textarea);
+                                    const sel = window.getSelection();
+                                    sel.removeAllRanges();
+                                    sel.addRange(range);
+                                    
+                                    // 다. 선택된 영역 전체에 새 HTML 문서를 덮어씌웁니다. 
+                                    // 이 명령어가 실행되는 순간 기존 글은 흔적 없이 지워지고 교정본이 주입됩니다.
+                                    const success = document.execCommand('insertHTML', false, safeHtml);
+                                    
+                                    // 라. 혹시 브라우저 보안 정책으로 실패할 경우를 대비한 텍스트 방식 백업
+                                    if (!success) {
+                                        document.execCommand('delete', false, null);
+                                        document.execCommand('insertText', false, normalizedText);
+                                    }
+                                    
+                                    // 마. 변경 사실을 에디터와 React 시스템에 통보합니다.
                                     textarea.dispatchEvent(new Event('input', { bubbles: true }));
                                     textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                                    
                                 } catch (e) {
-                                    // 최후의 예외 백업 모드
-                                    textarea.focus();
-                                    document.execCommand('selectAll', false, null);
-                                    document.execCommand('delete', false, null);
-                                    document.execCommand('insertText', false, normalizedText);
+                                    // 바. 전 과정이 실패했을 때를 대비한 최종 비상 대책
+                                    textarea.innerHTML = plainTextToSafeHtml(normalizedText);
+                                    textarea.dispatchEvent(new Event('input', { bubbles: true }));
+                                    textarea.dispatchEvent(new Event('change', { bubbles: true }));
                                 }
                             }
                             
-                            // 웹사이트가 바뀐 글자를 온전히 인지할 수 있도록 대기 시간 확보 (원래 100ms -> 400ms로 조절)
+                            // 사람의 조작처럼 인식되므로, 대기 시간은 안전하게 0.25초(250)만 대기해도 충분합니다.
                             setTimeout(() => {
                                 const saveBtn = Array.from(container.querySelectorAll('button')).find(btn => btn.textContent.includes('수정 완료'));
                                 if (saveBtn) {
