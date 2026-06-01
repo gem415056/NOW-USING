@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 AI 응답 교정기 (Response Refiner V2.3.2)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.3.4-a
+// @version      2.3.4-b
 // @description  팁탭 입력창에 과도하게 엔터가 입력되는 현상 수정
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -359,6 +359,30 @@ If issues are found:
     }
 
     async function executeUiRefinement(container, correctedText) {
+        // 내부 보조 함수 정의 (웹페이지 메모리에서 Tiptap 에디터 객체 발굴)
+        function findTiptapEditor(el) {
+            if (!el) return null;
+            let current = el;
+            for (let i = 0; i < 5; i++) {
+                if (!current) break;
+                const props = getReactProps(current);
+                if (props?.editor) return props.editor;
+                if (props?.children?.props?.editor) return props.children.props.editor;
+                
+                const fiberKey = Object.keys(current).find(k => k.startsWith('__reactFiber$'));
+                if (fiberKey) {
+                    let fiber = current[fiberKey];
+                    while (fiber) {
+                        if (fiber.memoizedProps?.editor) return fiber.memoizedProps.editor;
+                        if (fiber.pendingProps?.editor) return fiber.pendingProps.editor;
+                        fiber = fiber.return;
+                    }
+                }
+                current = current.parentElement;
+            }
+            return null;
+        }
+
         return new Promise((resolve, reject) => {
             const trigger = container.querySelector('div[aria-haspopup="menu"]');
             if (!trigger) {
@@ -390,9 +414,10 @@ If issues are found:
                             clearInterval(findEditorTimer);
                             
                             const normalizedText = correctedText.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                            const safeHtml = plainTextToSafeHtml(normalizedText);
                             
                             if (textarea.tagName === 'TEXTAREA' || textarea.tagName === 'INPUT') {
-                                // 1. 일반 텍스트 상자일 경우: React의 감시망을 우회하는 데이터 주입법 적용
+                                // 1. 일반 텍스트 상자 처리 (React 감시 우회 제어)
                                 try {
                                     const nativeValueSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value").set;
                                     nativeValueSetter.call(textarea, normalizedText);
@@ -402,43 +427,62 @@ If issues are found:
                                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
                                 textarea.dispatchEvent(new Event('change', { bubbles: true }));
                             } else {
-                                // 2. 에디터 상자(ProseMirror)일 경우: 사람의 입력 패턴을 그대로 흉내 냄
+                                // 2. Rich Text 에디터 (ProseMirror / Tiptap) 처리
+                                let success = false;
                                 try {
-                                    const safeHtml = plainTextToSafeHtml(normalizedText);
-                                    
-                                    // 가. 에디터에 포커스를 주어 활성화 상태로 만듭니다.
-                                    textarea.focus();
-                                    
-                                    // 나. 에디터 안의 모든 내용(기존 글)을 드래그 선택합니다. (Ctrl+A 효과)
-                                    const range = document.createRange();
-                                    range.selectNodeContents(textarea);
-                                    const sel = window.getSelection();
-                                    sel.removeAllRanges();
-                                    sel.addRange(range);
-                                    
-                                    // 다. 선택된 영역 전체에 새 HTML 문서를 덮어씌웁니다. 
-                                    // 이 명령어가 실행되는 순간 기존 글은 흔적 없이 지워지고 교정본이 주입됩니다.
-                                    const success = document.execCommand('insertHTML', false, safeHtml);
-                                    
-                                    // 라. 혹시 브라우저 보안 정책으로 실패할 경우를 대비한 텍스트 방식 백업
-                                    if (!success) {
-                                        document.execCommand('delete', false, null);
-                                        document.execCommand('insertText', false, normalizedText);
+                                    // 2-1단계: 메모리 속 Tiptap 에디터 객체를 직접 발굴하여 값 변경 명령 전송 (최선책)
+                                    const editor = findTiptapEditor(textarea);
+                                    if (editor && typeof editor.commands?.setContent === 'function') {
+                                        editor.commands.setContent(safeHtml);
+                                        success = true;
                                     }
                                     
-                                    // 마. 변경 사실을 에디터와 React 시스템에 통보합니다.
+                                    // 2-2단계: Tiptap이 없고 순수 ProseMirror 엔진만 식별될 경우의 백업 처리
+                                    if (!success) {
+                                        const pmView = textarea.pmViewDesc?.view;
+                                        if (pmView && pmView.state && typeof pmView.dispatch === 'function') {
+                                            const schema = pmView.state.schema;
+                                            const domParser = pmView.domParser || (schema ? DOMParser.fromSchema(schema) : null);
+                                            if (domParser) {
+                                                const tempEl = document.createElement('div');
+                                                tempEl.innerHTML = safeHtml;
+                                                const newDoc = domParser.parse(tempEl);
+                                                const tr = pmView.state.tr.replaceWith(0, pmView.state.doc.content.size, newDoc);
+                                                pmView.dispatch(tr);
+                                                success = true;
+                                            }
+                                        }
+                                    }
+                                    
+                                    // 2-3단계: 두 엔진 제어가 모두 차단당했을 때의 브라우저 UI 방식 백업 (마지막 보루)
+                                    if (!success) {
+                                        textarea.focus();
+                                        const range = document.createRange();
+                                        range.selectNodeContents(textarea);
+                                        const sel = window.getSelection();
+                                        sel.removeAllRanges();
+                                        sel.addRange(range);
+                                        
+                                        const pasteSuccess = document.execCommand('insertHTML', false, safeHtml);
+                                        if (!pasteSuccess) {
+                                            document.execCommand('delete', false, null);
+                                            document.execCommand('insertText', false, normalizedText);
+                                        }
+                                    }
+                                    
+                                    // 변경 이벤트를 React 시스템에 최종 전송
                                     textarea.dispatchEvent(new Event('input', { bubbles: true }));
                                     textarea.dispatchEvent(new Event('change', { bubbles: true }));
                                     
                                 } catch (e) {
-                                    // 바. 전 과정이 실패했을 때를 대비한 최종 비상 대책
-                                    textarea.innerHTML = plainTextToSafeHtml(normalizedText);
+                                    // 비상 강제 대책
+                                    textarea.innerHTML = safeHtml;
                                     textarea.dispatchEvent(new Event('input', { bubbles: true }));
                                     textarea.dispatchEvent(new Event('change', { bubbles: true }));
                                 }
                             }
                             
-                            // 사람의 조작처럼 인식되므로, 대기 시간은 안전하게 0.25초(250)만 대기해도 충분합니다.
+                            // 엔진에 직접 명령을 내렸으므로 0.3초(300) 정도의 시간만 주어도 완벽히 동기화되어 저장됩니다.
                             setTimeout(() => {
                                 const saveBtn = Array.from(container.querySelectorAll('button')).find(btn => btn.textContent.includes('수정 완료'));
                                 if (saveBtn) {
@@ -461,7 +505,7 @@ If issues are found:
             }, 30);
         });
     }
-
+     
     // ==========================================
     // 검수용 백그라운드 API 통신 (로어 인젝터 오리지널 4종 병합 동기화 엔진)
     // ==========================================
