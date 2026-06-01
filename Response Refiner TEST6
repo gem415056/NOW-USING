@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         크랙 AI 응답 교정기 (Response Refiner V2.3.1)
+// @name         크랙 AI 응답 교정기 (Response Refiner V2.3.2)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.3.1
+// @version      2.3.2
 // @description  팁탭 입력창에 과도하게 엔터가 입력되는 현상 수정
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -396,20 +396,45 @@ If issues are found:
                                 textarea.dispatchEvent(new Event('input', { bubbles: true }));
                                 textarea.dispatchEvent(new Event('change', { bubbles: true }));
                             } else {
-                                // 새로운 관점: 셀렉션과 포커스 API를 완전히 우회합니다.
-                                // 에디터 영역의 innerHTML을 직접 강제 오버라이트하여 기존 글을 완벽히 소멸시킵니다.
                                 try {
-                                    // 1. HUD 간격 우회 및 문단 규격화가 처리된 HTML 생성
                                     const safeHtml = plainTextToSafeHtml(normalizedText);
                                     
-                                    // 2. 에디터의 내부 HTML 자체를 덮어쓰기 (앞/뒤 추가 절대 불가능)
-                                    textarea.innerHTML = safeHtml;
+                                    // 1단계: 에디터 자체 내장 엔진(ProseMirror)에 직접 HTML 주입하여 동기화
+                                    const pmView = textarea.pmViewDesc?.view;
+                                    if (pmView && pmView.domParser && pmView.state) {
+                                        const tempEl = document.createElement('div');
+                                        tempEl.innerHTML = safeHtml;
+                                        const newDoc = pmView.domParser.parse(tempEl);
+                                        const tr = pmView.state.tr.replaceWith(0, pmView.state.doc.content.size, newDoc);
+                                        pmView.dispatch(tr);
+                                    } 
+                                    // 2단계: 엔진 접근이 실패할 경우, HTML 전용 클립보드 붙여넣기를 시뮬레이션하여 우회
+                                    else {
+                                        textarea.focus();
+                                        const range = document.createRange();
+                                        range.selectNodeContents(textarea);
+                                        const sel = window.getSelection();
+                                        sel.removeAllRanges();
+                                        sel.addRange(range);
+
+                                        const dataTransfer = new DataTransfer();
+                                        dataTransfer.setData('text/html', safeHtml);
+                                        dataTransfer.setData('text/plain', normalizedText);
+                                        
+                                        const pasteEvent = new ClipboardEvent('paste', {
+                                            bubbles: true,
+                                            cancelable: true,
+                                            clipboardData: dataTransfer
+                                        });
+                                        textarea.dispatchEvent(pasteEvent);
+                                    }
                                     
-                                    // 3. 에디터의 MutationObserver 및 React가 바뀐 HTML 구조를 인지하도록 가상 입력 이벤트 전달
+                                    // React 상태 인지를 돕기 위한 보조 이벤트 발생
                                     textarea.dispatchEvent(new Event('input', { bubbles: true }));
                                     textarea.dispatchEvent(new Event('change', { bubbles: true }));
+                                    
                                 } catch (e) {
-                                    // 최후의 예외 백업 모드
+                                    // 3단계: 예상치 못한 에러 발생 시 최후의 백업 입력 모드
                                     textarea.focus();
                                     document.execCommand('selectAll', false, null);
                                     document.execCommand('delete', false, null);
@@ -417,6 +442,7 @@ If issues are found:
                                 }
                             }
                             
+                            // 에디터 변경 사항이 화면과 내부 상태에 정상 기록되도록 대기 시간 확보 (100ms -> 200ms)
                             setTimeout(() => {
                                 const saveBtn = Array.from(container.querySelectorAll('button')).find(btn => btn.textContent.includes('수정 완료'));
                                 if (saveBtn) {
@@ -425,7 +451,7 @@ If issues are found:
                                 } else {
                                     reject(new Error("수정 완료 버튼을 찾지 못했습니다."));
                                 }
-                            }, 100);
+                            }, 200);
                         } else if (Date.now() - editorStart > 3000) {
                             clearInterval(findEditorTimer);
                             reject(new Error("텍스트 입력 창 로딩 시간 초과"));
