@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 AI 응답 교정기 (Response Refiner V2.3.2)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.3.4-b
+// @version      2.3.4-c
 // @description  팁탭 입력창에 과도하게 엔터가 입력되는 현상 수정
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -491,7 +491,7 @@ If issues are found:
                                 } else {
                                     reject(new Error("수정 완료 버튼을 찾지 못했습니다."));
                                 }
-                            }, 1000);
+                            }, 300);
                         } else if (Date.now() - editorStart > 3000) {
                             clearInterval(findEditorTimer);
                             reject(new Error("텍스트 입력 창 로딩 시간 초과"));
