@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (활성로어 세션상태 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.1.1-a
+// @version     2.1.1-b
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -13990,7 +13990,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                     // 로어 목록 상자를 addLongBox로 전면 개편하여 쏠림/치우침 원천 차단
                     panel.addLongBox(true, {
                         onInit: nd => {
-                            nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:12px;box-sizing:border-box;";
+                            nd.style.cssText += "display:flex;flex-direction:column;align-items:stretch;width:100%;background:#FFFFFF;border:1px solid #cccccc;border-radius:8px;margin-bottom:12px;padding:16px;box-sizing:border-box;";
                             const headerRow = document.createElement("div");
                             headerRow.style.cssText = "display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;border-bottom:1px solid #eeeeee;padding-bottom:6px;cursor:pointer;width:100%;";
                             const curUrl = C.getCurUrl();
@@ -14042,7 +14042,7 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                         }
                                     };
                                     const title = document.createElement("div");
-                                    title.style.cssText = "font-size:14px;font-weight:bold;color:#2c3e50;flex:1;text-align:left;";
+                                    title.style.cssText = "font-size:14px;font-weight:bold;color:#74a1c0;flex:1;text-align:left;";
                                     title.textContent = pk + " (" + items.length + "개)";
                                     
                                     // 스위치 배치를 이름 뒤로 옮겨서 우측 끝으로 밀착 (삼각형 아이콘 삭제)
