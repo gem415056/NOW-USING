@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 9 in 1
 // @namespace    https://crack.wrtn.ai/
-// @version      15.4.0-a
+// @version      15.4.0-b
 // @description  텍스트 입력창 텍스트 크기 수정 
 // @author       User & Gemini (수정)
 // @match        https://crack.wrtn.ai/*
@@ -2230,8 +2230,8 @@
 
         const containerNode = document.createElement("div");
         containerNode.style.cssText = `
-            background-color: #2f4858;
-            border: 1.5px solid #FF4431;
+            background-color: #292929;
+            border: 1.5px solid #FF7F6C;
             padding: 9px 14px;
             border-radius: 9999px;
             display: inline-flex;
@@ -2244,7 +2244,7 @@
         const textNode = document.createElement("p");
         textNode.textContent = message;
         textNode.style.cssText = `
-            color: #ffe5da;
+            color: #DBDBD9;
             text-align: center;
             font-size: 12px;
             font-weight: 400;
