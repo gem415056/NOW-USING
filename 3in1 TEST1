@@ -1641,7 +1641,7 @@
                 #ce-ai-card-nav { display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom: 16px; font-size: 13px; font-weight: bold; flex-shrink:0; }
                 #ce-ai-card-nav button { cursor:pointer; background:#f0f0f0; border:1px solid #ddd; border-radius:6px; padding:4px 10px; font-size:12px; transition: background 0.2s; color:#333; }
                 
-                .crack-ext-session-card { background:#f4e4e9 !important; border:1px solid #eee !important; border-radius:8px; padding:12px; font-size:13px; height: 160px; display: flex; flex-direction: column; box-sizing: border-box; }
+                .crack-ext-session-card { background:#f4e4e9 !important; border:1px solid #eee !important; border-radius:8px; padding:12px; font-size:13px; height: 200px; display: flex; flex-direction: column; box-sizing: border-box; }
                 .crack-ext-session-title { font-weight:bold; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
                 .crack-ext-session-content { color:#574143 !important; line-height:1.5; white-space: pre-wrap; word-break: break-all; flex: 1; overflow-y: auto; margin-bottom: 4px; padding-right:4px; }
                 .crack-ext-char-count { font-size:11px; color: #777; font-weight: normal; }
