@@ -1,7 +1,7 @@
 // ==UserScript==
-// @name         크랙 AI요약 & 북마크 & 키워드노트 통합본 (3 in 1)
+// @name         크랙 AI요약 & 북마크 & 키워드노트 통합본 (3 in 1) test
 // @namespace    https://crack.wrtn.ai/
-// @version      4.7.3
+// @version      4.7.3-a
 // @description  키워드노트 실시간 동기화 + 삭제 명령어 제거 + 모듈별 독립 커스텀 색상(북마크 연노랑, 요약 연분홍) 완벽 적용 + 알리미 스타일 알림 토스트 연동 (중앙 101px 위)
 // @author       Assistant
 // @match        https://crack.wrtn.ai/*
