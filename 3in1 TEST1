@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 AI요약 & 북마크 & 키워드노트 통합본 (3 in 1) test
 // @namespace    https://crack.wrtn.ai/
-// @version      4.7.3-e
+// @version      4.7.3-f
 // @description  키워드노트 실시간 동기화 + 삭제 명령어 제거 + 모듈별 독립 커스텀 색상(북마크 연노랑, 요약 연분홍) 완벽 적용 + 알리미 스타일 알림 토스트 연동 (중앙 101px 위)
 // @author       Assistant
 // @match        https://crack.wrtn.ai/*
@@ -1662,7 +1662,7 @@
             /* 요청하신 다크 세련 테마 적용: 배경 #23343A, 테두리 #88B9C8 */
             containerNode.style.cssText = `
                 background-color: #23343A;
-                border: 2px solid #F2C0C3;
+                border: 2.5px solid #F2C0C3;
                 padding: 9px 14px;
                 border-radius: 9999px;
                 display: inline-flex;
@@ -1964,7 +1964,7 @@
                     if (await apiCall('POST', '/summaries', { type: 'shortTerm', title: parsedCards[i].title, summary: parsedCards[i].summary })) successCount++;
                 }
                 if (successCount > 0) {
-                    showToast(`✅ ${successCount}개의 요약이 장기 기억에 추가되었습니다.`);
+                    showToast(`✔ ${successCount}개의 요약이 장기 기억에 추가되었습니다.`);
                     overlay.remove();
                     var dialogEl = document.querySelector('[role="dialog"]');
                     if (dialogEl) refreshCurrentTab(dialogEl);
