@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 AI요약 & 북마크 & 키워드노트 통합본 (3 in 1) test
 // @namespace    https://crack.wrtn.ai/
-// @version      4.7.3-b
+// @version      4.7.3-c
 // @description  키워드노트 실시간 동기화 + 삭제 명령어 제거 + 모듈별 독립 커스텀 색상(북마크 연노랑, 요약 연분홍) 완벽 적용 + 알리미 스타일 알림 토스트 연동 (중앙 101px 위)
 // @author       Assistant
 // @match        https://crack.wrtn.ai/*
@@ -1607,10 +1607,10 @@
                 #ce-ai-card-nav { display:flex; align-items:center; justify-content:center; gap:12px; margin-bottom: 16px; font-size: 13px; font-weight: bold; flex-shrink:0; }
                 #ce-ai-card-nav button { cursor:pointer; background:#f0f0f0; border:1px solid #ddd; border-radius:6px; padding:4px 10px; font-size:12px; transition: background 0.2s; color:#333; }
                 
-                .crack-ext-session-card { background:#fff4f5 !important; border:1px solid #eee !important; border-radius:8px; padding:12px; font-size:13px; height: 180px; display: flex; flex-direction: column; box-sizing: border-box; }
+                .crack-ext-session-card { background:#fff4f5 !important; border:1px solid #eee !important; border-radius:8px; padding: 10px 12px 4px 12px; font-size:13px; min-height: 100px; height: auto; max-height: 180px; display: flex; flex-direction: column; box-sizing: border-box; }
                 .crack-ext-session-title { font-weight:bold; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-shrink:0; }
                 .crack-ext-session-content { color:#574143 !important; line-height:1.5; white-space: pre-wrap; word-break: break-all; flex: 1; overflow-y: auto; margin-bottom: 0px; padding-right:4px; }
-                .crack-ext-char-count { font-size:11px; color: #777; font-weight: normal; }
+                .crack-ext-char-count { font-size:11px; color: #777; font-weight: normal; line-height: 1;}
                 
                 /* 다크모드 대응 */
                 body[data-theme="dark"] .crack-ext-ai-modal { background: #242321 !important; color: #F0EFEB !important; }
