@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 AI 응답 교정기 (Response Refiner V2.3.5)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.3.5-a
+// @version      2.3.5-b
 // @description  카드 간격 수정 및 마지막 응답 교정 버튼 삭제
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -1444,7 +1444,7 @@ If issues are found:
             .crr-switch-input { opacity: 0; width: 0; height: 0; }
             .crr-switch-slider { position: absolute; cursor: pointer; inset: 0; background-color: #ccc; border-radius: 20px; transition: .2s; }
             .crr-switch-slider:before { position: absolute; content: ""; height: 14px; width: 14px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .2s; }
-            .crr-switch-input:checked + .crr-switch-slider { background-color: ${ACCENT_COLOR} !important; }
+            .crr-switch-input:checked + .crr-switch-slider { background-color: #88B9C8 !important; }
             .crr-switch-input:checked + .crr-switch-slider:before { transform: translateX(18px); }
 
             /* 금지단어 확장 애니메이션 슬롯 */
