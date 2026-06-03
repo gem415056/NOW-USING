@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (활성로어 버튼 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.1.2-b
+// @version     2.1.2-c
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -14289,10 +14289,10 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                 btnRow.style.cssText = "display:flex;justify-content:flex-end;gap:6px;";
                                 const saveBtn = document.createElement("button");
                                 saveBtn.textContent = "저장";
-                                saveBtn.style.cssText = "font-size:11px;padding:4px 10px;border-radius:4px;background:#bcd0d7;border:1px solid #334a52;color:#334a52;cursor:pointer;font-weight:normal;";
+                                // 테두리 선을 닫기 버튼과 통일하고, 차분한 연회색(#e0e0e0) 배경과 진회색 글자를 매칭하여 착시 해결
+                                saveBtn.style.cssText = "font-size:11px; padding:4px 10px; border-radius:4px; background:#e0e0e0; border:1px solid #cccccc; color:#333333; cursor:pointer; font-weight:normal;";
                                 const cancelBtn = document.createElement("button");
                                 cancelBtn.textContent = "닫기";
-                                // 공유 변수 B 대신 원래의 넉넉한 가로형 버튼 스타일로 단독 분리 적용
                                 cancelBtn.style.cssText = "font-size:11px; padding:4px 10px; border-radius:4px; background:#FFFFFF; border:1px solid #cccccc; color:#333333; cursor:pointer;";
                                 btnRow.appendChild(cancelBtn);
                                 btnRow.appendChild(saveBtn);
