@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name        에리의 크랙 로어 인젝터 (활성로어 버튼 수정)
 // @namespace   에리의 크랙 로어 인젝터
-// @version     2.1.2
+// @version     2.1.2-a
 // @description 단일 번들로 로드 안정성을 높인 범용 로어 인젝터
 // @author      로컬AI
 // @match       https://crack.wrtn.ai/stories/*/episodes/*
@@ -14302,7 +14302,6 @@ function createLongSemiFlatGridElement(titleText, lambda) {
                                     editContainer.style.display = editContainer.style.display === "none" ? "flex" : "none"
                                 };
                                 nameSpan.onclick = toggleEdit;
-                                editBtn.onclick = toggleEdit;
                                 cancelBtn.onclick = toggleEdit;
                                 saveBtn.onclick = async () => {
                                     try {
