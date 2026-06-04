@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 AI 응답 교정기 (Response Refiner V2.4.0)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.4.0-d
+// @version      2.4.0-e
 // @description  추가 요청 탭 신설 및 enrichment 교정 항목 신설
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -1020,9 +1020,9 @@ If issues are found:
 
                     <!-- 추가 요청 탭 -->
                     <div class="crr-pane-content" data-pane="custom" style="display:none; flex-direction:column; height:100%;">
-                        <div class="crr-input-group" style="flex: 1; display: flex; flex-direction: column; margin-bottom: 0;">
+                        <div class="crr-input-group" style="flex: 1; display: flex; flex-direction: column; margin-bottom: 0; height: 100%;">
                             <label class="crr-label">지시사항 추가 입력</label>
-                            <textarea id="set-custom-instruction" class="crr-textarea" style="field-sizing: content; min-height: 40px; max-height: 220px; resize: none; overflow-y: auto;" placeholder="여기에 자유롭게 메타적인 질문이나 추가적인 지시사항을 입력하세요. 빈 공간으로 두면 AI에게 전달되지 않습니다."></textarea>
+                            <textarea id="set-custom-instruction" class="crr-textarea" style="min-height: 40px; resize: none; overflow-y: auto;" placeholder="여기에 자유롭게 메타적인 질문이나 추가적인 지시사항을 입력하세요. 빈 공간으로 두면 AI에게 전달되지 않습니다."></textarea>
                         </div>
                     </div>
 
@@ -1194,7 +1194,23 @@ If issues are found:
         // 추가 요청 탭 데이터 로드 및 입력 시 실시간 저장
         const inpCustom = overlay.querySelector('#set-custom-instruction');
         inpCustom.value = config.customInstruction || '';
-        inpCustom.addEventListener('input', saveCurrentState);
+
+        const adjustHeight = () => {
+            inpCustom.style.height = '40px'; // 한 줄 축소 버그를 막기 위한 최소 높이 강제 유지
+            const maxBoundary = inpCustom.parentElement.clientHeight - 30; // 소제목 여백을 제외한 팝업창 내부 한계선 측정
+            inpCustom.style.height = Math.min(inpCustom.scrollHeight, maxBoundary) + 'px';
+        };
+
+        inpCustom.addEventListener('input', () => {
+            adjustHeight();
+            saveCurrentState();
+        });
+
+        // 탭이 전환되거나 처음 열릴 때 높이 맞춤 조절
+        overlay.querySelector('[data-tab="custom"]').addEventListener('click', () => {
+            setTimeout(adjustHeight, 10);
+        });
+        setTimeout(adjustHeight, 50);
 
         const apiProv = overlay.querySelector('#api-provider');
         const keyBox = overlay.querySelector('#api-key-box');
