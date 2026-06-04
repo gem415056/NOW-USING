@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 AI 응답 교정기 (Response Refiner V2.4.0)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.4.0-a
+// @version      2.4.0-b
 // @description  추가 요청 탭 신설 및 enrichment 교정 항목 신설
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -182,7 +182,9 @@ If issues are found:
 {context}
 
 [New Speech]:
-{message}`;
+{message}
+
+{custom_instructions}`;
 
     // HTML 이스케이프 문자 보안 처리 필터 (에러 유실 차단)
     function escapeHtml(str) {
@@ -595,7 +597,7 @@ If issues are found:
         const keysInOrder = [
             'banned', 'impersonation', 'overfitting', 'measurement', 'parroting',
             'cliche', 'state', 'nsfw', 'unrealistic', 'factual',
-            'promise', 'nickname', 'presence', 'reunion', 'syntax', 'foreigner'
+            'promise', 'nickname', 'presence', 'reunion', 'syntax', 'foreigner', 'enrichment'
         ];
         
         keysInOrder.forEach(k => {
@@ -630,13 +632,15 @@ If issues are found:
             const memoryText = await fetchSummaries(chatId);
             const systemPrompt = compilePrompt(config);
 
+            const customText = config.customInstruction ? `[User's Custom Directives]:\n${config.customInstruction}` : '';
             const prompt = systemPrompt
                 .replace('{lore}', loreText)
                 .replace('{context}', contextText)
                 .replace('{message}', assistantText)
                 .replace('{memory}', memoryText)
                 .replace('{forbidden_words}', config.bannedWords || 'None')
-                .replace('{passWord}', 'PASS');
+                .replace('{passWord}', 'PASS')
+                .replace('{custom_instructions}', customText);
 
             let responseText = '';
             if (config.provider === 'google') {
