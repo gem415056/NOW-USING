@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 AI 응답 교정기 (Response Refiner V2.4.0)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.4.0-b
+// @version      2.4.0-c
 // @description  추가 요청 탭 신설 및 enrichment 교정 항목 신설
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -882,6 +882,7 @@ If issues are found:
                 <div class="crr-tabs-container">
                     <div class="crr-tabs">
                         <button class="crr-tab active" data-tab="rules">교정 항목</button>
+                        <button class="crr-tab" data-tab="custom">추가 요청</button>
                         <button class="crr-tab" data-tab="settings">설정</button>
                     </div>
                 </div>
@@ -1007,7 +1008,20 @@ If issues are found:
                                 </div>
                                 <input type="checkbox" data-rule="foreigner" class="crr-checkbox">
                             </div>
+                            <div class="crr-rule-card" data-target-rule="enrichment">
+                                <div class="crr-card-left">
+                                    <span class="crr-card-title">17. 답변 품질 향상</span>
+                                    <span class="crr-card-desc">지문과 상황 맥락, 로어, 기억을 종합 분석하여 대화의 생동감 및 자연스러운 서사 전개 강화</span>
+                                </div>
+                                <input type="checkbox" data-rule="enrichment" class="crr-checkbox">
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- 추가 요청 탭 -->
+                    <div class="crr-pane-content" data-pane="custom" style="display:none; flex-direction:column; gap:10px; height:100%;">
+                        <label class="crr-label">지시사항 직접 입력</label>
+                        <textarea id="set-custom-instruction" class="crr-textarea" style="flex: 1; min-height: 10px; resize: none; overflow-y: auto;" placeholder="여기에 자유롭게 메타적인 질문이나 추가적인 지시사항을 입력하세요. 빈 공간으로 두면 AI에게 전달되지 않습니다."></textarea>
                     </div>
 
                     <!-- 2번 설정 탭 -->
