@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 AI 응답 교정기 (Response Refiner V2.4.0)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.4.0-c
+// @version      2.4.0-d
 // @description  추가 요청 탭 신설 및 enrichment 교정 항목 신설
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -1019,9 +1019,11 @@ If issues are found:
                     </div>
 
                     <!-- 추가 요청 탭 -->
-                    <div class="crr-pane-content" data-pane="custom" style="display:none; flex-direction:column; gap:10px; height:100%;">
-                        <label class="crr-label">지시사항 직접 입력</label>
-                        <textarea id="set-custom-instruction" class="crr-textarea" style="flex: 1; min-height: 10px; resize: none; overflow-y: auto;" placeholder="여기에 자유롭게 메타적인 질문이나 추가적인 지시사항을 입력하세요. 빈 공간으로 두면 AI에게 전달되지 않습니다."></textarea>
+                    <div class="crr-pane-content" data-pane="custom" style="display:none; flex-direction:column; height:100%;">
+                        <div class="crr-input-group" style="flex: 1; display: flex; flex-direction: column; margin-bottom: 0;">
+                            <label class="crr-label">지시사항 추가 입력</label>
+                            <textarea id="set-custom-instruction" class="crr-textarea" style="field-sizing: content; min-height: 40px; max-height: 220px; resize: none; overflow-y: auto;" placeholder="여기에 자유롭게 메타적인 질문이나 추가적인 지시사항을 입력하세요. 빈 공간으로 두면 AI에게 전달되지 않습니다."></textarea>
+                        </div>
                     </div>
 
                     <!-- 2번 설정 탭 -->
@@ -1117,6 +1119,7 @@ If issues are found:
             config.provider = apiProv.value;
             config.apiKey = inpKey.value.trim();
             config.firebaseScript = txtFb.value.trim();
+            config.customInstruction = overlay.querySelector('#set-custom-instruction').value;
 
             overlay.querySelectorAll('[data-rule]').forEach(chk => {
                 const k = chk.dataset.rule;
@@ -1187,6 +1190,11 @@ If issues are found:
         overlay.querySelector('#set-username').addEventListener('input', saveCurrentState);
         overlay.querySelector('#set-mode').addEventListener('change', saveCurrentState);
         overlay.querySelector('#set-model').addEventListener('change', saveCurrentState);
+
+        // 추가 요청 탭 데이터 로드 및 입력 시 실시간 저장
+        const inpCustom = overlay.querySelector('#set-custom-instruction');
+        inpCustom.value = config.customInstruction || '';
+        inpCustom.addEventListener('input', saveCurrentState);
 
         const apiProv = overlay.querySelector('#api-provider');
         const keyBox = overlay.querySelector('#api-key-box');
