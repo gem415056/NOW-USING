@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 AI 응답 교정기 (Response Refiner V2.4.0)
 // @namespace    https://crack.wrtn.ai/
-// @version      2.4.0-e
+// @version      2.4.0-f
 // @description  추가 요청 탭 신설 및 enrichment 교정 항목 신설
 // @author       User & Gemini
 // @match        https://crack.wrtn.ai/*
@@ -89,10 +89,18 @@ If any word from [Forbidden Words] (or synonyms of possession/control/obsession/
 - Check for inconsistencies in characters' physical states (e.g., wounds, clothing status, life/death, location).
 - Example: Putting on clothes that were already removed, or being in a pool but described as dry. Correct these logically.`,
 
-        nsfw: `### 8. NSFW CONTEXT CONTINUITY
-- Ensure character consistency and emotional depth before, during, and after sexual intimacy.
-- Do NOT reset emotional progression, ignore established personalities, or shift attitudes abruptly for the sake of NSFW scenes.
-- Correction: Maintain the established relationship context and personality traits.`,
+        nsfw: `### 8. NSFW CONTEXT CONTINUITY & CHARACTER INTEGRITY
+- Do NOT treat NSFW/intimate scenes as an isolated "game mode" or resort to cheap, formulaic web-novel clichés (e.g., unconditional dominance, forced sadism, or mindless submission) that contradict the established characterization.
+- **Narrative Extension**: Intimacy is an extension of the ongoing relationship. Every action, touch, and dialogue in bed must reflect the specific depth of bond and emotional history documented in [Lore], [Summaries], and [Recent Context].
+- **Dynamic Behavior & "Rollback" Principle**: 
+  - There is no forced formula for how a character behaves during intimacy. A gentle character may remain entirely gentle; a cold character may remain distant but intense. 
+  - If extreme arousal or primal instincts temporarily alter a character's usual demeanor (e.g., a reserved character becoming unexpectedly passionate or rough), this shift must be contextually justified. 
+  - Crucially, once the act concludes, the character must naturally transition back ("rollback") to their baseline personality and attitude, processing the post-act atmosphere in a way that aligns with their core identity. For example:
+    - A cold character may revert to aloofness with subtle awkwardness in the early stages of the relationship.
+    - The same character may show rare, unmasked warmth only if [Lore] or [Summaries] confirm their guard is fully down and they are deeply in love.
+    - A violent or rough character may show rough-around-the-edges concern instead of suddenly behaving like a generic, gentle prince charming.
+  - **Important Constraint on Rollback**: This rollback is NOT a rigid or binary formula (e.g., do not simply switch from "always cold" to "always sweet" based on an imaginary bond meter). The character's post-act behavior must remain highly fluid, organic, and unique to their specific personality and the unspoken emotional nuances of the scene. The examples provided above are strictly non-binding and illustrative. Priority must always be placed on realistic, context-driven psychological consistency over any template.
+- **No Gratuitous Violence**: Avoid excessive, non-consensual, or shock-value sadism and cruelty unless it is a mutually agreed-upon dynamic or a carefully built narrative device consistent with the established context.`,
 
         unrealistic: `### 9. REALITY & PLAUSIBILITY CHECK
 - Correct events that defy common sense, logical plausibility, or physical reality without a narrative justification (e.g., a high schooler driving a car casually -> rewrite to show they are driving unlicensed consciously, or using a chauffeur/public transport).`,
