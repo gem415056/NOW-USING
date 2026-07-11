@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         크랙 9 in 1
 // @namespace    https://crack.wrtn.ai/
-// @version      15.4.0-c
+// @version      15.4.0-d
 // @description  입력 도우미 버튼 수정
 // @author       User & Gemini (수정)
 // @match        https://crack.wrtn.ai/*
@@ -1903,7 +1903,7 @@
         modal.style.cssText = `
             display: none; position: fixed; box-sizing: border-box;
             background: ${bg}; border: 1px solid ${border}; border-radius: ${borderRadius}; 
-            padding: 12px; z-index: 50 !important; box-shadow: 0 4px 25px rgba(0,0,0,0.4);
+            padding: 12px; z-index: 50 !important; box-shadow: 0 4px 16px rgba(0,0,0,0.15);
             font-family: 'Pretendard', sans-serif; height: auto; max-height: 80vh;
         `;
 
@@ -1950,15 +1950,15 @@
         });
 
         const rightToolbar = document.createElement('div');
-        rightToolbar.style.cssText = "display: flex; gap: 4px; align-items: center;";
+        rightToolbar.style.cssText = "display: flex; gap: 8px; align-items: center;";
 
         const copyBtn = document.createElement('button');
-        copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-icon lucide-clipboard"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>`;
-        copyBtn.title = "전체 복사";
+        copyBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-clipboard-icon lucide-clipboard"><rect width="8" height="4" x="8" y="2" rx="1" ry="1"/><path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2"/></svg>`;
+        copyBtn.title = "내용 전체 복사";
         copyBtn.style.cssText = `
             display: inline-flex; align-items: center; justify-content: center;
             border-radius: 6px; border: none; background: transparent;
-            color: inherit; cursor: pointer; width: 24px; height: 24px; box-sizing: border-box;
+            color: inherit; cursor: pointer; width: 16px; height: 16px; box-sizing: border-box;
             transition: background-color 0.2s ease;
         `;
         copyBtn.onclick = (e) => {
@@ -1977,12 +1977,12 @@
         };
 
         const cancelBtn = document.createElement('button');
-        cancelBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
+        cancelBtn.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-x-icon lucide-x"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
         cancelBtn.title = "닫기";
         cancelBtn.style.cssText = `
             display: inline-flex; align-items: center; justify-content: center;
             border-radius: 6px; border: none; background: transparent;
-            color: inherit; cursor: pointer; width: 24px; height: 24px; box-sizing: border-box;
+            color: inherit; cursor: pointer; width: 16px; height: 16px; box-sizing: border-box;
             transition: background-color 0.2s ease;
         `;
         cancelBtn.onclick = (e) => {
