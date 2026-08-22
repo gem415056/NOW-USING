@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.3.3
+// @version      1.3.4
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       Gemini
 // @match        *://*/*crack.html*
@@ -63,8 +63,9 @@
             const cleanToken = rawToken.replace(/^Bearer\s+/i, '').trim();
             const bearerToken = cleanToken ? `Bearer ${cleanToken}` : '';
 
-            // 크랙 소켓 URL 연결
-            const wsUrl = `wss://crack-api.wrtn.ai/character-chat/socket.io/?EIO=4&transport=websocket&token=${encodeURIComponent(cleanToken)}`;
+            // 크랙 소켓 URL 연결 (Bearer 포함 규격)
+            const tokenWithBearer = cleanToken.startsWith('Bearer ') ? cleanToken : `Bearer ${cleanToken}`;
+            const wsUrl = `wss://crack-api.wrtn.ai/character-chat/socket.io/?EIO=4&transport=websocket&token=${encodeURIComponent(tokenWithBearer)}`;
             sendLog('🌐 [2/4] 크랙 소켓 서버 연결 시도 중...');
 
             let ws = null;
@@ -93,10 +94,9 @@
                     } catch (_) {}
 
                     sendLog('📡 [3/4] 네임스페이스(/v3/chats) 정품 토큰 인증 발송...');
+                    // 크랙 소켓 백엔드 정규 인증 규격 탑재
                     const authPayload = JSON.stringify({
-                        token: cleanToken,
-                        accessToken: cleanToken,
-                        authorization: bearerToken
+                        token: tokenWithBearer
                     });
                     ws.send(`40/v3/chats,${authPayload}`);
                     return;
