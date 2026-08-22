@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.1.2
+// @version      1.2.0
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
-// @author       PASTELchat
+// @author       Gemini
 // @match        *://*/*crack.html*
 // @match        https://crack.wrtn.ai/*
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        GM_addValueChangeListener
 // @connect      crack-api.wrtn.ai
 // @connect      crack.wrtn.ai
 // @run-at       document-start
@@ -17,8 +18,15 @@
 (function() {
     'use strict';
 
-    // 1. 크랙 사이트 접속 시 최신 access_token 자동 포착 및 동기화
+    // =========================================================================
+    // [A. crack.wrtn.ai 탭에서 실행되는 소켓 원격 조종 릴레이 수신 서버]
+    // =========================================================================
     if (location.hostname.includes('wrtn.ai')) {
+        let liveCrackSocket = null;
+        let accumulatedChunk = '';
+        let currentActiveReqId = null;
+
+        // 쿠키 토큰 자동 저장
         const checkToken = () => {
             const cookies = document.cookie.split(';');
             for (let c of cookies) {
@@ -30,148 +38,110 @@
         };
         checkToken();
         setInterval(checkToken, 3000);
+
+        // 공식 소켓 인스턴스 가로채서 보관
+        const origWsSend = WebSocket.prototype.send;
+        WebSocket.prototype.send = function(data) {
+            if (this.url && this.url.includes('character-chat/socket.io')) {
+                liveCrackSocket = this;
+                if (!this._hasRelayListener) {
+                    this._hasRelayListener = true;
+                    this.addEventListener('message', (ev) => {
+                        const raw = String(ev.data || '');
+                        if (!currentActiveReqId) return;
+
+                        if (raw.startsWith('42/v3/chats,') || raw.startsWith('43/v3/chats,')) {
+                            try {
+                                const jsonStr = raw.replace(/^4[23]\/v3\/chats,(\d+)?/, '');
+                                const parsed = JSON.parse(jsonStr);
+                                if (Array.isArray(parsed)) {
+                                    const [evtName, evtData] = parsed;
+                                    let piece = '';
+                                    if (typeof evtData === 'string') piece = evtData;
+                                    else if (evtData && typeof evtData === 'object') {
+                                        piece = evtData.content || evtData.message || evtData.text || evtData.chunk || evtData.data?.content || evtData.data?.message || '';
+                                    }
+
+                                    if (piece) {
+                                        if (piece.length > accumulatedChunk.length && piece.startsWith(accumulatedChunk.slice(0, 10))) {
+                                            accumulatedChunk = piece;
+                                        } else if (!accumulatedChunk.includes(piece)) {
+                                            accumulatedChunk += piece;
+                                        }
+                                        GM_setValue('pastel_relay_stream_event', { reqId: currentActiveReqId, type: 'chunk', text: accumulatedChunk, t: Date.now() });
+                                    }
+
+                                    if (evtName === 'done' || evtName === 'end' || evtName === 'finish' || evtName === 'complete') {
+                                        const finalTxt = evtData?.content || evtData?.message || accumulatedChunk;
+                                        GM_setValue('pastel_relay_stream_event', { reqId: currentActiveReqId, type: 'done', text: finalTxt, t: Date.now() });
+                                        currentActiveReqId = null;
+                                    }
+
+                                    if (evtName === 'error') {
+                                        GM_setValue('pastel_relay_stream_event', { reqId: currentActiveReqId, type: 'error', error: evtData?.message || '소켓 에러', t: Date.now() });
+                                        currentActiveReqId = null;
+                                    }
+                                }
+                            } catch (_) {}
+                        }
+                    });
+                }
+            }
+            return origWsSend.apply(this, arguments);
+        };
+
+        // crack.html에서 전송 신호가 오면 공식 소켓으로 발송
+        if (typeof GM_addValueChangeListener === 'function') {
+            GM_addValueChangeListener('pastel_relay_send_dispatch', (name, oldVal, newVal) => {
+                if (!newVal || !newVal.reqId) return;
+                const { reqId, chatId, message } = newVal;
+                currentActiveReqId = reqId;
+                accumulatedChunk = '';
+
+                if (liveCrackSocket && liveCrackSocket.readyState === WebSocket.OPEN) {
+                    const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
+                    liveCrackSocket.send(sendPayload);
+                } else {
+                    GM_setValue('pastel_relay_stream_event', {
+                        reqId: reqId,
+                        type: 'error',
+                        error: '⚠️ 크랙 탭의 소켓이 아직 연결되지 않았습니다. crack.wrtn.ai 탭을 새로고침해 주세요.',
+                        t: Date.now()
+                    });
+                }
+            });
+        }
         return;
     }
 
-    // 2. crack.html 페이지 통신 중계 리스너 (HTTP + Socket.IO 하이브리드 브릿지)
+    // =========================================================================
+    // [B. crack.html 탭에서 실행되는 릴레이 발신 클라이언트]
+    // =========================================================================
+    if (typeof GM_addValueChangeListener === 'function') {
+        GM_addValueChangeListener('pastel_relay_stream_event', (name, oldVal, newVal) => {
+            if (!newVal || !newVal.reqId) return;
+            if (newVal.type === 'chunk') {
+                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_CHUNK', reqId: newVal.reqId, text: newVal.text }, '*');
+            } else if (newVal.type === 'done') {
+                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId: newVal.reqId, text: newVal.text }, '*');
+            } else if (newVal.type === 'error') {
+                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId: newVal.reqId, error: newVal.error }, '*');
+            }
+        });
+    }
+
     window.addEventListener('message', function(event) {
         if (!event.data) return;
 
-        // [GM_xmlhttpRequest 기반 정규 Socket.IO Polling 전송 엔진]
+        // [소켓 릴레이 발신]
         if (event.data.source === 'PASTEL_CRACK_SOCKET_SEND') {
             const { reqId, chatId, message } = event.data;
-            const token = GM_getValue('crack_access_token', '');
-            const baseUrl = 'https://crack-api.wrtn.ai/character-chat/socket.io/';
-
-            const getHeaders = (isPost = false) => {
-                const h = {
-                    'Origin': 'https://crack.wrtn.ai',
-                    'Referer': 'https://crack.wrtn.ai/',
-                    'Accept': '*/*',
-                    'platform': 'web',
-                    'wrtn-locale': 'ko-KR'
-                };
-                if (token) {
-                    h['Authorization'] = `Bearer ${token}`;
-                }
-                if (isPost) {
-                    h['Content-Type'] = 'text/plain;charset=UTF-8';
-                }
-                return h;
-            };
-
-            const gmReq = (method, url, data = null) => {
-                return new Promise((resolve, reject) => {
-                    GM_xmlhttpRequest({
-                        method: method,
-                        url: url,
-                        headers: getHeaders(method === 'POST'),
-                        data: data,
-                        withCredentials: true,
-                        timeout: 30000,
-                        onload: (res) => resolve(res.responseText || ''),
-                        onerror: (err) => reject(new Error(err.error || 'Network Error')),
-                        ontimeout: () => resolve('')
-                    });
-                });
-            };
-
-            (async () => {
-                try {
-                    let accumulatedText = '';
-                    let isDone = false;
-
-                    // 1단계: Engine.IO 핸드셰이크 요청 (SID 발급)
-                    const handshakeRes = await gmReq('GET', `${baseUrl}?EIO=4&transport=polling&t=${Date.now()}`);
-                    if (!handshakeRes.startsWith('0')) {
-                        throw new Error('소켓 세션 초기화 실패: ' + handshakeRes);
-                    }
-                    const hsData = JSON.parse(handshakeRes.slice(1));
-                    const sid = hsData.sid;
-                    console.log('[크랙 Socket.IO] 세션 연결 성공 (SID):', sid);
-
-                    // 2단계: 네임스페이스(/v3/chats) 접속 패킷 전송 (인증 토큰 포함)
-                    const authPayload = token ? JSON.stringify({ auth: { token: `Bearer ${token}` } }) : '';
-                    await gmReq('POST', `${baseUrl}?EIO=4&transport=polling&sid=${sid}&t=${Date.now()}`, `40/v3/chats,${authPayload}`);
-
-                    // 3단계: 대화 메시지 send 이벤트 전송 (포착된 실제 패킷 규격 100% 일치)
-                    const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
-                    console.log('[크랙 Socket.IO] 메시지 발송:', sendPayload);
-                    await gmReq('POST', `${baseUrl}?EIO=4&transport=polling&sid=${sid}&t=${Date.now()}`, sendPayload);
-
-                    // 4단계: 실시간 응답 패킷 수신 루프 (클로드 등 장문 모델 대비 최대 180초 폴링)
-                    const startTime = Date.now();
-                    while (!isDone && (Date.now() - startTime < 180000)) {
-                        const pollRes = await gmReq('GET', `${baseUrl}?EIO=4&transport=polling&sid=${sid}&t=${Date.now()}`);
-                        if (!pollRes) continue;
-
-                        console.log('[크랙 Socket.IO 수신]:', pollRes);
-
-                        // Engine.IO 패킷 분할 처리 (일반 텍스트 또는 0x1e 구분자 대응)
-                        const packets = pollRes.split('\x1e');
-                        for (const raw of packets) {
-                            if (raw === '2') {
-                                // Ping 수신 시 Pong 응답
-                                await gmReq('POST', `${baseUrl}?EIO=4&transport=polling&sid=${sid}&t=${Date.now()}`, '3');
-                                continue;
-                            }
-
-                            // 42/v3/chats 이벤트 패킷 파싱
-                            if (raw.startsWith('42/v3/chats,') || raw.startsWith('43/v3/chats,')) {
-                                try {
-                                    const jsonStr = raw.replace(/^4[23]\/v3\/chats,(\d+)?/, '');
-                                    const parsed = JSON.parse(jsonStr);
-
-                                    if (Array.isArray(parsed)) {
-                                        const [evtName, evtData] = parsed;
-
-                                        // 토큰 스트리밍 추출
-                                        let piece = '';
-                                        if (typeof evtData === 'string') {
-                                            piece = evtData;
-                                        } else if (evtData && typeof evtData === 'object') {
-                                            piece = evtData.content || evtData.message || evtData.text || evtData.chunk || evtData.data?.content || evtData.data?.message || '';
-                                        }
-
-                                        if (piece) {
-                                            if (piece.length > accumulatedText.length && piece.startsWith(accumulatedText.slice(0, 10))) {
-                                                accumulatedText = piece;
-                                            } else if (!accumulatedText.includes(piece)) {
-                                                accumulatedText += piece;
-                                            }
-                                            window.postMessage({ source: 'PASTEL_CRACK_SOCKET_CHUNK', reqId, text: accumulatedText }, '*');
-                                        }
-
-                                        // 종료 이벤트 감지
-                                        if (evtName === 'done' || evtName === 'end' || evtName === 'finish' || evtName === 'complete') {
-                                            isDone = true;
-                                            const finalText = evtData?.content || evtData?.message || accumulatedText;
-                                            window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: finalText }, '*');
-                                            break;
-                                        }
-
-                                        // 에러 이벤트 감지
-                                        if (evtName === 'error') {
-                                            isDone = true;
-                                            window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: evtData?.message || '서버 오류' }, '*');
-                                            break;
-                                        }
-                                    }
-                                } catch (_) {}
-                            }
-                        }
-                    }
-
-                    if (!isDone && accumulatedText) {
-                        window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: accumulatedText }, '*');
-                    }
-
-                } catch (err) {
-                    console.error('[크랙 Socket.IO 에러]:', err);
-                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: err.message }, '*');
-                }
-            })();
-
+            GM_setValue('pastel_relay_send_dispatch', {
+                reqId: reqId,
+                chatId: chatId,
+                message: message,
+                t: Date.now()
+            });
             return;
         }
 
