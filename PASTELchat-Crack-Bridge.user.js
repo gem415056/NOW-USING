@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.3.0
+// @version      1.3.1
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       Gemini
 // @match        *://*/*crack.html*
@@ -58,8 +58,13 @@
             let isCompleted = false;
             let pingTimer = null;
 
-            // 크랙 소켓 URL 연결 (토큰 파라미터 포함)
-            const wsUrl = `wss://crack-api.wrtn.ai/character-chat/socket.io/?EIO=4&transport=websocket&token=${encodeURIComponent(token)}`;
+            // 토큰 정규화 (Bearer 유무 자동 처리)
+            const rawToken = token.trim();
+            const cleanToken = rawToken.replace(/^Bearer\s+/i, '').trim();
+            const bearerToken = cleanToken ? `Bearer ${cleanToken}` : '';
+
+            // 크랙 소켓 URL 연결
+            const wsUrl = `wss://crack-api.wrtn.ai/character-chat/socket.io/?EIO=4&transport=websocket&token=${encodeURIComponent(cleanToken)}`;
             sendLog('🌐 [2/4] 크랙 소켓 서버 연결 시도 중...');
 
             let ws = null;
@@ -77,7 +82,7 @@
             ws.onmessage = (msgEvent) => {
                 const raw = String(msgEvent.data || '');
 
-                // 1) Engine.IO 핸드셰이크 수신 (0) -> 핑퐁 시작 & 네임스페이스 접속 요청 (40)
+                // 1) Engine.IO 핸드셰이크 수신 (0) -> 핑퐁 시작 & 네임스페이스 정품 인증 패킷 발송 (40)
                 if (raw.startsWith('0')) {
                     try {
                         const hs = JSON.parse(raw.slice(1));
@@ -87,8 +92,15 @@
                         }, interval);
                     } catch (_) {}
 
-                    sendLog('📡 [3/4] 네임스페이스(/v3/chats) 접속 요청 발송...');
-                    ws.send('40/v3/chats,');
+                    sendLog('📡 [3/4] 네임스페이스(/v3/chats) 정품 토큰 인증 발송...');
+                    
+                    // 정규 인증 페이로드 탑재 발송
+                    const authPayload = JSON.stringify({
+                        token: cleanToken,
+                        accessToken: cleanToken,
+                        authorization: bearerToken
+                    });
+                    ws.send(`40/v3/chats,${authPayload}`);
                     return;
                 }
 
