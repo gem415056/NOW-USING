@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.3.2
+// @version      1.3.3
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       Gemini
 // @match        *://*/*crack.html*
@@ -126,7 +126,7 @@
                 // 5) 서버 수신 패킷 화면 실시간 표시 (디버그 가시화)
                 sendLog(`📥 [서버 수신]: ${raw.slice(0, 100)}`);
 
-                // 6) 대화 스트리밍 및 응답 패킷 전방위 파싱 (42, 43)
+                // 6) 대화 스트리밍 및 응답 패킷 전방위 파싱 (42: 이벤트 푸시, 43: Ack 응답)
                 if (raw.startsWith('42/v3/chats') || raw.startsWith('43/v3/chats')) {
                     try {
                         const jsonStr = raw.replace(/^4[23]\/v3\/chats,(\d+)?/, '');
@@ -143,13 +143,37 @@
                             return '';
                         };
 
-                        if (Array.isArray(parsed)) {
-                            const [evtName, evtData] = parsed;
+                        // A. Ack 응답 처리 (43/v3/chats,1[...])
+                        if (raw.startsWith('43/v3/chats')) {
+                            if (Array.isArray(parsed)) {
+                                const ackFirst = parsed[0];
+                                const ackSecond = parsed[1];
+                                // 에러가 있는 Ack인 경우
+                                if (ackFirst && (ackFirst.statusCode >= 400 || ackFirst.error || ackFirst.message)) {
+                                    const errMsg = ackFirst.message || ackFirst.error || JSON.stringify(ackFirst);
+                                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: errMsg }, '*');
+                                    if (pingTimer) clearInterval(pingTimer);
+                                    ws.close();
+                                    return;
+                                }
+                                // 정상 텍스트 데이터가 포함된 경우
+                                const piece = extractPiece(ackSecond || ackFirst);
+                                if (piece) {
+                                    accumulatedText = piece;
+                                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_CHUNK', reqId, text: accumulatedText }, '*');
+                                }
+                            }
+                            return;
+                        }
 
-                            // 에러 이벤트 처리
-                            if (evtName === 'error' || evtData?.error || evtData?.statusCode >= 400) {
-                                const errMsg = evtData?.message || evtData?.error || JSON.stringify(evtData);
-                                sendLog(`❌ 서버 에러: ${errMsg}`);
+                        // B. 이벤트 푸시 스트리밍 처리 (42/v3/chats,["이벤트명", 데이터])
+                        if (Array.isArray(parsed) && parsed.length >= 2) {
+                            const evtName = parsed[0];
+                            const evtData = parsed[1];
+
+                            // 명시적 에러 이벤트
+                            if (evtName === 'error') {
+                                const errMsg = (typeof evtData === 'object') ? JSON.stringify(evtData) : String(evtData);
                                 window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: errMsg }, '*');
                                 if (pingTimer) clearInterval(pingTimer);
                                 ws.close();
