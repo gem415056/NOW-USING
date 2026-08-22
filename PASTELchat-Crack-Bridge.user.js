@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      2.0.2
+// @version      2.0.4
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -80,26 +80,49 @@
                     editor.dispatchEvent(new Event('change', { bubbles: true }));
                     editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: dispatchData.message }));
 
-                    // 2) 0.6초 대기 후 정품 전송 버튼 클릭 (전송 버튼 활성화 보장)
+                    // 2) 0.6초 후 전송 버튼 모바일 터치 및 엔터 격발
                     setTimeout(() => {
-                        const activeSendBtn = Array.from(document.querySelectorAll('button')).find(b => 
-                            b.innerHTML.includes('M18.77') || 
-                            b.querySelector('path[d*="M18.77"]') ||
-                            !b.disabled && b.querySelector('svg')
-                        );
+                        const fireMobileClick = (target) => {
+                            if (!target) return;
+                            ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(evtName => {
+                                target.dispatchEvent(new MouseEvent(evtName, { bubbles: true, cancelable: true, view: window }));
+                            });
+                            if (typeof target.click === 'function') target.click();
+                        };
 
-                        if (activeSendBtn) {
-                            activeSendBtn.click();
-                        } else {
-                            editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                        const buttons = Array.from(document.querySelectorAll('button'));
+                        const targetSendBtn = buttons.find(b => b.querySelector('path[d*="M18.77"]') || b.innerHTML.includes('M18.77')) ||
+                                              buttons.find(b => b.style.backgroundColor.includes('196') || b.style.backgroundColor.includes('rgb(10, 196, 0)')) ||
+                                              document.querySelector('form button[type="submit"]') ||
+                                              buttons.find(b => b.querySelector('svg') && !b.disabled && b.closest('div[class*="input"], form, footer, main'));
+
+                        if (targetSendBtn) {
+                            fireMobileClick(targetSendBtn);
                         }
 
-                        // 3) 발송 완료 후 2초 뒤 파스텔챗으로 자동 복귀
-                        setTimeout(() => {
-                            if (dispatchData.returnUrl) {
-                                window.location.href = dispatchData.returnUrl;
+                        ['keydown', 'keypress', 'keyup'].forEach(evtName => {
+                            editor.dispatchEvent(new KeyboardEvent(evtName, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
+                        });
+
+                        // 3) [사용자 맞춤형: 입력창 내용 소멸 감지 스마트 복귀 루프]
+                        let returnTriggered = false;
+                        const watchSendSuccess = setInterval(() => {
+                            const currentText = (editor.textContent || '').trim();
+                            // 입력창의 글자가 비워졌는지(전송 완료) 실시간 감지
+                            const isCleared = currentText === '' || editor.querySelector('.is-editor-empty') || !currentText.includes(dispatchData.message.slice(0, 6));
+
+                            if (isCleared && !returnTriggered) {
+                                returnTriggered = true;
+                                clearInterval(watchSendSuccess);
+
+                                // 전송 성공이 확인된 순간 1.5초 뒤 파스텔챗으로 자동 복귀!
+                                setTimeout(() => {
+                                    if (dispatchData.returnUrl) {
+                                        window.location.href = dispatchData.returnUrl;
+                                    }
+                                }, 1500);
                             }
-                        }, 2000);
+                        }, 300);
                     }, 600);
                 }
 
