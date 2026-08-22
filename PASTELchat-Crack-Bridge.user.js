@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.2.2
+// @version      1.2.3
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       Gemini
 // @match        *://*/*crack.html*
@@ -18,9 +18,17 @@
 (function() {
     'use strict';
 
-    // 1. 크랙 사이트 접속 시 최신 access_token 자동 포착
+    // =========================================================================
+    // [A. crack.wrtn.ai 탭: 쿠키 탑재 정품 소켓 상시 연결 및 원격 실행 서버]
+    // =========================================================================
     if (location.hostname.includes('wrtn.ai')) {
-        const checkToken = () => {
+        let authSocket = null;
+        let isConnecting = false;
+        let accumulatedChunk = '';
+        let currentReqId = null;
+
+        // 쿠키 토큰 갱신
+        const syncToken = () => {
             const cookies = document.cookie.split(';');
             for (let c of cookies) {
                 const [k, v] = c.trim().split('=');
@@ -29,181 +37,148 @@
                 }
             }
         };
-        checkToken();
-        setInterval(checkToken, 3000);
+        syncToken();
+        setInterval(syncToken, 3000);
+
+        // 정품 소켓 생성 및 상시 연결 유지
+        const connectAuthSocket = () => {
+            if (authSocket && (authSocket.readyState === WebSocket.OPEN || authSocket.readyState === WebSocket.CONNECTING)) return;
+            isConnecting = true;
+
+            const wsUrl = 'wss://crack-api.wrtn.ai/character-chat/socket.io/?EIO=4&transport=websocket';
+            authSocket = new WebSocket(wsUrl);
+
+            authSocket.onopen = () => {
+                isConnecting = false;
+            };
+
+            authSocket.onmessage = (msgEvt) => {
+                const raw = String(msgEvt.data || '');
+
+                // 1) 핸드셰이크 수신 -> 네임스페이스 접속
+                if (raw.startsWith('0')) {
+                    authSocket.send('40/v3/chats,');
+                    return;
+                }
+
+                // 2) 핑 수신 -> 퐁 응답
+                if (raw === '2') {
+                    authSocket.send('3');
+                    return;
+                }
+
+                // 3) 대화 답변 스트리밍 수신
+                if (raw.startsWith('42/v3/chats,') || raw.startsWith('43/v3/chats,')) {
+                    try {
+                        const jsonStr = raw.replace(/^4[23]\/v3\/chats,(\d+)?/, '');
+                        const parsed = JSON.parse(jsonStr);
+                        if (Array.isArray(parsed) && currentReqId) {
+                            const [evtName, evtData] = parsed;
+                            let piece = '';
+                            if (typeof evtData === 'string') piece = evtData;
+                            else if (evtData && typeof evtData === 'object') {
+                                piece = evtData.content || evtData.message || evtData.text || evtData.chunk || evtData.data?.content || evtData.data?.message || '';
+                            }
+
+                            if (piece) {
+                                if (piece.length > accumulatedChunk.length && piece.startsWith(accumulatedChunk.slice(0, 10))) {
+                                    accumulatedChunk = piece;
+                                } else if (!accumulatedChunk.includes(piece)) {
+                                    accumulatedChunk += piece;
+                                }
+                                GM_setValue('pastel_dispatch_response', { reqId: currentReqId, type: 'chunk', text: accumulatedChunk, t: Date.now() });
+                            }
+
+                            if (evtName === 'done' || evtName === 'end' || evtName === 'finish' || evtName === 'complete') {
+                                const finalTxt = evtData?.content || evtData?.message || accumulatedChunk;
+                                GM_setValue('pastel_dispatch_response', { reqId: currentReqId, type: 'done', text: finalTxt, t: Date.now() });
+                                currentReqId = null;
+                            }
+
+                            if (evtName === 'error') {
+                                GM_setValue('pastel_dispatch_response', { reqId: currentReqId, type: 'error', error: evtData?.message || '소켓 에러', t: Date.now() });
+                                currentReqId = null;
+                            }
+                        }
+                    } catch (_) {}
+                }
+            };
+
+            authSocket.onclose = () => {
+                isConnecting = false;
+                setTimeout(connectAuthSocket, 2000);
+            };
+
+            authSocket.onerror = () => {
+                isConnecting = false;
+            };
+        };
+
+        connectAuthSocket();
+
+        // crack.html의 발송 요청 감지 -> 정품 소켓으로 전송
+        if (typeof GM_addValueChangeListener === 'function') {
+            GM_addValueChangeListener('pastel_dispatch_send', (name, oldVal, newVal) => {
+                if (!newVal || !newVal.reqId) return;
+                const { reqId, chatId, message } = newVal;
+                currentReqId = reqId;
+                accumulatedChunk = '';
+
+                const sendMsg = () => {
+                    const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
+                    authSocket.send(sendPayload);
+                    GM_setValue('pastel_dispatch_response', { reqId: reqId, type: 'status', text: '💬 [3/3] 크랙 공식 소켓으로 전송 완료! AI 답변 수신 중...', t: Date.now() });
+                };
+
+                if (authSocket && authSocket.readyState === WebSocket.OPEN) {
+                    sendMsg();
+                } else {
+                    connectAuthSocket();
+                    setTimeout(() => {
+                        if (authSocket && authSocket.readyState === WebSocket.OPEN) {
+                            sendMsg();
+                        } else {
+                            GM_setValue('pastel_dispatch_response', { reqId: reqId, type: 'error', error: '⚠️ 크랙 탭의 소켓 연결 대기 중입니다. 잠시 후 다시 시도해 주세요.', t: Date.now() });
+                        }
+                    }, 1500);
+                }
+            });
+        }
         return;
     }
 
-    // 2. crack.html 독립형 하이브리드 전송 브릿지
+    // =========================================================================
+    // [B. crack.html 탭: 릴레이 발신 클라이언트]
+    // =========================================================================
+    if (typeof GM_addValueChangeListener === 'function') {
+        GM_addValueChangeListener('pastel_dispatch_response', (name, oldVal, newVal) => {
+            if (!newVal || !newVal.reqId) return;
+            if (newVal.type === 'status') {
+                window.postMessage({ source: 'PASTEL_CRACK_STATUS_LOG', reqId: newVal.reqId, text: newVal.text }, '*');
+            } else if (newVal.type === 'chunk') {
+                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_CHUNK', reqId: newVal.reqId, text: newVal.text }, '*');
+            } else if (newVal.type === 'done') {
+                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId: newVal.reqId, text: newVal.text }, '*');
+            } else if (newVal.type === 'error') {
+                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId: newVal.reqId, error: newVal.error }, '*');
+            }
+        });
+    }
+
     window.addEventListener('message', function(event) {
         if (!event.data) return;
 
-        // [독립형 소켓/REST 전송 엔진]
+        // [소켓 릴레이 발송 요청]
         if (event.data.source === 'PASTEL_CRACK_SOCKET_SEND') {
             const { reqId, chatId, message } = event.data;
-            const token = GM_getValue('crack_access_token', '');
+            window.postMessage({ source: 'PASTEL_CRACK_STATUS_LOG', reqId: reqId, text: '📡 [1/3] 크랙 공식 탭으로 메시지 전달 중...' }, '*');
 
-            const sendLog = (msg) => {
-                window.postMessage({ source: 'PASTEL_CRACK_STATUS_LOG', reqId, text: msg }, '*');
-            };
-
-            if (!token) {
-                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: '⚠️ 로그인 토큰이 없습니다. 동일한 브라우저 탭에서 crack.wrtn.ai에 먼저 접속해 주세요.' }, '*');
-                return;
-            }
-
-            sendLog('🔑 [1/4] 로그인 토큰 확인 완료 (Bearer)');
-
-            let accumulatedText = '';
-            let isCompleted = false;
-
-            // 1단계: WebSocket 직접 연결 시도
-            sendLog('🌐 [2/4] 크랙 소켓 서버 연결 시도 중...');
-            
-            let wsUrl = `wss://crack-api.wrtn.ai/character-chat/socket.io/?EIO=4&transport=websocket&token=${encodeURIComponent(token)}&auth%5Btoken%5D=Bearer%20${encodeURIComponent(token)}`;
-            let ws = null;
-            let wsConnected = false;
-
-            try {
-                ws = new WebSocket(wsUrl);
-            } catch (err) {
-                sendLog('⚠️ 소켓 생성 실패: ' + err.message);
-            }
-
-            if (ws) {
-                ws.onopen = () => {
-                    sendLog('🤝 [3/4] 소켓 연결 수립 완료');
-                };
-
-                ws.onmessage = (msgEvent) => {
-                    const raw = String(msgEvent.data || '');
-
-                    // Engine.IO 핸드셰이크 수신 -> 네임스페이스 접속 및 메시지 즉시 파이프라인 발송
-                    if (raw.startsWith('0')) {
-                        sendLog('📡 [3/4] 네임스페이스 접속 및 메시지 전송 중...');
-                        
-                        // 1) 네임스페이스 접속 패킷 발송 (Socket.IO v4 표준 인증 객체)
-                        const authObj = token ? JSON.stringify({ token: `Bearer ${token}` }) : '';
-                        ws.send(`40/v3/chats,${authObj}`);
-
-                        // 2) 메시지 send 패킷 즉시 발송 (시퀀스 ID 1)
-                        const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
-                        ws.send(sendPayload);
-                        sendLog('💬 [4/4] 메시지 발송 완료! 실시간 답변 대기 중...');
-                        return;
-                    }
-
-                    // 네임스페이스 연결 거부/에러(44) 감지
-                    if (raw.startsWith('44/v3/chats')) {
-                        sendLog(`⚠️ 네임스페이스 거절: ${raw}`);
-                        return;
-                    }
-
-                    // 네임스페이스 연결 승인(40) 확인
-                    if (raw.startsWith('40/v3/chats')) {
-                        const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
-                        ws.send(sendPayload);
-                        return;
-                    }
-
-                    // 핑/퐁 응답
-                    if (raw === '2') {
-                        ws.send('3');
-                        return;
-                    }
-
-                    // 스트리밍 토큰 및 완료 패킷 수신
-                    if (raw.startsWith('42/v3/chats,') || raw.startsWith('43/v3/chats,')) {
-                        try {
-                            const jsonStr = raw.replace(/^4[23]\/v3\/chats,(\d+)?/, '');
-                            const parsed = JSON.parse(jsonStr);
-                            if (Array.isArray(parsed)) {
-                                const [evtName, evtData] = parsed;
-                                let piece = '';
-                                if (typeof evtData === 'string') piece = evtData;
-                                else if (evtData && typeof evtData === 'object') {
-                                    piece = evtData.content || evtData.message || evtData.text || evtData.chunk || evtData.data?.content || evtData.data?.message || '';
-                                }
-
-                                if (piece) {
-                                    if (piece.length > accumulatedText.length && piece.startsWith(accumulatedText.slice(0, 10))) {
-                                        accumulatedText = piece;
-                                    } else if (!accumulatedText.includes(piece)) {
-                                        accumulatedText += piece;
-                                    }
-                                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_CHUNK', reqId, text: accumulatedText }, '*');
-                                }
-
-                                if (evtName === 'done' || evtName === 'end' || evtName === 'finish' || evtName === 'complete') {
-                                    isCompleted = true;
-                                    const finalTxt = evtData?.content || evtData?.message || accumulatedText;
-                                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: finalTxt }, '*');
-                                    ws.close();
-                                }
-
-                                if (evtName === 'error') {
-                                    sendLog('⚠️ 소켓 에러 이벤트: ' + (evtData?.message || '알 수 없는 오류'));
-                                }
-                            }
-                        } catch (_) {}
-                    }
-                };
-
-                ws.onerror = (e) => {
-                    sendLog('⚠️ 소켓 통신 오류 감지');
-                };
-
-                ws.onclose = () => {
-                    if (!isCompleted && accumulatedText) {
-                        isCompleted = true;
-                        window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: accumulatedText }, '*');
-                    }
-                };
-            }
-
-            // 2단계: 6초 동안 소켓 답변이 오지 않으면 REST 보안 우회 전송으로 자동 전환
-            setTimeout(async () => {
-                if (isCompleted || accumulatedText) return;
-
-                sendLog('🔄 소켓 응답 지연 -> REST 보안 우회 전송으로 자동 전환 중...');
-                if (ws) try { ws.close(); } catch(_) {}
-
-                try {
-                    GM_xmlhttpRequest({
-                        method: 'POST',
-                        url: `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages`,
-                        headers: {
-                            'Origin': 'https://crack.wrtn.ai',
-                            'Referer': 'https://crack.wrtn.ai/',
-                            'Authorization': `Bearer ${token}`,
-                            'Content-Type': 'application/json',
-                            'platform': 'web',
-                            'wrtn-locale': 'ko-KR',
-                            'x-wrtn-id': 'W2.2.7ee13701.b310.4f07.a89b.36d023805b50'
-                        },
-                        data: JSON.stringify({ message: message, content: message }),
-                        withCredentials: true,
-                        timeout: 120000,
-                        onload: (res) => {
-                            let parsed = res.responseText;
-                            try { parsed = JSON.parse(res.responseText); } catch(_) {}
-                            const reply = parsed?.data?.content || parsed?.data?.message || parsed?.content || parsed?.message || res.responseText;
-                            if (res.status === 200 || res.status === 201) {
-                                isCompleted = true;
-                                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: reply }, '*');
-                            } else {
-                                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: `서버 응답 오류 (HTTP ${res.status}): ${res.responseText.slice(0, 150)}` }, '*');
-                            }
-                        },
-                        onerror: (err) => {
-                            window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: 'REST 통신 실패: ' + (err.error || 'Network Error') }, '*');
-                        }
-                    });
-                } catch (restErr) {
-                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: 'REST 전송 오류: ' + restErr.message }, '*');
-                }
-            }, 8000);
-
+            GM_setValue('pastel_dispatch_send', {
+                reqId: reqId,
+                chatId: chatId,
+                message: message,
+                t: Date.now()
+            });
             return;
         }
 
