@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      2.0.4
+// @version      2.0.5
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -40,35 +40,51 @@
         checkToken();
         setInterval(checkToken, 3000);
 
-        // 파스텔챗에서 전달된 자동 발송 매크로 실행 (ProseMirror 리치에디터 및 로딩 지연 완벽 대응)
+        // 파스텔챗에서 전달된 자동 발송 매크로 실행 (3중 복귀 트리거 탑재)
         const dispatchData = GM_getValue('pastel_macro_dispatch', null);
         if (dispatchData && dispatchData.message) {
+            const returnTargetUrl = dispatchData.returnUrl || GM_getValue('pastel_saved_return_url', '');
             const startTime = Date.now();
             let isExecuted = false;
+            let returnTriggered = false;
+
+            // 파스텔챗으로 되돌아가는 확실한 함수
+            const goBackToPastel = () => {
+                if (returnTriggered) return;
+                returnTriggered = true;
+                GM_setValue('pastel_macro_dispatch', null);
+
+                setTimeout(() => {
+                    if (returnTargetUrl) {
+                        window.location.href = returnTargetUrl;
+                    } else if (document.referrer && document.referrer.includes('crack.html')) {
+                        window.location.href = document.referrer;
+                    } else {
+                        window.history.back();
+                    }
+                }, 1200);
+            };
+
+            // 사용자가 손으로 전송 버튼을 직접 눌렀을 때도 즉시 복귀 감지
+            document.addEventListener('click', (ev) => {
+                const btn = ev.target.closest('button');
+                if (btn && (btn.querySelector('path[d*="M18.77"]') || btn.innerHTML.includes('M18.77') || btn.style.backgroundColor.includes('196'))) {
+                    goBackToPastel();
+                }
+            }, true);
 
             const macroTimer = setInterval(() => {
-                // ProseMirror 에디터 또는 일반 contenteditable 에디터 검색
                 const editor = document.querySelector('.ProseMirror') ||
                                document.querySelector('[contenteditable="true"]') ||
                                document.querySelector('div[role="textbox"]') ||
                                document.querySelector('textarea');
 
-                // 사용자님이 제공해주신 전송 버튼 (d="M18.77" SVG 패스 타겟팅)
-                const sendBtn = Array.from(document.querySelectorAll('button')).find(b => 
-                    b.innerHTML.includes('M18.77') || 
-                    b.querySelector('path[d*="M18.77"]') ||
-                    (b.querySelector('svg') && !b.disabled && (b.style.backgroundColor.includes('196') || b.className.includes('bg-primary')))
-                );
-
                 if (editor && !isExecuted) {
                     isExecuted = true;
                     clearInterval(macroTimer);
-                    GM_setValue('pastel_macro_dispatch', null);
 
-                    // 1) ProseMirror 에디터 포커스 및 텍스트 안전 주입
+                    // 1) 에디터 포커스 및 텍스트 주입
                     editor.focus();
-                    
-                    // DOM execCommand 및 클립보드 방식 주입 (ProseMirror 내부 상태 강제 갱신)
                     if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
                         document.execCommand('selectAll', false, null);
                         document.execCommand('insertText', false, dispatchData.message);
@@ -78,61 +94,48 @@
 
                     editor.dispatchEvent(new Event('input', { bubbles: true }));
                     editor.dispatchEvent(new Event('change', { bubbles: true }));
-                    editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: dispatchData.message }));
 
-                    // 2) 0.6초 후 전송 버튼 모바일 터치 및 엔터 격발
+                    // 엔터 키 입력 시 복귀 연동
+                    editor.addEventListener('keydown', (ke) => {
+                        if (ke.key === 'Enter' && !ke.shiftKey) {
+                            goBackToPastel();
+                        }
+                    });
+
+                    // 2) 0.6초 후 전송 버튼 자동 클릭 시도
                     setTimeout(() => {
-                        const fireMobileClick = (target) => {
-                            if (!target) return;
-                            ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(evtName => {
-                                target.dispatchEvent(new MouseEvent(evtName, { bubbles: true, cancelable: true, view: window }));
-                            });
-                            if (typeof target.click === 'function') target.click();
-                        };
-
                         const buttons = Array.from(document.querySelectorAll('button'));
                         const targetSendBtn = buttons.find(b => b.querySelector('path[d*="M18.77"]') || b.innerHTML.includes('M18.77')) ||
                                               buttons.find(b => b.style.backgroundColor.includes('196') || b.style.backgroundColor.includes('rgb(10, 196, 0)')) ||
-                                              document.querySelector('form button[type="submit"]') ||
-                                              buttons.find(b => b.querySelector('svg') && !b.disabled && b.closest('div[class*="input"], form, footer, main'));
+                                              document.querySelector('form button[type="submit"]');
 
                         if (targetSendBtn) {
-                            fireMobileClick(targetSendBtn);
+                            ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(evtName => {
+                                targetSendBtn.dispatchEvent(new MouseEvent(evtName, { bubbles: true, cancelable: true, view: window }));
+                            });
+                            if (typeof targetSendBtn.click === 'function') targetSendBtn.click();
                         }
 
-                        ['keydown', 'keypress', 'keyup'].forEach(evtName => {
-                            editor.dispatchEvent(new KeyboardEvent(evtName, { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
-                        });
+                        // 엔터 키 병행 격발
+                        editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
 
-                        // 3) [사용자 맞춤형: 입력창 내용 소멸 감지 스마트 복귀 루프]
-                        let returnTriggered = false;
-                        const watchSendSuccess = setInterval(() => {
-                            const currentText = (editor.textContent || '').trim();
-                            // 입력창의 글자가 비워졌는지(전송 완료) 실시간 감지
-                            const isCleared = currentText === '' || editor.querySelector('.is-editor-empty') || !currentText.includes(dispatchData.message.slice(0, 6));
-
-                            if (isCleared && !returnTriggered) {
-                                returnTriggered = true;
-                                clearInterval(watchSendSuccess);
-
-                                // 전송 성공이 확인된 순간 1.5초 뒤 파스텔챗으로 자동 복귀!
-                                setTimeout(() => {
-                                    if (dispatchData.returnUrl) {
-                                        window.location.href = dispatchData.returnUrl;
-                                    }
-                                }, 1500);
+                        // 3) 입력창이 비워지거나 전송 완료 시 자동 복귀 감시 루프
+                        const watchCleared = setInterval(() => {
+                            const txt = (editor.textContent || '').trim();
+                            if (txt === '' || editor.querySelector('.is-editor-empty') || !txt.includes(dispatchData.message.slice(0, 6))) {
+                                clearInterval(watchCleared);
+                                goBackToPastel();
                             }
                         }, 300);
                     }, 600);
                 }
 
-                // 모바일 긴 로딩 대비 40초 안전 타임아웃
+                // 40초 타임아웃 시 안전 복귀
                 if (Date.now() - startTime > 40000) {
                     clearInterval(macroTimer);
-                    GM_setValue('pastel_macro_dispatch', null);
-                    if (dispatchData.returnUrl) window.location.href = dispatchData.returnUrl;
+                    goBackToPastel();
                 }
-            }, 500);
+            }, 400);
         }
         return;
     }
