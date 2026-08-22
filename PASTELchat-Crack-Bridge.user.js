@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      2.0.5
+// @version      2.0.6
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -40,102 +40,63 @@
         checkToken();
         setInterval(checkToken, 3000);
 
-        // 파스텔챗에서 전달된 자동 발송 매크로 실행 (3중 복귀 트리거 탑재)
+        // 파스텔챗에서 전달된 텍스트 자동 입력 & '돌아가기' 알약 플로팅 버튼 탑재
         const dispatchData = GM_getValue('pastel_macro_dispatch', null);
-        if (dispatchData && dispatchData.message) {
-            const returnTargetUrl = dispatchData.returnUrl || GM_getValue('pastel_saved_return_url', '');
-            const startTime = Date.now();
-            let isExecuted = false;
-            let returnTriggered = false;
+        if (dispatchData) {
+            const returnUrl = dispatchData.returnUrl || '';
 
-            // 파스텔챗으로 되돌아가는 확실한 함수
-            const goBackToPastel = () => {
-                if (returnTriggered) return;
-                returnTriggered = true;
-                GM_setValue('pastel_macro_dispatch', null);
+            // [파스텔챗 순정 토스트 1:1 커스텀 알약 버튼 주입]
+            const injectReturnPillButton = () => {
+                if (document.getElementById('pastel-return-floating-pill')) return;
+                const pill = document.createElement('div');
+                pill.id = 'pastel-return-floating-pill';
+                pill.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:2147483647;cursor:pointer;user-select:none;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);background-color:#320400 !important;border:1.5px solid #FF4432 !important;border-radius:9999px !important;padding:9px 16px !important;transition:transform 0.15s ease, opacity 0.15s ease;pointer-events:auto;';
+                
+                pill.innerHTML = `<p style="color:#FF4432 !important;font-size:12px !important;font-weight:bold !important;margin:0 !important;white-space:nowrap !important;line-height:1 !important;">돌아가기</p>`;
 
-                setTimeout(() => {
-                    if (returnTargetUrl) {
-                        window.location.href = returnTargetUrl;
-                    } else if (document.referrer && document.referrer.includes('crack.html')) {
-                        window.location.href = document.referrer;
+                pill.onclick = () => {
+                    GM_setValue('pastel_macro_dispatch', null);
+                    if (returnUrl) {
+                        window.location.href = returnUrl;
                     } else {
                         window.history.back();
                     }
-                }, 1200);
+                };
+
+                (document.body || document.documentElement).appendChild(pill);
             };
 
-            // 사용자가 손으로 전송 버튼을 직접 눌렀을 때도 즉시 복귀 감지
-            document.addEventListener('click', (ev) => {
-                const btn = ev.target.closest('button');
-                if (btn && (btn.querySelector('path[d*="M18.77"]') || btn.innerHTML.includes('M18.77') || btn.style.backgroundColor.includes('196'))) {
-                    goBackToPastel();
-                }
-            }, true);
+            injectReturnPillButton();
 
-            const macroTimer = setInterval(() => {
-                const editor = document.querySelector('.ProseMirror') ||
-                               document.querySelector('[contenteditable="true"]') ||
-                               document.querySelector('div[role="textbox"]') ||
-                               document.querySelector('textarea');
+            // 입력창에 텍스트만 쏙 넣어주는 루프 (전송 버튼 누르지 않음)
+            if (dispatchData.message) {
+                const startTime = Date.now();
+                const inputTimer = setInterval(() => {
+                    const editor = document.querySelector('.ProseMirror') ||
+                                   document.querySelector('[contenteditable="true"]') ||
+                                   document.querySelector('div[role="textbox"]') ||
+                                   document.querySelector('textarea');
 
-                if (editor && !isExecuted) {
-                    isExecuted = true;
-                    clearInterval(macroTimer);
+                    if (editor) {
+                        clearInterval(inputTimer);
+                        editor.focus();
 
-                    // 1) 에디터 포커스 및 텍스트 주입
-                    editor.focus();
-                    if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
-                        document.execCommand('selectAll', false, null);
-                        document.execCommand('insertText', false, dispatchData.message);
-                    } else {
-                        editor.innerHTML = `<p>${dispatchData.message.replace(/\n/g, '<br>')}</p>`;
+                        if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
+                            document.execCommand('selectAll', false, null);
+                            document.execCommand('insertText', false, dispatchData.message);
+                        } else {
+                            editor.innerHTML = `<p>${dispatchData.message.replace(/\n/g, '<br>')}</p>`;
+                        }
+
+                        editor.dispatchEvent(new Event('input', { bubbles: true }));
+                        editor.dispatchEvent(new Event('change', { bubbles: true }));
                     }
 
-                    editor.dispatchEvent(new Event('input', { bubbles: true }));
-                    editor.dispatchEvent(new Event('change', { bubbles: true }));
-
-                    // 엔터 키 입력 시 복귀 연동
-                    editor.addEventListener('keydown', (ke) => {
-                        if (ke.key === 'Enter' && !ke.shiftKey) {
-                            goBackToPastel();
-                        }
-                    });
-
-                    // 2) 0.6초 후 전송 버튼 자동 클릭 시도
-                    setTimeout(() => {
-                        const buttons = Array.from(document.querySelectorAll('button'));
-                        const targetSendBtn = buttons.find(b => b.querySelector('path[d*="M18.77"]') || b.innerHTML.includes('M18.77')) ||
-                                              buttons.find(b => b.style.backgroundColor.includes('196') || b.style.backgroundColor.includes('rgb(10, 196, 0)')) ||
-                                              document.querySelector('form button[type="submit"]');
-
-                        if (targetSendBtn) {
-                            ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach(evtName => {
-                                targetSendBtn.dispatchEvent(new MouseEvent(evtName, { bubbles: true, cancelable: true, view: window }));
-                            });
-                            if (typeof targetSendBtn.click === 'function') targetSendBtn.click();
-                        }
-
-                        // 엔터 키 병행 격발
-                        editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true, cancelable: true }));
-
-                        // 3) 입력창이 비워지거나 전송 완료 시 자동 복귀 감시 루프
-                        const watchCleared = setInterval(() => {
-                            const txt = (editor.textContent || '').trim();
-                            if (txt === '' || editor.querySelector('.is-editor-empty') || !txt.includes(dispatchData.message.slice(0, 6))) {
-                                clearInterval(watchCleared);
-                                goBackToPastel();
-                            }
-                        }, 300);
-                    }, 600);
-                }
-
-                // 40초 타임아웃 시 안전 복귀
-                if (Date.now() - startTime > 40000) {
-                    clearInterval(macroTimer);
-                    goBackToPastel();
-                }
-            }, 400);
+                    if (Date.now() - startTime > 30000) {
+                        clearInterval(inputTimer);
+                    }
+                }, 400);
+            }
         }
         return;
     }
