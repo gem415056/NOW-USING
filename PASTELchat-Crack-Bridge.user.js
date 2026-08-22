@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.2.4
+// @version      1.3.0
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       Gemini
 // @match        *://*/*crack.html*
@@ -40,8 +40,8 @@
 
         // [독립 소켓 직통 전송 엔진]
         if (event.data.source === 'PASTEL_CRACK_SOCKET_SEND') {
-            const { reqId, chatId, message } = event.data;
-            const token = GM_getValue('crack_access_token', '');
+            const { reqId, chatId, message, token: customToken } = event.data;
+            const token = customToken || GM_getValue('crack_access_token', '');
 
             const sendLog = (msg) => {
                 window.postMessage({ source: 'PASTEL_CRACK_STATUS_LOG', reqId, text: msg }, '*');
