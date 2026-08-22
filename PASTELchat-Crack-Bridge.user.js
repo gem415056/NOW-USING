@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      2.0.0
+// @version      2.0.1
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -40,42 +40,52 @@
         checkToken();
         setInterval(checkToken, 3000);
 
-        // 파스텔챗에서 전달된 자동 발송 매크로 실행
+        // 파스텔챗에서 요청된 자동 발송 매크로 실행 (React 완벽 호환)
         const dispatchData = GM_getValue('pastel_macro_dispatch', null);
         if (dispatchData && dispatchData.message) {
             const startTime = Date.now();
             const macroTimer = setInterval(() => {
                 const ta = document.querySelector('textarea');
-                if (ta) {
+                if (ta && ta.offsetParent !== null) {
                     clearInterval(macroTimer);
                     GM_setValue('pastel_macro_dispatch', null);
 
-                    // 1) 크랙 공식 입력창에 로어 2000자 자동 주입
+                    // 1) React 내부 상태 강제 업데이트 (Native Value Setter)
                     ta.focus();
-                    ta.value = dispatchData.message;
+                    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
+                    if (nativeSetter) {
+                        nativeSetter.call(ta, dispatchData.message);
+                    } else {
+                        ta.value = dispatchData.message;
+                    }
                     ta.dispatchEvent(new Event('input', { bubbles: true }));
                     ta.dispatchEvent(new Event('change', { bubbles: true }));
 
-                    // 2) 0.4초 후 크랙 공식 전송 버튼 클릭
+                    // 2) 0.5초 후 전송 버튼 클릭 및 엔터 발송
                     setTimeout(() => {
-                        const sendBtn = document.querySelector('button[type="submit"]') ||
-                                        Array.from(document.querySelectorAll('button')).find(b => b.innerHTML.includes('svg') && !b.disabled && b.offsetWidth > 0);
+                        const buttons = Array.from(document.querySelectorAll('button'));
+                        const sendBtn = document.querySelector('form button[type="submit"]') ||
+                                        buttons.find(b => b.type === 'submit' && !b.disabled) ||
+                                        buttons.find(b => b.querySelector('svg') && !b.disabled && b.closest('div[class*="input"], form, footer, main'));
+
                         if (sendBtn) {
                             sendBtn.click();
-                        } else {
-                            ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
                         }
 
-                        // 3) 전송 후 1.5초 뒤 파스텔챗으로 자동 복귀
+                        // 엔터 키 이벤트 병행 발송 (확실한 전송 보장)
+                        ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                        ta.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                        ta.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+
+                        // 3) 발송 후 2초 뒤 파스텔챗으로 복귀
                         setTimeout(() => {
                             if (dispatchData.returnUrl) {
                                 window.location.href = dispatchData.returnUrl;
                             }
-                        }, 1500);
-                    }, 400);
+                        }, 2000);
+                    }, 500);
                 }
 
-                // 15초 안전 타임아웃
                 if (Date.now() - startTime > 15000) {
                     clearInterval(macroTimer);
                     GM_setValue('pastel_macro_dispatch', null);
