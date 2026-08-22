@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.3.5
+// @version      1.3.6
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       Gemini
 // @match        *://*/*crack.html*
@@ -34,11 +34,11 @@
         return;
     }
 
-    // 2. crack.html 독립 소켓 통신 브릿지
+    // 2. crack.html 통합 통신 중계 리스너
     window.addEventListener('message', function(event) {
         if (!event.data) return;
 
-        // [독립 소켓 직통 전송 엔진]
+        // [A. 소켓 실시간 대화 전송 엔진]
         if (event.data.source === 'PASTEL_CRACK_SOCKET_SEND') {
             const { reqId, chatId, message, token: customToken } = event.data;
             const token = customToken || GM_getValue('crack_access_token', '');
@@ -58,13 +58,10 @@
             let isCompleted = false;
             let pingTimer = null;
 
-            // 토큰 정규화 (Bearer 유무 자동 처리)
             const rawToken = token.trim();
             const cleanToken = rawToken.replace(/^Bearer\s+/i, '').trim();
-            const bearerToken = cleanToken ? `Bearer ${cleanToken}` : '';
+            const tokenWithBearer = `Bearer ${cleanToken}`;
 
-            // 크랙 소켓 URL 연결 (Bearer 포함 규격)
-            const tokenWithBearer = cleanToken.startsWith('Bearer ') ? cleanToken : `Bearer ${cleanToken}`;
             const wsUrl = `wss://crack-api.wrtn.ai/character-chat/socket.io/?EIO=4&transport=websocket&token=${encodeURIComponent(tokenWithBearer)}`;
             sendLog('🌐 [2/4] 크랙 소켓 서버 연결 시도 중...');
 
@@ -83,7 +80,7 @@
             ws.onmessage = (msgEvent) => {
                 const raw = String(msgEvent.data || '');
 
-                // 1) Engine.IO 핸드셰이크 수신 (0)
+                // 1) Engine.IO 핸드셰이크 수신 (0) -> 네임스페이스 인증 패킷 발송
                 if (raw.startsWith('0')) {
                     try {
                         const hs = JSON.parse(raw.slice(1));
@@ -94,7 +91,6 @@
                     } catch (_) {}
 
                     sendLog('📡 [3/4] 네임스페이스(/v3/chats) 정품 토큰 및 클라이언트 인증 발송...');
-                    // 크랙 소켓 백엔드 필수 식별자 전수 탑재 (403 차단 해제)
                     const authPayload = JSON.stringify({
                         token: tokenWithBearer,
                         platform: 'web',
@@ -103,6 +99,7 @@
                     });
                     ws.send(`40/v3/chats,${authPayload}`);
                     return;
+                }
 
                 // 2) 네임스페이스 승인 수신 (40) -> 대화 메시지 send 발송
                 if (raw.startsWith('40/v3/chats')) {
@@ -125,10 +122,10 @@
                     return;
                 }
 
-                // 5) 서버 수신 패킷 화면 실시간 표시 (디버그 가시화)
+                // 5) 서버 수신 패킷 화면 실시간 표시
                 sendLog(`📥 [서버 수신]: ${raw.slice(0, 100)}`);
 
-                // 6) 대화 스트리밍 및 응답 패킷 전방위 파싱 (42: 이벤트 푸시, 43: Ack 응답)
+                // 6) 대화 스트리밍 및 응답 패킷 전방위 파싱 (42, 43)
                 if (raw.startsWith('42/v3/chats') || raw.startsWith('43/v3/chats')) {
                     try {
                         const jsonStr = raw.replace(/^4[23]\/v3\/chats,(\d+)?/, '');
@@ -145,12 +142,11 @@
                             return '';
                         };
 
-                        // A. Ack 응답 처리 (43/v3/chats,1[...])
+                        // A. Ack 응답 처리 (43)
                         if (raw.startsWith('43/v3/chats')) {
                             if (Array.isArray(parsed)) {
                                 const ackFirst = parsed[0];
                                 const ackSecond = parsed[1];
-                                // 에러가 있는 Ack인 경우
                                 if (ackFirst && (ackFirst.statusCode >= 400 || ackFirst.error || ackFirst.message)) {
                                     const errMsg = ackFirst.message || ackFirst.error || JSON.stringify(ackFirst);
                                     window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: errMsg }, '*');
@@ -158,7 +154,6 @@
                                     ws.close();
                                     return;
                                 }
-                                // 정상 텍스트 데이터가 포함된 경우
                                 const piece = extractPiece(ackSecond || ackFirst);
                                 if (piece) {
                                     accumulatedText = piece;
@@ -168,12 +163,11 @@
                             return;
                         }
 
-                        // B. 이벤트 푸시 스트리밍 처리 (42/v3/chats,["이벤트명", 데이터])
+                        // B. 이벤트 푸시 스트리밍 처리 (42)
                         if (Array.isArray(parsed) && parsed.length >= 2) {
                             const evtName = parsed[0];
                             const evtData = parsed[1];
 
-                            // 명시적 에러 이벤트
                             if (evtName === 'error') {
                                 const errMsg = (typeof evtData === 'object') ? JSON.stringify(evtData) : String(evtData);
                                 window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: errMsg }, '*');
@@ -182,7 +176,6 @@
                                 return;
                             }
 
-                            // 텍스트 스트리밍 수신
                             const piece = extractPiece(evtData);
                             if (piece) {
                                 if (piece.length > accumulatedText.length && piece.startsWith(accumulatedText.slice(0, 10))) {
@@ -193,7 +186,6 @@
                                 window.postMessage({ source: 'PASTEL_CRACK_SOCKET_CHUNK', reqId, text: accumulatedText }, '*');
                             }
 
-                            // 종료 이벤트 처리
                             if (evtName === 'done' || evtName === 'end' || evtName === 'finish' || evtName === 'complete' || evtName === 'generate_done') {
                                 isCompleted = true;
                                 const finalTxt = extractPiece(evtData) || accumulatedText;
@@ -220,6 +212,64 @@
 
             return;
         }
+
+        // [B. 일반 순정 HTTP/REST 요청 처리기 (대화목록/과거기록/캐시 조회 완벽 복원)]
+        if (event.data.source === 'PASTEL_CRACK_REQUEST') {
+            const { reqId, method, url, headers, data, responseType } = event.data;
+            const cachedToken = GM_getValue('crack_access_token', '');
+
+            const reqHeaders = Object.assign({
+                'Origin': 'https://crack.wrtn.ai',
+                'Referer': 'https://crack.wrtn.ai/',
+                'platform': 'web',
+                'wrtn-locale': 'ko-KR',
+                'x-wrtn-id': 'W2.2.7ee13701.b310.4f07.a89b.36d023805b50'
+            }, headers || {});
+
+            if (!reqHeaders['authorization'] && !reqHeaders['Authorization']) {
+                const activeToken = cachedToken;
+                if (activeToken) {
+                    const clean = activeToken.replace(/^Bearer\s+/i, '').trim();
+                    reqHeaders['authorization'] = `Bearer ${clean}`;
+                    reqHeaders['Authorization'] = `Bearer ${clean}`;
+                }
+            }
+
+            GM_xmlhttpRequest({
+                method: method || 'GET',
+                url: url,
+                headers: reqHeaders,
+                data: data,
+                responseType: responseType || 'text',
+                withCredentials: true,
+                timeout: event.data.timeout || 120000,
+                onload: function(res) {
+                    let parsed = res.responseText;
+                    try {
+                        parsed = JSON.parse(res.responseText);
+                    } catch (_) {}
+
+                    window.postMessage({
+                        source: 'PASTEL_CRACK_RESPONSE',
+                        reqId: reqId,
+                        status: res.status,
+                        statusText: res.statusText,
+                        data: parsed,
+                        rawText: res.responseText
+                    }, '*');
+                },
+                onerror: function(err) {
+                    window.postMessage({
+                        source: 'PASTEL_CRACK_RESPONSE',
+                        reqId: reqId,
+                        status: 0,
+                        error: err.error || 'Network/Bridge Error'
+                    }, '*');
+                }
+            });
+            return;
+        }
+    });
 
         if (event.data.source !== 'PASTEL_CRACK_REQUEST') return;
 
