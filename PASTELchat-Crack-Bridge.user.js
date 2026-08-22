@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.1.0
+// @version      1.1.1
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -56,14 +56,28 @@
             }
 
             let pingIntervalTimer = null;
+            let safetyTimeoutTimer = null;
             let accumulatedText = '';
+            let isDoneSent = false;
 
-            ws.onopen = () => {};
+            // 클로드 장문 응답을 위한 넉넉한 3분(180초) 안전 타이머
+            safetyTimeoutTimer = setTimeout(() => {
+                if (!isDoneSent && accumulatedText) {
+                    isDoneSent = true;
+                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: accumulatedText }, '*');
+                }
+                if (ws) ws.close();
+            }, 180000);
+
+            ws.onopen = () => {
+                console.log('[크랙 소켓] 연결 성공 (Open)');
+            };
 
             ws.onmessage = (msgEvent) => {
                 const raw = String(msgEvent.data || '');
+                console.log('[크랙 소켓 수신]:', raw);
 
-                // 1. Engine.IO 핸드셰이크 수신 -> 네임스페이스(/v3/chats) 접속 요청
+                // 1. Engine.IO 핸드셰이크 수신 -> 인증 정보와 함께 네임스페이스 접속 요청
                 if (raw.startsWith('0')) {
                     try {
                         const hs = JSON.parse(raw.slice(1));
@@ -73,14 +87,16 @@
                         }, interval);
                     } catch (_) {}
                     
-                    // 네임스페이스 접속 패킷 발송
-                    ws.send('40/v3/chats,');
+                    // 정규 인증 토큰 탑재 네임스페이스 접속
+                    const authPayload = token ? JSON.stringify({ auth: { token: `Bearer ${token}` } }) : '';
+                    ws.send(`40/v3/chats,${authPayload}`);
                     return;
                 }
 
-                // 2. 네임스페이스 접속 확인 -> 대화 메시지 send 이벤트 발송
+                // 2. 네임스페이스 접속 확인 -> 대화 메시지 send 이벤트 발송 (시퀀스 ID '1' 탑재)
                 if (raw.startsWith('40/v3/chats')) {
-                    const sendPayload = `42/v3/chats,["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
+                    const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
+                    console.log('[크랙 소켓 전송]:', sendPayload);
                     ws.send(sendPayload);
                     return;
                 }
@@ -91,39 +107,52 @@
                     return;
                 }
 
-                // 4. Socket.IO 이벤트 패킷 해독 (42/v3/chats,...)
-                if (raw.startsWith('42/v3/chats,')) {
+                // 4. Socket.IO 이벤트 / Ack 콜백 패킷 해독
+                if (raw.startsWith('42/v3/chats,') || raw.startsWith('43/v3/chats,')) {
                     try {
-                        const jsonStr = raw.slice('42/v3/chats,'.length);
+                        let jsonStr = raw.replace(/^4[23]\/v3\/chats,(\d+)?/, '');
                         const parsed = JSON.parse(jsonStr);
-                        if (Array.isArray(parsed) && parsed.length >= 2) {
-                            const [evtName, evtData] = parsed;
 
-                            // 스트리밍 토큰 수신 처리
-                            if (evtName === 'chunk' || evtName === 'message' || evtName === 'stream') {
-                                const content = evtData?.content || evtData?.message || evtData?.chunk || evtData?.text || '';
-                                if (content) {
-                                    if (content.length > accumulatedText.length && content.startsWith(accumulatedText.slice(0, 10))) {
-                                        accumulatedText = content;
-                                    } else {
-                                        accumulatedText += content;
-                                    }
-                                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_CHUNK', reqId, text: accumulatedText }, '*');
-                                }
+                        // A. 이벤트 배열 형태 (["chunk", ...], ["message", ...], ["publish", ...])
+                        if (Array.isArray(parsed)) {
+                            const evtName = parsed[0];
+                            const evtData = parsed[1];
+
+                            // 텍스트 추출 (다양한 필드 대응)
+                            let piece = '';
+                            if (typeof evtData === 'string') {
+                                piece = evtData;
+                            } else if (evtData && typeof evtData === 'object') {
+                                piece = evtData.content || evtData.message || evtData.text || evtData.chunk || evtData.data?.content || evtData.data?.message || '';
                             }
 
-                            // 전송 완료 이벤트 감지
-                            if (evtName === 'done' || evtName === 'finish' || evtName === 'end') {
-                                const finalText = evtData?.content || evtData?.message || accumulatedText;
-                                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: finalText }, '*');
+                            if (piece) {
+                                // 덮어쓰기형 전체 누적 텍스트인지 증분 조각인지 자동 판별
+                                if (piece.length > accumulatedText.length && piece.startsWith(accumulatedText.slice(0, 10))) {
+                                    accumulatedText = piece;
+                                } else if (!accumulatedText.includes(piece)) {
+                                    accumulatedText += piece;
+                                }
+                                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_CHUNK', reqId, text: accumulatedText }, '*');
+                            }
+
+                            // 종료 이벤트 감지
+                            if (evtName === 'done' || evtName === 'end' || evtName === 'finish' || evtName === 'complete') {
+                                if (!isDoneSent) {
+                                    isDoneSent = true;
+                                    const finalText = evtData?.content || evtData?.message || accumulatedText;
+                                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: finalText }, '*');
+                                }
                                 if (pingIntervalTimer) clearInterval(pingIntervalTimer);
+                                if (safetyTimeoutTimer) clearTimeout(safetyTimeoutTimer);
                                 ws.close();
                             }
 
                             // 에러 이벤트 감지
                             if (evtName === 'error') {
-                                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: evtData?.message || '소켓 에러 발생' }, '*');
+                                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: evtData?.message || '소켓 에러가 발생했습니다.' }, '*');
                                 if (pingIntervalTimer) clearInterval(pingIntervalTimer);
+                                if (safetyTimeoutTimer) clearTimeout(safetyTimeoutTimer);
                                 ws.close();
                             }
                         }
@@ -132,13 +161,16 @@
             };
 
             ws.onerror = (e) => {
-                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: '웹소켓 통신 에러' }, '*');
+                console.error('[크랙 소켓 에러]:', e);
+                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: '웹소켓 통신 에러가 발생했습니다.' }, '*');
             };
 
             ws.onclose = () => {
+                console.log('[크랙 소켓 닫힘]');
                 if (pingIntervalTimer) clearInterval(pingIntervalTimer);
-                // 소켓이 닫혔으나 텍스트가 있으면 완료로 간주
-                if (accumulatedText) {
+                if (safetyTimeoutTimer) clearTimeout(safetyTimeoutTimer);
+                if (!isDoneSent && accumulatedText) {
+                    isDoneSent = true;
                     window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: accumulatedText }, '*');
                 }
             };
