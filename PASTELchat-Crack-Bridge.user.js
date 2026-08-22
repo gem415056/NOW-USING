@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.3.7
+// @version      1.3.8
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       Gemini
 // @match        *://*/*crack.html*
@@ -18,8 +18,11 @@
 (function() {
     'use strict';
 
-    // 1. 크랙 사이트 접속 시 최신 access_token 자동 포착
+    // =========================================================================
+    // [1. crack.wrtn.ai 공식 사이트: 자동 입력 ➔ 전송 ➔ 파스텔챗 복귀 매크로]
+    // =========================================================================
     if (location.hostname.includes('wrtn.ai')) {
+        // 쿠키 토큰 실시간 자동 동기화
         const checkToken = () => {
             const cookies = document.cookie.split(';');
             for (let c of cookies) {
@@ -31,189 +34,72 @@
         };
         checkToken();
         setInterval(checkToken, 3000);
+
+        // 파스텔챗에서 전달된 자동 발송 매크로 감지
+        const dispatchData = GM_getValue('pastel_macro_dispatch', null);
+        if (dispatchData && dispatchData.message) {
+            const startTime = Date.now();
+            const macroTimer = setInterval(() => {
+                const ta = document.querySelector('textarea');
+                if (ta) {
+                    clearInterval(macroTimer);
+                    GM_setValue('pastel_macro_dispatch', null);
+
+                    // 1) 크랙 공식 입력창에 글자 넣기 (로어 2000자 완벽 입력)
+                    ta.focus();
+                    ta.value = dispatchData.message;
+                    ta.dispatchEvent(new Event('input', { bubbles: true }));
+                    ta.dispatchEvent(new Event('change', { bubbles: true }));
+
+                    // 2) 0.3초 후 크랙 공식 전송 버튼 클릭 (또는 엔터)
+                    setTimeout(() => {
+                        const sendBtn = document.querySelector('button[type="submit"]') ||
+                                        Array.from(document.querySelectorAll('button')).find(b => b.innerHTML.includes('svg') && !b.disabled);
+                        if (sendBtn) {
+                            sendBtn.click();
+                        } else {
+                            ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
+                        }
+
+                        // 3) 전송 후 1.5초 뒤 파스텔챗으로 자동 복귀!
+                        setTimeout(() => {
+                            if (dispatchData.returnUrl) {
+                                window.location.href = dispatchData.returnUrl;
+                            }
+                        }, 1500);
+                    }, 300);
+                }
+
+                // 15초 타임아웃 안전 복귀
+                if (Date.now() - startTime > 15000) {
+                    clearInterval(macroTimer);
+                    GM_setValue('pastel_macro_dispatch', null);
+                    if (dispatchData.returnUrl) window.location.href = dispatchData.returnUrl;
+                }
+            }, 300);
+        }
         return;
     }
 
-    // 2. crack.html 통합 통신 중계 리스너
+    // =========================================================================
+    // [2. crack.html 통신 중계 리스너 (대화목록/캐시/과거기록 100% 정상 조회)]
+    // =========================================================================
     window.addEventListener('message', function(event) {
         if (!event.data) return;
 
-        // [A. 소켓 실시간 대화 전송 엔진]
-        if (event.data.source === 'PASTEL_CRACK_SOCKET_SEND') {
-            const { reqId, chatId, message, token: customToken } = event.data;
-            const token = customToken || GM_getValue('crack_access_token', '');
-
-            const sendLog = (msg) => {
-                window.postMessage({ source: 'PASTEL_CRACK_STATUS_LOG', reqId, text: msg }, '*');
-            };
-
-            if (!token) {
-                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: '⚠️ 로그인 토큰이 없습니다. crack.wrtn.ai를 먼저 새로고침해 주세요.' }, '*');
-                return;
-            }
-
-            sendLog('🔑 [1/4] 로그인 토큰 확인 완료');
-
-            let accumulatedText = '';
-            let isCompleted = false;
-            let pingTimer = null;
-
-            const rawToken = token.trim();
-            const cleanToken = rawToken.replace(/^Bearer\s+/i, '').trim();
-            const tokenWithBearer = `Bearer ${cleanToken}`;
-
-            const wsUrl = `wss://crack-api.wrtn.ai/character-chat/socket.io/?EIO=4&transport=websocket&token=${encodeURIComponent(tokenWithBearer)}`;
-            sendLog('🌐 [2/4] 크랙 소켓 서버 연결 시도 중...');
-
-            let ws = null;
-            try {
-                ws = new WebSocket(wsUrl);
-            } catch (err) {
-                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: '소켓 생성 실패: ' + err.message }, '*');
-                return;
-            }
-
-            ws.onopen = () => {
-                sendLog('🤝 소켓 연결 성공 -> 핸드셰이크 대기 중...');
-            };
-
-            ws.onmessage = (msgEvent) => {
-                const raw = String(msgEvent.data || '');
-
-                // 1) Engine.IO 핸드셰이크 수신 (0) -> 네임스페이스 인증 패킷 발송
-                if (raw.startsWith('0')) {
-                    try {
-                        const hs = JSON.parse(raw.slice(1));
-                        const interval = hs.pingInterval || 25000;
-                        pingTimer = setInterval(() => {
-                            if (ws && ws.readyState === WebSocket.OPEN) ws.send('3');
-                        }, interval);
-                    } catch (_) {}
-
-                    sendLog('📡 [3/4] 네임스페이스(/v3/chats) 정품 토큰 및 클라이언트 인증 발송...');
-                    const authPayload = JSON.stringify({
-                        token: tokenWithBearer,
-                        platform: 'web',
-                        'x-wrtn-id': 'W2.2.7ee13701.b310.4f07.a89b.36d023805b50',
-                        locale: 'ko-KR'
-                    });
-                    ws.send(`40/v3/chats,${authPayload}`);
-                    return;
-                }
-
-                // 2) 네임스페이스 승인 수신 (40) -> 대화 메시지 send 발송
-                if (raw.startsWith('40/v3/chats')) {
-                    const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
-                    ws.send(sendPayload);
-                    sendLog('💬 [4/4] 메시지 발송 완료! 서버 패킷 응답 대기 중...');
-                    return;
-                }
-
-                // 3) 네임스페이스 거절 (44)
-                if (raw.startsWith('44/v3/chats')) {
-                    sendLog(`⚠️ 네임스페이스 거절 (44): ${raw}`);
-                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: `인증 거절 (44): ${raw}` }, '*');
-                    return;
-                }
-
-                // 4) 핑 수신 시 퐁 응답
-                if (raw === '2') {
-                    ws.send('3');
-                    return;
-                }
-
-                // 5) 서버 수신 패킷 화면 실시간 표시
-                sendLog(`📥 [서버 수신]: ${raw.slice(0, 100)}`);
-
-                // 6) 대화 스트리밍 및 응답 패킷 전방위 파싱 (42, 43)
-                if (raw.startsWith('42/v3/chats') || raw.startsWith('43/v3/chats')) {
-                    try {
-                        const jsonStr = raw.replace(/^4[23]\/v3\/chats,(\d+)?/, '');
-                        const parsed = JSON.parse(jsonStr);
-
-                        const extractPiece = (obj) => {
-                            if (!obj) return '';
-                            if (typeof obj === 'string') return obj;
-                            if (typeof obj === 'object') {
-                                return obj.chunk || obj.content || obj.delta || obj.message || obj.text ||
-                                       obj.data?.content || obj.data?.message || obj.data?.chunk || obj.data?.text ||
-                                       obj.response || obj.result || '';
-                            }
-                            return '';
-                        };
-
-                        // A. Ack 응답 처리 (43)
-                        if (raw.startsWith('43/v3/chats')) {
-                            if (Array.isArray(parsed)) {
-                                const ackFirst = parsed[0];
-                                const ackSecond = parsed[1];
-                                if (ackFirst && (ackFirst.statusCode >= 400 || ackFirst.error || ackFirst.message)) {
-                                    const errMsg = ackFirst.message || ackFirst.error || JSON.stringify(ackFirst);
-                                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: errMsg }, '*');
-                                    if (pingTimer) clearInterval(pingTimer);
-                                    ws.close();
-                                    return;
-                                }
-                                const piece = extractPiece(ackSecond || ackFirst);
-                                if (piece) {
-                                    accumulatedText = piece;
-                                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_CHUNK', reqId, text: accumulatedText }, '*');
-                                }
-                            }
-                            return;
-                        }
-
-                        // B. 이벤트 푸시 스트리밍 처리 (42)
-                        if (Array.isArray(parsed) && parsed.length >= 2) {
-                            const evtName = parsed[0];
-                            const evtData = parsed[1];
-
-                            if (evtName === 'error') {
-                                const errMsg = (typeof evtData === 'object') ? JSON.stringify(evtData) : String(evtData);
-                                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: errMsg }, '*');
-                                if (pingTimer) clearInterval(pingTimer);
-                                ws.close();
-                                return;
-                            }
-
-                            const piece = extractPiece(evtData);
-                            if (piece) {
-                                if (piece.length > accumulatedText.length && piece.startsWith(accumulatedText.slice(0, 10))) {
-                                    accumulatedText = piece;
-                                } else if (!accumulatedText.includes(piece)) {
-                                    accumulatedText += piece;
-                                }
-                                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_CHUNK', reqId, text: accumulatedText }, '*');
-                            }
-
-                            if (evtName === 'done' || evtName === 'end' || evtName === 'finish' || evtName === 'complete' || evtName === 'generate_done') {
-                                isCompleted = true;
-                                const finalTxt = extractPiece(evtData) || accumulatedText;
-                                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: finalTxt }, '*');
-                                if (pingTimer) clearInterval(pingTimer);
-                                ws.close();
-                            }
-                        }
-                    } catch (_) {}
-                }
-            };
-
-            ws.onerror = (e) => {
-                sendLog('⚠️ 소켓 통신 에러 발생');
-            };
-
-            ws.onclose = () => {
-                if (pingTimer) clearInterval(pingTimer);
-                if (!isCompleted && accumulatedText) {
-                    isCompleted = true;
-                    window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: accumulatedText }, '*');
-                }
-            };
-
+        // B방식 매크로 발송 신호
+        if (event.data.source === 'PASTEL_CRACK_MACRO_DISPATCH') {
+            GM_setValue('pastel_macro_dispatch', {
+                message: event.data.message,
+                chatId: event.data.chatId,
+                storyId: event.data.storyId,
+                returnUrl: event.data.returnUrl,
+                t: Date.now()
+            });
             return;
         }
 
-        // [B. 일반 순정 HTTP/REST 요청 처리기 (대화목록/과거기록/캐시 조회 완벽 복원)]
+        // 일반 HTTP/REST 요청 처리기 (대화목록, 과거기록, 캐시 조회)
         if (event.data.source === 'PASTEL_CRACK_REQUEST') {
             const { reqId, method, url, headers, data, responseType, token: customToken } = event.data;
             const cachedToken = GM_getValue('crack_access_token', '');
@@ -231,7 +117,6 @@
                 const clean = rawToken.replace(/^Bearer\s+/i, '').trim();
                 reqHeaders['authorization'] = `Bearer ${clean}`;
                 reqHeaders['Authorization'] = `Bearer ${clean}`;
-                GM_setValue('crack_access_token', clean);
             }
 
             GM_xmlhttpRequest({
@@ -268,59 +153,6 @@
             });
             return;
         }
-    });
-
-        if (event.data.source !== 'PASTEL_CRACK_REQUEST') return;
-
-        const { reqId, method, url, headers, data, responseType } = event.data;
-        const cachedToken = GM_getValue('crack_access_token', '');
-
-        const reqHeaders = Object.assign({}, headers || {});
-        if (cachedToken && !reqHeaders['authorization'] && !reqHeaders['Authorization']) {
-            reqHeaders['authorization'] = `Bearer ${cachedToken}`;
-        }
-
-        const reqTimeout = event.data.timeout || 120000;
-        GM_xmlhttpRequest({
-            method: method || 'GET',
-            url: url,
-            headers: reqHeaders,
-            data: data,
-            timeout: reqTimeout,
-            responseType: responseType || 'text',
-            withCredentials: true,
-            onload: function(res) {
-                let parsed = res.responseText;
-                try {
-                    parsed = JSON.parse(res.responseText);
-                } catch (_) {}
-
-                window.postMessage({
-                    source: 'PASTEL_CRACK_RESPONSE',
-                    reqId: reqId,
-                    status: res.status,
-                    statusText: res.statusText,
-                    data: parsed,
-                    rawText: res.responseText
-                }, '*');
-            },
-            ontimeout: function() {
-                window.postMessage({
-                    source: 'PASTEL_CRACK_RESPONSE',
-                    reqId: reqId,
-                    status: 408,
-                    error: '요청 시간이 초과되었습니다 (Bridge Timeout)'
-                }, '*');
-            },
-            onerror: function(err) {
-                window.postMessage({
-                    source: 'PASTEL_CRACK_RESPONSE',
-                    reqId: reqId,
-                    status: 0,
-                    error: err.error || 'Network/Bridge Error'
-                }, '*');
-            }
-        });
     });
 
     // 브릿지 활성화 신호 주입
