@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.4.0
+// @version      2.0.0
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -24,7 +24,9 @@
 (function() {
     'use strict';
 
-    // 1. 크랙 공식 사이트 (wrtn.ai) 접속 시 쿠키 자동 추출 & B방식 자동 매크로 실행
+    // =========================================================================
+    // [1. crack.wrtn.ai 공식 사이트: 토큰 자동 캐싱 & B방식 자동 입력 매크로]
+    // =========================================================================
     if (location.hostname.includes('wrtn.ai')) {
         const checkToken = () => {
             const cookies = document.cookie.split(';');
@@ -38,7 +40,7 @@
         checkToken();
         setInterval(checkToken, 3000);
 
-        // 파스텔챗에서 요청된 자동 발송 매크로 실행
+        // 파스텔챗에서 전달된 자동 발송 매크로 실행
         const dispatchData = GM_getValue('pastel_macro_dispatch', null);
         if (dispatchData && dispatchData.message) {
             const startTime = Date.now();
@@ -48,29 +50,32 @@
                     clearInterval(macroTimer);
                     GM_setValue('pastel_macro_dispatch', null);
 
+                    // 1) 크랙 공식 입력창에 로어 2000자 자동 주입
                     ta.focus();
                     ta.value = dispatchData.message;
                     ta.dispatchEvent(new Event('input', { bubbles: true }));
                     ta.dispatchEvent(new Event('change', { bubbles: true }));
 
+                    // 2) 0.4초 후 크랙 공식 전송 버튼 클릭
                     setTimeout(() => {
                         const sendBtn = document.querySelector('button[type="submit"]') ||
-                                        Array.from(document.querySelectorAll('button')).find(b => b.innerHTML.includes('svg') && !b.disabled);
+                                        Array.from(document.querySelectorAll('button')).find(b => b.innerHTML.includes('svg') && !b.disabled && b.offsetWidth > 0);
                         if (sendBtn) {
                             sendBtn.click();
                         } else {
                             ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
                         }
 
-                        // 전송 완료 후 1.5초 뒤 파스텔챗으로 자동 복귀
+                        // 3) 전송 후 1.5초 뒤 파스텔챗으로 자동 복귀
                         setTimeout(() => {
                             if (dispatchData.returnUrl) {
                                 window.location.href = dispatchData.returnUrl;
                             }
                         }, 1500);
-                    }, 300);
+                    }, 400);
                 }
 
+                // 15초 안전 타임아웃
                 if (Date.now() - startTime > 15000) {
                     clearInterval(macroTimer);
                     GM_setValue('pastel_macro_dispatch', null);
@@ -81,11 +86,13 @@
         return;
     }
 
-    // 2. crack.html 통신 중계 리스너 (대화목록/캐시/과거기록 100% 정상 조회)
+    // =========================================================================
+    // [2. crack.html 통신 리스너: 순정 대화목록/캐시 조회 + 매크로 신호 수신]
+    // =========================================================================
     window.addEventListener('message', function(event) {
         if (!event.data) return;
 
-        // B방식 매크로 신호 저장
+        // B방식 매크로 발송 데이터 저장
         if (event.data.source === 'PASTEL_CRACK_MACRO_DISPATCH') {
             GM_setValue('pastel_macro_dispatch', {
                 message: event.data.message,
@@ -97,7 +104,7 @@
             return;
         }
 
-        // 일반 HTTP/REST 요청 처리기 (대화목록, 과거기록, 캐시 조회)
+        // 100% 순정 HTTP 요청 처리기 (대화목록/과거기록/캐시 조회 완벽 작동)
         if (event.data.source === 'PASTEL_CRACK_REQUEST') {
             const { reqId, method, url, headers, data, responseType } = event.data;
             const cachedToken = GM_getValue('crack_access_token', '');
@@ -113,7 +120,6 @@
             if (cachedToken && !reqHeaders['authorization'] && !reqHeaders['Authorization']) {
                 const clean = cachedToken.replace(/^Bearer\s+/i, '').trim();
                 reqHeaders['authorization'] = `Bearer ${clean}`;
-                reqHeaders['Authorization'] = `Bearer ${clean}`;
             }
 
             GM_xmlhttpRequest({
