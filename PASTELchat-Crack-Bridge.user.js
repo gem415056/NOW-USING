@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.0.4
+// @version      1.0.5
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -47,7 +47,7 @@
             const btn = document.createElement('button');
             btn.id = 'pastel-trigger-btn';
             btn.textContent = '🔴 전송 패킷 1회 캡처';
-            btn.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:2147483646;padding:12px 18px;background:#FF4432;color:#fff;font-weight:bold;font-size:14px;border:2px solid #fff;border-radius:30px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.3);transition:all 0.2s;';
+            btn.style.cssText = 'position:fixed;top:70px;right:20px;z-index:2147483646;padding:10px 16px;background:#FF4432;color:#fff;font-weight:bold;font-size:13px;border:2px solid #fff;border-radius:30px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.3);transition:all 0.2s;';
             
             btn.onclick = () => {
                 isCaptureArmed = true;
