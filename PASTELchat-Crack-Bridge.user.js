@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.3.4
+// @version      1.3.5
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       Gemini
 // @match        *://*/*crack.html*
@@ -93,14 +93,16 @@
                         }, interval);
                     } catch (_) {}
 
-                    sendLog('📡 [3/4] 네임스페이스(/v3/chats) 정품 토큰 인증 발송...');
-                    // 크랙 소켓 백엔드 정규 인증 규격 탑재
+                    sendLog('📡 [3/4] 네임스페이스(/v3/chats) 정품 토큰 및 클라이언트 인증 발송...');
+                    // 크랙 소켓 백엔드 필수 식별자 전수 탑재 (403 차단 해제)
                     const authPayload = JSON.stringify({
-                        token: tokenWithBearer
+                        token: tokenWithBearer,
+                        platform: 'web',
+                        'x-wrtn-id': 'W2.2.7ee13701.b310.4f07.a89b.36d023805b50',
+                        locale: 'ko-KR'
                     });
                     ws.send(`40/v3/chats,${authPayload}`);
                     return;
-                }
 
                 // 2) 네임스페이스 승인 수신 (40) -> 대화 메시지 send 발송
                 if (raw.startsWith('40/v3/chats')) {
