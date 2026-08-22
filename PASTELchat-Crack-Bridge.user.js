@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.3.1
+// @version      1.3.2
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       Gemini
 // @match        *://*/*crack.html*
@@ -82,7 +82,7 @@
             ws.onmessage = (msgEvent) => {
                 const raw = String(msgEvent.data || '');
 
-                // 1) Engine.IO 핸드셰이크 수신 (0) -> 핑퐁 시작 & 네임스페이스 정품 인증 패킷 발송 (40)
+                // 1) Engine.IO 핸드셰이크 수신 (0)
                 if (raw.startsWith('0')) {
                     try {
                         const hs = JSON.parse(raw.slice(1));
@@ -93,8 +93,6 @@
                     } catch (_) {}
 
                     sendLog('📡 [3/4] 네임스페이스(/v3/chats) 정품 토큰 인증 발송...');
-                    
-                    // 정규 인증 페이로드 탑재 발송
                     const authPayload = JSON.stringify({
                         token: cleanToken,
                         accessToken: cleanToken,
@@ -104,17 +102,17 @@
                     return;
                 }
 
-                // 2) 네임스페이스 승인 수신 (40) -> 승인 확인 즉시 대화 메시지 발송!
+                // 2) 네임스페이스 승인 수신 (40) -> 대화 메시지 send 발송
                 if (raw.startsWith('40/v3/chats')) {
                     const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
                     ws.send(sendPayload);
-                    sendLog('💬 [4/4] 메시지 발송 완료! AI 실시간 답변 수신 대기 중...');
+                    sendLog('💬 [4/4] 메시지 발송 완료! 서버 패킷 응답 대기 중...');
                     return;
                 }
 
                 // 3) 네임스페이스 거절 (44)
                 if (raw.startsWith('44/v3/chats')) {
-                    sendLog(`⚠️ 네임스페이스 거절 신호 수신: ${raw}`);
+                    sendLog(`⚠️ 네임스페이스 거절 (44): ${raw}`);
                     window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: `인증 거절 (44): ${raw}` }, '*');
                     return;
                 }
@@ -125,20 +123,41 @@
                     return;
                 }
 
-                // 5) 대화 스트리밍 수신 (42, 43)
-                if (raw.startsWith('42/v3/chats,') || raw.startsWith('43/v3/chats,')) {
+                // 5) 서버 수신 패킷 화면 실시간 표시 (디버그 가시화)
+                sendLog(`📥 [서버 수신]: ${raw.slice(0, 100)}`);
+
+                // 6) 대화 스트리밍 및 응답 패킷 전방위 파싱 (42, 43)
+                if (raw.startsWith('42/v3/chats') || raw.startsWith('43/v3/chats')) {
                     try {
                         const jsonStr = raw.replace(/^4[23]\/v3\/chats,(\d+)?/, '');
                         const parsed = JSON.parse(jsonStr);
 
+                        const extractPiece = (obj) => {
+                            if (!obj) return '';
+                            if (typeof obj === 'string') return obj;
+                            if (typeof obj === 'object') {
+                                return obj.chunk || obj.content || obj.delta || obj.message || obj.text ||
+                                       obj.data?.content || obj.data?.message || obj.data?.chunk || obj.data?.text ||
+                                       obj.response || obj.result || '';
+                            }
+                            return '';
+                        };
+
                         if (Array.isArray(parsed)) {
                             const [evtName, evtData] = parsed;
-                            let piece = '';
-                            if (typeof evtData === 'string') piece = evtData;
-                            else if (evtData && typeof evtData === 'object') {
-                                piece = evtData.content || evtData.message || evtData.text || evtData.chunk || evtData.data?.content || evtData.data?.message || '';
+
+                            // 에러 이벤트 처리
+                            if (evtName === 'error' || evtData?.error || evtData?.statusCode >= 400) {
+                                const errMsg = evtData?.message || evtData?.error || JSON.stringify(evtData);
+                                sendLog(`❌ 서버 에러: ${errMsg}`);
+                                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: errMsg }, '*');
+                                if (pingTimer) clearInterval(pingTimer);
+                                ws.close();
+                                return;
                             }
 
+                            // 텍스트 스트리밍 수신
+                            const piece = extractPiece(evtData);
                             if (piece) {
                                 if (piece.length > accumulatedText.length && piece.startsWith(accumulatedText.slice(0, 10))) {
                                     accumulatedText = piece;
@@ -148,16 +167,11 @@
                                 window.postMessage({ source: 'PASTEL_CRACK_SOCKET_CHUNK', reqId, text: accumulatedText }, '*');
                             }
 
-                            if (evtName === 'done' || evtName === 'end' || evtName === 'finish' || evtName === 'complete') {
+                            // 종료 이벤트 처리
+                            if (evtName === 'done' || evtName === 'end' || evtName === 'finish' || evtName === 'complete' || evtName === 'generate_done') {
                                 isCompleted = true;
-                                const finalTxt = evtData?.content || evtData?.message || accumulatedText;
+                                const finalTxt = extractPiece(evtData) || accumulatedText;
                                 window.postMessage({ source: 'PASTEL_CRACK_SOCKET_DONE', reqId, text: finalTxt }, '*');
-                                if (pingTimer) clearInterval(pingTimer);
-                                ws.close();
-                            }
-
-                            if (evtName === 'error') {
-                                window.postMessage({ source: 'PASTEL_CRACK_SOCKET_ERROR', reqId, error: evtData?.message || '소켓 에러' }, '*');
                                 if (pingTimer) clearInterval(pingTimer);
                                 ws.close();
                             }
