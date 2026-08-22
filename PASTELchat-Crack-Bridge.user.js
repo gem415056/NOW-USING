@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.0.0
+// @version      1.0.1
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -45,11 +45,13 @@
             reqHeaders['authorization'] = `Bearer ${cachedToken}`;
         }
 
+        const reqTimeout = event.data.timeout || 120000;
         GM_xmlhttpRequest({
             method: method || 'GET',
             url: url,
             headers: reqHeaders,
             data: data,
+            timeout: reqTimeout,
             responseType: responseType || 'text',
             withCredentials: true,
             onload: function(res) {
@@ -65,6 +67,14 @@
                     statusText: res.statusText,
                     data: parsed,
                     rawText: res.responseText
+                }, '*');
+            },
+            ontimeout: function() {
+                window.postMessage({
+                    source: 'PASTEL_CRACK_RESPONSE',
+                    reqId: reqId,
+                    status: 408,
+                    error: '요청 시간이 초과되었습니다 (Bridge Timeout)'
                 }, '*');
             },
             onerror: function(err) {
