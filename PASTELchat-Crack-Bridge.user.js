@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      2.0.1
+// @version      2.0.2
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -40,58 +40,76 @@
         checkToken();
         setInterval(checkToken, 3000);
 
-        // 파스텔챗에서 요청된 자동 발송 매크로 실행 (React 완벽 호환)
+        // 파스텔챗에서 전달된 자동 발송 매크로 실행 (ProseMirror 리치에디터 및 로딩 지연 완벽 대응)
         const dispatchData = GM_getValue('pastel_macro_dispatch', null);
         if (dispatchData && dispatchData.message) {
             const startTime = Date.now();
+            let isExecuted = false;
+
             const macroTimer = setInterval(() => {
-                const ta = document.querySelector('textarea');
-                if (ta && ta.offsetParent !== null) {
+                // ProseMirror 에디터 또는 일반 contenteditable 에디터 검색
+                const editor = document.querySelector('.ProseMirror') ||
+                               document.querySelector('[contenteditable="true"]') ||
+                               document.querySelector('div[role="textbox"]') ||
+                               document.querySelector('textarea');
+
+                // 사용자님이 제공해주신 전송 버튼 (d="M18.77" SVG 패스 타겟팅)
+                const sendBtn = Array.from(document.querySelectorAll('button')).find(b => 
+                    b.innerHTML.includes('M18.77') || 
+                    b.querySelector('path[d*="M18.77"]') ||
+                    (b.querySelector('svg') && !b.disabled && (b.style.backgroundColor.includes('196') || b.className.includes('bg-primary')))
+                );
+
+                if (editor && !isExecuted) {
+                    isExecuted = true;
                     clearInterval(macroTimer);
                     GM_setValue('pastel_macro_dispatch', null);
 
-                    // 1) React 내부 상태 강제 업데이트 (Native Value Setter)
-                    ta.focus();
-                    const nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, 'value')?.set;
-                    if (nativeSetter) {
-                        nativeSetter.call(ta, dispatchData.message);
+                    // 1) ProseMirror 에디터 포커스 및 텍스트 안전 주입
+                    editor.focus();
+                    
+                    // DOM execCommand 및 클립보드 방식 주입 (ProseMirror 내부 상태 강제 갱신)
+                    if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
+                        document.execCommand('selectAll', false, null);
+                        document.execCommand('insertText', false, dispatchData.message);
                     } else {
-                        ta.value = dispatchData.message;
+                        editor.innerHTML = `<p>${dispatchData.message.replace(/\n/g, '<br>')}</p>`;
                     }
-                    ta.dispatchEvent(new Event('input', { bubbles: true }));
-                    ta.dispatchEvent(new Event('change', { bubbles: true }));
 
-                    // 2) 0.5초 후 전송 버튼 클릭 및 엔터 발송
+                    editor.dispatchEvent(new Event('input', { bubbles: true }));
+                    editor.dispatchEvent(new Event('change', { bubbles: true }));
+                    editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: dispatchData.message }));
+
+                    // 2) 0.6초 대기 후 정품 전송 버튼 클릭 (전송 버튼 활성화 보장)
                     setTimeout(() => {
-                        const buttons = Array.from(document.querySelectorAll('button'));
-                        const sendBtn = document.querySelector('form button[type="submit"]') ||
-                                        buttons.find(b => b.type === 'submit' && !b.disabled) ||
-                                        buttons.find(b => b.querySelector('svg') && !b.disabled && b.closest('div[class*="input"], form, footer, main'));
+                        const activeSendBtn = Array.from(document.querySelectorAll('button')).find(b => 
+                            b.innerHTML.includes('M18.77') || 
+                            b.querySelector('path[d*="M18.77"]') ||
+                            !b.disabled && b.querySelector('svg')
+                        );
 
-                        if (sendBtn) {
-                            sendBtn.click();
+                        if (activeSendBtn) {
+                            activeSendBtn.click();
+                        } else {
+                            editor.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
                         }
 
-                        // 엔터 키 이벤트 병행 발송 (확실한 전송 보장)
-                        ta.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-                        ta.dispatchEvent(new KeyboardEvent('keypress', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-                        ta.dispatchEvent(new KeyboardEvent('keyup', { key: 'Enter', code: 'Enter', keyCode: 13, which: 13, bubbles: true }));
-
-                        // 3) 발송 후 2초 뒤 파스텔챗으로 복귀
+                        // 3) 발송 완료 후 2초 뒤 파스텔챗으로 자동 복귀
                         setTimeout(() => {
                             if (dispatchData.returnUrl) {
                                 window.location.href = dispatchData.returnUrl;
                             }
                         }, 2000);
-                    }, 500);
+                    }, 600);
                 }
 
-                if (Date.now() - startTime > 15000) {
+                // 모바일 긴 로딩 대비 40초 안전 타임아웃
+                if (Date.now() - startTime > 40000) {
                     clearInterval(macroTimer);
                     GM_setValue('pastel_macro_dispatch', null);
                     if (dispatchData.returnUrl) window.location.href = dispatchData.returnUrl;
                 }
-            }, 300);
+            }, 500);
         }
         return;
     }
