@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.3.6
+// @version      1.3.7
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       Gemini
 // @match        *://*/*crack.html*
@@ -215,7 +215,7 @@
 
         // [B. 일반 순정 HTTP/REST 요청 처리기 (대화목록/과거기록/캐시 조회 완벽 복원)]
         if (event.data.source === 'PASTEL_CRACK_REQUEST') {
-            const { reqId, method, url, headers, data, responseType } = event.data;
+            const { reqId, method, url, headers, data, responseType, token: customToken } = event.data;
             const cachedToken = GM_getValue('crack_access_token', '');
 
             const reqHeaders = Object.assign({
@@ -226,13 +226,12 @@
                 'x-wrtn-id': 'W2.2.7ee13701.b310.4f07.a89b.36d023805b50'
             }, headers || {});
 
-            if (!reqHeaders['authorization'] && !reqHeaders['Authorization']) {
-                const activeToken = cachedToken;
-                if (activeToken) {
-                    const clean = activeToken.replace(/^Bearer\s+/i, '').trim();
-                    reqHeaders['authorization'] = `Bearer ${clean}`;
-                    reqHeaders['Authorization'] = `Bearer ${clean}`;
-                }
+            const rawToken = reqHeaders['authorization'] || reqHeaders['Authorization'] || customToken || cachedToken;
+            if (rawToken) {
+                const clean = rawToken.replace(/^Bearer\s+/i, '').trim();
+                reqHeaders['authorization'] = `Bearer ${clean}`;
+                reqHeaders['Authorization'] = `Bearer ${clean}`;
+                GM_setValue('crack_access_token', clean);
             }
 
             GM_xmlhttpRequest({
