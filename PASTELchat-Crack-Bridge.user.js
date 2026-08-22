@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.0.3
+// @version      1.0.4
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -17,8 +17,10 @@
 (function() {
     'use strict';
 
-    // 1. 크랙 사이트 접속 시 access_token 동기화 & 실시간 패킷 캡처 모달 UI
+    // 1. 크랙 사이트 접속 시 access_token 동기화 & 수동 무장형 1회 캡처 엔진
     if (location.hostname.includes('wrtn.ai')) {
+        let isCaptureArmed = false;
+
         const checkToken = () => {
             const cookies = document.cookie.split(';');
             for (let c of cookies) {
@@ -31,8 +33,45 @@
         checkToken();
         setInterval(checkToken, 3000);
 
-        // [화면 팝업 캡처 UI 생성기]
+        // 노이즈(잡다한 통신) 필터링 함수
+        const isNoiseUrl = (url) => {
+            const lower = (url || '').toLowerCase();
+            return lower.includes('amplitude') || lower.includes('sentry') || lower.includes('datadog') ||
+                   lower.includes('telemetry') || lower.includes('analytics') || lower.includes('log') ||
+                   lower.includes('asset') || lower.includes('notification') || lower.includes('banner');
+        };
+
+        // 우측 하단 플로팅 캡처 준비 버튼 주입
+        const injectTriggerButton = () => {
+            if (document.getElementById('pastel-trigger-btn')) return;
+            const btn = document.createElement('button');
+            btn.id = 'pastel-trigger-btn';
+            btn.textContent = '🔴 전송 패킷 1회 캡처';
+            btn.style.cssText = 'position:fixed;bottom:24px;right:24px;z-index:2147483646;padding:12px 18px;background:#FF4432;color:#fff;font-weight:bold;font-size:14px;border:2px solid #fff;border-radius:30px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.3);transition:all 0.2s;';
+            
+            btn.onclick = () => {
+                isCaptureArmed = true;
+                btn.textContent = '⏳ 전송 대기 중... (채팅을 보내세요)';
+                btn.style.background = '#f39c12';
+            };
+            document.body ? document.body.appendChild(btn) : document.documentElement.appendChild(btn);
+        };
+
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', injectTriggerButton);
+        } else {
+            injectTriggerButton();
+        }
+
+        // 결과 모달 팝업
         const showCaptureModal = (type, details) => {
+            isCaptureArmed = false;
+            const triggerBtn = document.getElementById('pastel-trigger-btn');
+            if (triggerBtn) {
+                triggerBtn.textContent = '🔴 전송 패킷 1회 캡처';
+                triggerBtn.style.background = '#FF4432';
+            }
+
             let overlay = document.getElementById('pastel-sniff-overlay');
             if (!overlay) {
                 overlay = document.createElement('div');
@@ -42,7 +81,7 @@
                 overlay.innerHTML = `
                     <div style="background:#fff;border-radius:14px;width:680px;max-width:95vw;max-height:85vh;display:flex;flex-direction:column;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,0.3);box-sizing:border-box;color:#222;">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
-                            <h3 style="margin:0;font-size:17px;font-weight:bold;color:#2c3e50;">🎯 크랙 전송 패킷 포착 성공!</h3>
+                            <h3 style="margin:0;font-size:17px;font-weight:bold;color:#2c3e50;">🎯 실제 전송 패킷 포착 성공!</h3>
                             <button id="pastel-sniff-close" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;font-weight:bold;padding:4px 8px;">✕</button>
                         </div>
                         <p style="margin:0 0 10px 0;font-size:12px;color:#666;">아래 [전체 복사] 버튼을 누른 후, AI에게 그대로 전달해 주시면 즉시 연결을 완료합니다.</p>
@@ -76,7 +115,7 @@
             overlay.style.display = 'flex';
         };
 
-        // [스니퍼 1] Fetch 전방위 후킹
+        // [스니퍼 1] Fetch 후킹
         const originalFetch = window.fetch;
         window.fetch = async function(...args) {
             try {
@@ -84,7 +123,7 @@
                 const url = typeof resource === 'string' ? resource : resource?.url || '';
                 const method = (config?.method || (typeof resource === 'object' ? resource?.method : 'GET') || 'GET').toUpperCase();
                 
-                if (method === 'POST' && (url.includes('chat') || url.includes('message') || url.includes('generate') || url.includes('turn') || url.includes('stream') || config?.body)) {
+                if (isCaptureArmed && !isNoiseUrl(url) && (method === 'POST' || method === 'PUT')) {
                     let parsedBody = config?.body;
                     try { parsedBody = JSON.parse(config.body); } catch (_) {}
                     
@@ -101,7 +140,7 @@
             return originalFetch.apply(this, args);
         };
 
-        // [스니퍼 2] XMLHttpRequest 후킹
+        // [스니퍼 2] XHR 후킹
         const origOpen = XMLHttpRequest.prototype.open;
         const origSend = XMLHttpRequest.prototype.send;
         const origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
@@ -120,7 +159,7 @@
             try {
                 const method = (this._sniffMethod || '').toUpperCase();
                 const url = this._sniffUrl || '';
-                if (method === 'POST' && (url.includes('chat') || url.includes('message') || url.includes('generate') || url.includes('turn') || body)) {
+                if (isCaptureArmed && !isNoiseUrl(url) && (method === 'POST' || method === 'PUT')) {
                     let parsedBody = body;
                     try { parsedBody = JSON.parse(body); } catch (_) {}
                     showCaptureModal('XHR (XMLHttpRequest)', { url, method, headers: this._sniffHeaders || {}, body: parsedBody || body });
@@ -137,9 +176,11 @@
                 const origWsSend = ws.send;
                 ws.send = function(data) {
                     try {
-                        let parsed = data;
-                        try { parsed = JSON.parse(data); } catch (_) {}
-                        showCaptureModal('WEBSOCKET (WS)', { url, method: 'WS SEND', headers: { protocol: protocols || 'default' }, body: parsed || data });
+                        if (isCaptureArmed) {
+                            let parsed = data;
+                            try { parsed = JSON.parse(data); } catch (_) {}
+                            showCaptureModal('WEBSOCKET (WS)', { url, method: 'WS SEND', headers: { protocol: protocols || 'default' }, body: parsed || data });
+                        }
                     } catch (_) {}
                     return origWsSend.apply(this, arguments);
                 };
