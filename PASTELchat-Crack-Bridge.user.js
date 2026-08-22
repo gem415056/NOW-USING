@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.2.1
+// @version      1.2.2
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       Gemini
 // @match        *://*/*crack.html*
@@ -78,18 +78,30 @@
                 ws.onmessage = (msgEvent) => {
                     const raw = String(msgEvent.data || '');
 
-                    // Engine.IO 핸드셰이크 수신 -> 네임스페이스 접속
+                    // Engine.IO 핸드셰이크 수신 -> 네임스페이스 접속 및 메시지 즉시 파이프라인 발송
                     if (raw.startsWith('0')) {
-                        wsConnected = true;
-                        sendLog('📡 네임스페이스(/v3/chats) 인증 접속 요청...');
-                        ws.send(`40/v3/chats,${JSON.stringify({ auth: { token: `Bearer ${token}` } })}`);
+                        sendLog('📡 [3/4] 네임스페이스 접속 및 메시지 전송 중...');
+                        
+                        // 1) 네임스페이스 접속 패킷 발송 (Socket.IO v4 표준 인증 객체)
+                        const authObj = token ? JSON.stringify({ token: `Bearer ${token}` }) : '';
+                        ws.send(`40/v3/chats,${authObj}`);
+
+                        // 2) 메시지 send 패킷 즉시 발송 (시퀀스 ID 1)
+                        const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
+                        ws.send(sendPayload);
+                        sendLog('💬 [4/4] 메시지 발송 완료! 실시간 답변 대기 중...');
                         return;
                     }
 
-                    // 네임스페이스 접속 완료 -> 대화 메시지 send 패킷 발송
+                    // 네임스페이스 연결 거부/에러(44) 감지
+                    if (raw.startsWith('44/v3/chats')) {
+                        sendLog(`⚠️ 네임스페이스 거절: ${raw}`);
+                        return;
+                    }
+
+                    // 네임스페이스 연결 승인(40) 확인
                     if (raw.startsWith('40/v3/chats')) {
                         const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
-                        sendLog('💬 [4/4] 메시지 발송 완료! AI 답변 대기 중...');
                         ws.send(sendPayload);
                         return;
                     }
@@ -149,9 +161,9 @@
                 };
             }
 
-            // 2단계: 8초 동안 소켓 응답이 없으면 정밀 REST API로 자동 전환 (폴백)
+            // 2단계: 6초 동안 소켓 답변이 오지 않으면 REST 보안 우회 전송으로 자동 전환
             setTimeout(async () => {
-                if (isCompleted || accumulatedText || wsConnected) return;
+                if (isCompleted || accumulatedText) return;
 
                 sendLog('🔄 소켓 응답 지연 -> REST 보안 우회 전송으로 자동 전환 중...');
                 if (ws) try { ws.close(); } catch(_) {}
