@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      1.0.6
+// @version      1.0.7
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -17,13 +17,10 @@
 (function() {
     'use strict';
 
-    // 1. 크랙 사이트 접속 시 access_token 동기화 & 타임라인 세션 전수 녹화기
+    // 1. 크랙 사이트 접속 시 access_token 동기화 & 프로토타입 레벨 무제한 전수 녹화기
     if (location.hostname.includes('wrtn.ai')) {
         let isRecording = false;
         let recordedPackets = [];
-        let recordTimer = null;
-        let countdownTimer = null;
-        let timeLeft = 10;
 
         const checkToken = () => {
             const cookies = document.cookie.split(';');
@@ -37,37 +34,104 @@
         checkToken();
         setInterval(checkToken, 3000);
 
-        // 녹화 시작/종료 제어기
-        const startRecording = () => {
-            isRecording = true;
-            recordedPackets = [];
-            timeLeft = 10;
-            const btn = document.getElementById('pastel-trigger-btn');
-            if (btn) {
-                btn.style.background = '#27ae60';
-                btn.textContent = `⏹ 녹화 중... (${timeLeft}s)`;
-            }
-
-            countdownTimer = setInterval(() => {
-                timeLeft--;
-                if (btn && isRecording) btn.textContent = `⏹ 녹화 중... (${timeLeft}s)`;
-                if (timeLeft <= 0) stopRecording();
-            }, 1000);
+        // 노이즈(유니콘 광고차단기 등) 제외 필터
+        const isNoise = (url) => {
+            const lower = (url || '').toLowerCase();
+            return lower.includes('getunicorn.org');
         };
 
-        const stopRecording = () => {
-            if (!isRecording) return;
-            isRecording = false;
-            if (countdownTimer) clearInterval(countdownTimer);
-            if (recordTimer) clearTimeout(recordTimer);
+        const pushPacket = (type, data) => {
+            if (!isRecording || isNoise(data.url)) return;
+            recordedPackets.push({
+                type,
+                time: new Date().toLocaleTimeString(),
+                url: data.url || 'N/A',
+                method: data.method || '',
+                headers: data.headers || {},
+                body: data.body || ''
+            });
+        };
 
-            const btn = document.getElementById('pastel-trigger-btn');
-            if (btn) {
-                btn.style.background = '#FF4432';
-                btn.textContent = '🔴 패킷 녹화 시작';
+        // [코어 후킹 A] WebSocket.prototype 직접 후킹 (기존/신규 소켓 전수 감지)
+        const origWsSend = WebSocket.prototype.send;
+        WebSocket.prototype.send = function(data) {
+            try {
+                if (isRecording) {
+                    let parsed = data;
+                    try { parsed = JSON.parse(data); } catch (_) {}
+                    pushPacket('WEBSOCKET_SEND', { url: this.url || 'WebSocket Connection', method: 'WS_SEND', body: parsed || data });
+                }
+            } catch (_) {}
+            return origWsSend.apply(this, arguments);
+        };
+
+        // [코어 후킹 B] fetch 후킹
+        const originalFetch = window.fetch;
+        window.fetch = async function(...args) {
+            try {
+                if (isRecording) {
+                    const [resource, config] = args;
+                    const url = typeof resource === 'string' ? resource : resource?.url || '';
+                    const method = (config?.method || (typeof resource === 'object' ? resource?.method : 'GET') || 'GET').toUpperCase();
+                    let parsedBody = config?.body;
+                    try { parsedBody = JSON.parse(config.body); } catch (_) {}
+                    const h = {};
+                    if (config?.headers instanceof Headers) {
+                        config.headers.forEach((v, k) => { h[k] = v; });
+                    } else if (typeof config?.headers === 'object') {
+                        Object.assign(h, config.headers);
+                    }
+                    pushPacket('FETCH', { url, method, headers: h, body: parsedBody || config?.body });
+                }
+            } catch (_) {}
+            return originalFetch.apply(this, args);
+        };
+
+        // [코어 후킹 C] XHR 후킹
+        const origOpen = XMLHttpRequest.prototype.open;
+        const origSend = XMLHttpRequest.prototype.send;
+        const origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
+
+        XMLHttpRequest.prototype.open = function(method, url) {
+            this._recMethod = method;
+            this._recUrl = url;
+            this._recHeaders = {};
+            return origOpen.apply(this, arguments);
+        };
+        XMLHttpRequest.prototype.setRequestHeader = function(k, v) {
+            if (this._recHeaders) this._recHeaders[k] = v;
+            return origSetHeader.apply(this, arguments);
+        };
+        XMLHttpRequest.prototype.send = function(body) {
+            try {
+                if (isRecording) {
+                    let parsedBody = body;
+                    try { parsedBody = JSON.parse(body); } catch (_) {}
+                    pushPacket('XHR', { url: this._recUrl, method: this._recMethod, headers: this._recHeaders, body: parsedBody || body });
+                }
+            } catch (_) {}
+            return origSend.apply(this, arguments);
+        };
+
+        // 녹화 시작/종료 제어기
+        const toggleRecording = () => {
+            if (!isRecording) {
+                isRecording = true;
+                recordedPackets = [];
+                const btn = document.getElementById('pastel-trigger-btn');
+                if (btn) {
+                    btn.style.background = '#27ae60';
+                    btn.textContent = '⏹ 녹화 중... (답변 완료 후 클릭하여 종료)';
+                }
+            } else {
+                isRecording = false;
+                const btn = document.getElementById('pastel-trigger-btn');
+                if (btn) {
+                    btn.style.background = '#FF4432';
+                    btn.textContent = '🔴 패킷 녹화 시작';
+                }
+                showSessionSummaryModal();
             }
-
-            showSessionSummaryModal();
         };
 
         // 플로팅 녹화 버튼 주입
@@ -77,14 +141,7 @@
             btn.id = 'pastel-trigger-btn';
             btn.textContent = '🔴 패킷 녹화 시작';
             btn.style.cssText = 'position:fixed;top:70px;right:20px;z-index:2147483646;padding:10px 18px;background:#FF4432;color:#fff;font-weight:bold;font-size:13px;border:2px solid #fff;border-radius:30px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.3);transition:all 0.2s;';
-            
-            btn.onclick = () => {
-                if (isRecording) {
-                    stopRecording();
-                } else {
-                    startRecording();
-                }
-            };
+            btn.onclick = toggleRecording;
             document.body ? document.body.appendChild(btn) : document.documentElement.appendChild(btn);
         };
 
@@ -103,12 +160,12 @@
                 overlay.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;background:rgba(0,0,0,0.75);z-index:2147483647;display:flex;align-items:center;justify-content:center;font-family:-apple-system,sans-serif;box-sizing:border-box;padding:20px;';
                 
                 overlay.innerHTML = `
-                    <div style="background:#fff;border-radius:14px;width:760px;max-width:95vw;max-height:88vh;display:flex;flex-direction:column;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,0.3);box-sizing:border-box;color:#222;">
+                    <div style="background:#fff;border-radius:14px;width:780px;max-width:95vw;max-height:88vh;display:flex;flex-direction:column;padding:22px;box-shadow:0 10px 30px rgba(0,0,0,0.3);box-sizing:border-box;color:#222;">
                         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
                             <h3 style="margin:0;font-size:17px;font-weight:bold;color:#2c3e50;">📋 세션 패킷 녹화 완료 (${recordedPackets.length}건)</h3>
                             <button id="pastel-sniff-close" style="background:none;border:none;font-size:18px;cursor:pointer;color:#888;font-weight:bold;padding:4px 8px;">✕</button>
                         </div>
-                        <p style="margin:0 0 10px 0;font-size:12px;color:#666;">아래 [전체 복사] 버튼을 누른 후, AI에게 그대로 전달해 주시면 실제 채팅 API를 추출합니다.</p>
+                        <p style="margin:0 0 10px 0;font-size:12px;color:#666;">아래 [전체 복사] 버튼을 누른 후, AI에게 그대로 전달해 주시면 실제 채팅 API를 연동합니다.</p>
                         <textarea id="pastel-sniff-text" style="flex:1;height:380px;min-height:260px;font-family:monospace;font-size:11.5px;line-height:1.5;padding:12px;border:1px solid #ccc;border-radius:8px;background:#f9f9f9;color:#333;resize:vertical;outline:none;white-space:pre-wrap;box-sizing:border-box;"></textarea>
                         <div style="display:flex;gap:10px;margin-top:14px;">
                             <button id="pastel-sniff-copy" style="flex:1;height:42px;background:#FF4432;color:#fff;border:none;border-radius:8px;font-size:14px;font-weight:bold;cursor:pointer;transition:0.2s;">📋 전체 복사하기</button>
@@ -152,86 +209,6 @@
             const ta = document.getElementById('pastel-sniff-text');
             if (ta) ta.value = logText;
             overlay.style.display = 'flex';
-        };
-
-        const pushPacket = (type, data) => {
-            if (!isRecording) return;
-            recordedPackets.push({
-                type,
-                time: new Date().toLocaleTimeString(),
-                url: data.url || 'N/A',
-                method: data.method || '',
-                headers: data.headers || {},
-                body: data.body || ''
-            });
-        };
-
-        // [후킹 1] Fetch
-        const originalFetch = window.fetch;
-        window.fetch = async function(...args) {
-            try {
-                if (isRecording) {
-                    const [resource, config] = args;
-                    const url = typeof resource === 'string' ? resource : resource?.url || '';
-                    const method = (config?.method || (typeof resource === 'object' ? resource?.method : 'GET') || 'GET').toUpperCase();
-                    let parsedBody = config?.body;
-                    try { parsedBody = JSON.parse(config.body); } catch (_) {}
-                    const h = {};
-                    if (config?.headers instanceof Headers) {
-                        config.headers.forEach((v, k) => { h[k] = v; });
-                    } else if (typeof config?.headers === 'object') {
-                        Object.assign(h, config.headers);
-                    }
-                    pushPacket('FETCH', { url, method, headers: h, body: parsedBody || config?.body });
-                }
-            } catch (_) {}
-            return originalFetch.apply(this, args);
-        };
-
-        // [후킹 2] XHR
-        const origOpen = XMLHttpRequest.prototype.open;
-        const origSend = XMLHttpRequest.prototype.send;
-        const origSetHeader = XMLHttpRequest.prototype.setRequestHeader;
-
-        XMLHttpRequest.prototype.open = function(method, url) {
-            this._recMethod = method;
-            this._recUrl = url;
-            this._recHeaders = {};
-            return origOpen.apply(this, arguments);
-        };
-        XMLHttpRequest.prototype.setRequestHeader = function(k, v) {
-            if (this._recHeaders) this._recHeaders[k] = v;
-            return origSetHeader.apply(this, arguments);
-        };
-        XMLHttpRequest.prototype.send = function(body) {
-            try {
-                if (isRecording) {
-                    let parsedBody = body;
-                    try { parsedBody = JSON.parse(body); } catch (_) {}
-                    pushPacket('XHR', { url: this._recUrl, method: this._recMethod, headers: this._recHeaders, body: parsedBody || body });
-                }
-            } catch (_) {}
-            return origSend.apply(this, arguments);
-        };
-
-        // [후킹 3] WebSocket
-        const OrigWebSocket = window.WebSocket;
-        window.WebSocket = function(url, protocols) {
-            const ws = new OrigWebSocket(url, protocols);
-            try {
-                const origWsSend = ws.send;
-                ws.send = function(data) {
-                    try {
-                        if (isRecording) {
-                            let parsed = data;
-                            try { parsed = JSON.parse(data); } catch (_) {}
-                            pushPacket('WEBSOCKET_SEND', { url: url, method: 'SEND', body: parsed || data });
-                        }
-                    } catch (_) {}
-                    return origWsSend.apply(this, arguments);
-                };
-            } catch (_) {}
-            return ws;
         };
         return;
     }
