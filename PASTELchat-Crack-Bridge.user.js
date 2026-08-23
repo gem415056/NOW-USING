@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      2.0.6
+// @version      2.0.7
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -50,9 +50,9 @@
                 if (document.getElementById('pastel-return-floating-pill')) return;
                 const pill = document.createElement('div');
                 pill.id = 'pastel-return-floating-pill';
-                pill.style.cssText = 'position:fixed;top:24px;left:50%;transform:translateX(-50%);z-index:2147483647;cursor:pointer;user-select:none;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);background-color:#320400 !important;border:1.5px solid #FF4432 !important;border-radius:9999px !important;padding:9px 16px !important;transition:transform 0.15s ease, opacity 0.15s ease;pointer-events:auto;';
+                pill.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);z-index:2147483647;cursor:pointer;user-select:none;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);background-color:#56423e !important;border:1.5px solid #FF4432 !important;border-radius:9999px !important;padding:9px 16px !important;transition:transform 0.15s ease, opacity 0.15s ease;pointer-events:auto;';
                 
-                pill.innerHTML = `<p style="color:#FF4432 !important;font-size:12px !important;font-weight:bold !important;margin:0 !important;white-space:nowrap !important;line-height:1 !important;">돌아가기</p>`;
+                pill.innerHTML = `<p style="color:#fff5f1 !important;font-size:12px !important;font-weight:bold !important;margin:0 !important;white-space:nowrap !important;line-height:1 !important;">돌아가기</p>`;
 
                 pill.onclick = () => {
                     GM_setValue('pastel_macro_dispatch', null);
