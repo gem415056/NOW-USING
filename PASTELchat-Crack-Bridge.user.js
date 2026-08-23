@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      2.0.8
+// @version      2.0.9
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -29,13 +29,27 @@
     // =========================================================================
     if (location.hostname.includes('wrtn.ai')) {
         const checkToken = () => {
+            // 1. 쿠키에서 access_token 탐색
             const cookies = document.cookie.split(';');
             for (let c of cookies) {
                 const [k, v] = c.trim().split('=');
-                if (k === 'access_token' && v) {
+                if ((k === 'access_token' || k === 'accessToken' || k === 'wrtn_access_token') && v) {
                     GM_setValue('crack_access_token', decodeURIComponent(v));
+                    return;
                 }
             }
+            // 2. localStorage 및 sessionStorage에서 토큰 전수 탐색
+            try {
+                const tokenKeys = ['access_token', 'accessToken', 'wrtn_token', 'token'];
+                for (const tk of tokenKeys) {
+                    const val = localStorage.getItem(tk) || sessionStorage.getItem(tk);
+                    if (val && typeof val === 'string' && val.length > 20) {
+                        const cleanToken = val.replace(/^["']|["']$/g, '');
+                        GM_setValue('crack_access_token', cleanToken);
+                        return;
+                    }
+                }
+            } catch (_) {}
         };
         checkToken();
         setInterval(checkToken, 3000);
