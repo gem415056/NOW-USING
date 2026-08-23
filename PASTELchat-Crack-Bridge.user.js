@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat Crack API Bridge
 // @namespace    https://github.com/
-// @version      2.1.0
+// @version      2.1.0.1
 // @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
 // @author       PASTELchat
 // @match        *://*/*crack.html*
@@ -108,10 +108,12 @@
                 };
             };
 
-            // 3. [초장기 3분(180,000ms) 탐색 루프]
+            // 3. [30초 조기 복사 팝업 + 3분 백그라운드 끈질긴 자동 입력 루프]
             if (dispatchData.message) {
                 const startTime = Date.now();
-                const TIMEOUT_LIMIT = 180000; // 3분(180초)
+                const POPUP_LIMIT = 30000;    // 30초 후 복사 팝업 노출
+                const TIMEOUT_LIMIT = 180000; // 3분(180초) 최종 감시 한도
+                let popupShown = false;
 
                 const inputTimer = setInterval(() => {
                     const editor = document.querySelector('.ProseMirror') ||
@@ -132,12 +134,22 @@
 
                         editor.dispatchEvent(new Event('input', { bubbles: true }));
                         editor.dispatchEvent(new Event('change', { bubbles: true }));
+
+                        // 만약 30초 경과로 복사 팝업이 떠 있었다면, 자동 입력 성공 시 팝업을 알아서 닫아줌
+                        const fallbackModal = document.getElementById('pastel-fallback-copy-modal');
+                        if (fallbackModal) fallbackModal.remove();
+                        return;
                     }
 
-                    // 3분 초과 시 자동 팝업창 띄우기
+                    // 30초가 지나도 입력창을 못 찾으면 유저가 바로 복사할 수 있게 팝업 노출 (루프는 계속 유지)
+                    if (!popupShown && (Date.now() - startTime > POPUP_LIMIT)) {
+                        popupShown = true;
+                        showFallbackCopyModal(dispatchData.message);
+                    }
+
+                    // 3분 초과 시 탐색 루프 최종 종료
                     if (Date.now() - startTime > TIMEOUT_LIMIT) {
                         clearInterval(inputTimer);
-                        showFallbackCopyModal(dispatchData.message);
                     }
                 }, 400);
             }
