@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         PASTELchat Crack API Bridge & Packet Recorder
+// @name         PASTELchat Crack API & Socket.IO Direct Bridge
 // @namespace    https://github.com/
-// @version      3.0.0
-// @description  Bypass CORS, bridge PASTELchat crack.html with crack.wrtn.ai and record WebSocket packets
+// @version      3.5.0
+// @description  Direct WebSocket streaming and REST API bridge for PASTELchat crack.html
 // @author       PASTELchat
 // @match        *://*/*crack.html*
 // @match        *://*/*
@@ -15,7 +15,6 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @grant        unsafeWindow
 // @connect      crack-api.wrtn.ai
 // @connect      crack.wrtn.ai
 // @connect      *
@@ -26,92 +25,7 @@
     'use strict';
 
     // =========================================================================
-    // [0. 웹소켓 & Fetch 통신 가로채기 엔진 (메인 월드 주입)]
-    // =========================================================================
-    const injectionCode = `
-    (function() {
-        window.__PASTEL_RECORDING__ = false;
-        window.__PASTEL_PACKET_LOGS__ = [];
-
-        function logPacket(type, direction, urlOrEvent, data) {
-            if (!window.__PASTEL_RECORDING__) return;
-            const time = new Date().toTimeString().split(' ')[0] + '.' + String(Date.now() % 1000).padStart(3, '0');
-            window.__PASTEL_PACKET_LOGS__.push({
-                time: time,
-                type: type,
-                dir: direction,
-                target: urlOrEvent,
-                data: data
-            });
-            console.log('%c[PASTEL-REC] ' + direction + ' [' + type + ']', 'color: #FF4432; font-weight: bold;', data);
-        }
-
-        // 1. WebSocket Hook
-        const OrigWebSocket = window.WebSocket;
-        window.WebSocket = function(url, protocols) {
-            const ws = new OrigWebSocket(url, protocols);
-            
-            const origSend = ws.send;
-            ws.send = function(data) {
-                logPacket('WS', 'SEND (송신 ➔)', url, data);
-                return origSend.apply(this, arguments);
-            };
-
-            ws.addEventListener('message', function(e) {
-                logPacket('WS', 'RECV (수신 ⬅)', url, e.data);
-            });
-
-            return ws;
-        };
-        window.WebSocket.prototype = OrigWebSocket.prototype;
-
-        // 2. Fetch Hook (Socket.IO 폴링 및 REST API 감청)
-        const origFetch = window.fetch;
-        window.fetch = async function(...args) {
-            const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
-            const method = (args[1]?.method || 'GET').toUpperCase();
-            const reqBody = args[1]?.body;
-
-            if (url.includes('crack-api') || url.includes('socket.io') || url.includes('crack-gen')) {
-                logPacket('FETCH', 'REQ (송신 ➔) [' + method + ']', url, reqBody);
-            }
-
-            const response = await origFetch.apply(this, args);
-            
-            if (url.includes('crack-api') || url.includes('socket.io') || url.includes('crack-gen')) {
-                const clone = response.clone();
-                clone.text().then(resText => {
-                    logPacket('FETCH', 'RES (수신 ⬅) [' + response.status + ']', url, resText);
-                }).catch(() => {});
-            }
-            return response;
-        };
-
-        // 3. Recorder Control Events
-        window.addEventListener('message', function(e) {
-            if (e.data?.action === 'PASTEL_START_REC') {
-                window.__PASTEL_PACKET_LOGS__ = [];
-                window.__PASTEL_RECORDING__ = true;
-                console.log('%c[PASTEL] 🔴 통신 패킷 녹화가 시작되었습니다.', 'color:#2ecc71; font-size:14px; font-weight:bold;');
-            } else if (e.data?.action === 'PASTEL_STOP_REC') {
-                window.__PASTEL_RECORDING__ = false;
-                window.postMessage({
-                    action: 'PASTEL_REC_RESULT',
-                    logs: window.__PASTEL_PACKET_LOGS__
-                }, '*');
-                console.log('%c[PASTEL] ⏹ 통신 패킷 녹화가 종료되었습니다.', 'color:#FF4432; font-size:14px; font-weight:bold;');
-            }
-        });
-    })();
-    `;
-
-    const scriptEl = document.createElement('script');
-    scriptEl.textContent = injectionCode;
-    (document.head || document.documentElement).appendChild(scriptEl);
-    scriptEl.remove();
-
-    // =========================================================================
-    // [1. crack.wrtn.ai 사이트 UI: 녹화 제어기 플로팅 버튼 & 자동 매크로]
+    // [1. crack.wrtn.ai 사이트: 토큰 및 기기 ID 자동 갱신]
     // =========================================================================
     if (location.hostname.includes('wrtn.ai')) {
         const checkTokenAndWId = () => {
@@ -138,101 +52,130 @@
         };
         checkTokenAndWId();
         setInterval(checkTokenAndWId, 2000);
-
-        // 녹화 제어 플로팅 UI 생성
-        const injectRecorderUI = () => {
-            if (document.getElementById('pastel-recorder-btn')) return;
-            const btn = document.createElement('button');
-            btn.id = 'pastel-recorder-btn';
-            btn.style.cssText = 'position:fixed;top:15px;right:20px;z-index:2147483647;padding:10px 16px;border-radius:24px;border:2px solid #FF4432;background:#1a1918;color:#fff;font-weight:bold;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.5);display:flex;align-items:center;gap:6px;';
-            btn.innerHTML = `🔴 <span>통신 패킷 녹화 시작</span>`;
-
-            let isRecording = false;
-
-            btn.onclick = () => {
-                if (!isRecording) {
-                    isRecording = true;
-                    btn.style.background = '#FF4432';
-                    btn.innerHTML = `⏹ <span>녹화 중지 & 로그 복사</span>`;
-                    window.postMessage({ action: 'PASTEL_START_REC' }, '*');
-                } else {
-                    isRecording = false;
-                    btn.style.background = '#1a1918';
-                    btn.innerHTML = `⏳ <span>추출 중...</span>`;
-                    window.postMessage({ action: 'PASTEL_STOP_REC' }, '*');
-                }
-            };
-            (document.body || document.documentElement).appendChild(btn);
-        };
-
-        window.addEventListener('message', (e) => {
-            if (e.data?.action === 'PASTEL_REC_RESULT') {
-                const logs = e.data.logs || [];
-                const formatted = JSON.stringify(logs, null, 2);
-                
-                navigator.clipboard.writeText(formatted).then(() => {
-                    const btn = document.getElementById('pastel-recorder-btn');
-                    if (btn) btn.innerHTML = `✨ <span>복사 완료! (AI에게 붙여넣기)</span>`;
-                    setTimeout(injectRecorderUI, 3000);
-                });
-
-                // 화면에 즉시 확인할 수 있는 팝업창도 띄워줌
-                showLogViewerModal(formatted);
-            }
-        });
-
-        const showLogViewerModal = (logText) => {
-            const modal = document.createElement('div');
-            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;color:#fff;font-family:monospace;';
-            modal.innerHTML = `
-                <div style="background:#222;border-radius:12px;padding:20px;max-width:800px;width:100%;height:80vh;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;border:1px solid #444;">
-                    <div style="display:flex;justify-content:space-between;align-items:center;">
-                        <strong style="color:#FF4432;font-size:16px;">📋 녹화된 통신 패킷 데이터 (클립보드 자동 복사됨)</strong>
-                        <button id="pastel-close-log-modal" style="background:#444;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">닫기</button>
-                    </div>
-                    <textarea readonly style="flex:1;background:#141413;color:#00ff66;border:1px solid #333;border-radius:8px;padding:12px;font-size:12px;resize:none;outline:none;">${logText}</textarea>
-                    <button id="pastel-re-copy-btn" style="background:#FF4432;color:#fff;border:none;border-radius:8px;padding:12px;font-weight:bold;cursor:pointer;">다시 클립보드에 복사하기</button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-
-            modal.querySelector('#pastel-close-log-modal').onclick = () => modal.remove();
-            modal.querySelector('#pastel-re-copy-btn').onclick = () => {
-                navigator.clipboard.writeText(logText);
-                alert("클립보드에 다시 복사되었습니다!");
-            };
-        };
-
-        window.addEventListener('DOMContentLoaded', injectRecorderUI);
-        setTimeout(injectRecorderUI, 1500);
-
-        // 파스텔챗에서 전달된 텍스트 자동 입력 매크로 유지
-        const dispatchData = GM_getValue('pastel_macro_dispatch', null);
-        if (dispatchData && dispatchData.message) {
-            GM_setValue('pastel_macro_dispatch', null);
-            const inputTimer = setInterval(() => {
-                const editor = document.querySelector('.ProseMirror') ||
-                               document.querySelector('[contenteditable="true"]') ||
-                               document.querySelector('div[role="textbox"]') ||
-                               document.querySelector('textarea');
-                if (editor) {
-                    clearInterval(inputTimer);
-                    editor.focus();
-                    document.execCommand('selectAll', false, null);
-                    document.execCommand('insertText', false, dispatchData.message);
-                    editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: dispatchData.message }));
-                }
-            }, 300);
-        }
         return;
     }
 
     // =========================================================================
-    // [2. crack.html 통신 리스너: GET 목록/캐시 조회]
+    // [2. crack.html 통신 브릿지 (Socket.IO 웹소켓 직접 통신)]
     // =========================================================================
+    let activeWS = null;
+    let wsHeartbeatTimer = null;
+
+    function createCrackSocket(onOpen, onMessage, onError, onClose) {
+        if (activeWS && activeWS.readyState === WebSocket.OPEN) {
+            onOpen(activeWS);
+            return;
+        }
+
+        const wsUrl = 'wss://crack-api.wrtn.ai:443/character-chat/socket.io/?EIO=4&transport=websocket';
+        const ws = new WebSocket(wsUrl);
+
+        ws.onopen = () => {
+            console.log('[PASTEL-WS] 크랙 소켓 서버 연결 성공');
+        };
+
+        ws.onmessage = (e) => {
+            const raw = e.data;
+            if (typeof raw !== 'string') return;
+
+            // 1. Engine.IO Ping/Pong 처리
+            if (raw === '2') {
+                ws.send('3'); // Pong 응답
+                return;
+            }
+
+            // 2. 초기 연결 핸드셰이크 수신
+            if (raw.startsWith('0')) {
+                // 네임스페이스 /v3/chats 접속 요청
+                const cachedToken = GM_getValue('crack_access_token', '');
+                const cleanToken = cachedToken ? cachedToken.replace(/^Bearer\s+/i, '').trim() : '';
+                const authPayload = cleanToken ? `40/v3/chats,{"token":"Bearer ${cleanToken}"}` : '40/v3/chats,';
+                ws.send(authPayload);
+                return;
+            }
+
+            // 3. /v3/chats 접속 완료
+            if (raw.startsWith('40/v3/chats')) {
+                console.log('[PASTEL-WS] /v3/chats 네임스페이스 진입 완료');
+                onOpen(ws);
+                return;
+            }
+
+            // 4. 이벤트 메시지 수신 (42/v3/chats,...)
+            if (raw.startsWith('42/v3/chats,')) {
+                try {
+                    const jsonStr = raw.replace(/^42\/v3\/chats,\d*/, '');
+                    const [eventName, payload] = JSON.parse(jsonStr);
+                    onMessage(eventName, payload);
+                } catch (err) {
+                    console.warn('[PASTEL-WS] JSON 파싱 에러:', err, raw);
+                }
+            }
+        };
+
+        ws.onerror = (err) => {
+            console.error('[PASTEL-WS] 웹소켓 에러:', err);
+            if (onError) onError(err);
+        };
+
+        ws.onclose = () => {
+            console.log('[PASTEL-WS] 소켓 연결 종료');
+            activeWS = null;
+            if (onClose) onClose();
+        };
+
+        activeWS = ws;
+    }
+
+    // crack.html의 요청 리스너
     window.addEventListener('message', function(event) {
         if (!event.data) return;
 
+        // [A] Socket.IO 실시간 채팅 전송 요청
+        if (event.data.source === 'PASTEL_CRACK_SOCKET_SEND') {
+            const { reqId, chatId, message } = event.data;
+
+            createCrackSocket(
+                (ws) => {
+                    // 전송 패킷 발송: 42/v3/chats,["send",{"chatId":"...","message":"..."}]
+                    const payload = `42/v3/chats,["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
+                    ws.send(payload);
+                    console.log('[PASTEL-WS] 메시지 송신 완료:', chatId);
+                },
+                (eventName, payload) => {
+                    // 1. 실시간 텍스트 누적 스트리밍
+                    if (eventName === 'characterMessageGenerating') {
+                        const chunk = payload?.data?.chunk || '';
+                        window.postMessage({
+                            source: 'PASTEL_CRACK_SOCKET_CHUNK',
+                            reqId: reqId,
+                            text: chunk
+                        }, '*');
+                    }
+                    // 2. 생성 완료
+                    else if (eventName === 'characterMessageGenerated') {
+                        const finalContent = payload?.data?.content || '';
+                        const cashUsed = payload?.data?.cashUsage?.total || 0;
+                        window.postMessage({
+                            source: 'PASTEL_CRACK_SOCKET_DONE',
+                            reqId: reqId,
+                            text: finalContent,
+                            cashUsed: cashUsed
+                        }, '*');
+                    }
+                },
+                (err) => {
+                    window.postMessage({
+                        source: 'PASTEL_CRACK_SOCKET_ERROR',
+                        reqId: reqId,
+                        error: '웹소켓 통신 오류'
+                    }, '*');
+                }
+            );
+            return;
+        }
+
+        // [B] 기존 REST API 요청 (대화 목록 / 캐시 조회)
         if (event.data.source === 'PASTEL_CRACK_REQUEST') {
             const { reqId, method, url, headers, data, responseType } = event.data;
             const cachedToken = GM_getValue('crack_access_token', '');
