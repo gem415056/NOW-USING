@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Module 1 (Base & Menu)
 // @namespace    https://pastelchat.com/
-// @version      1.0.1
+// @version      1.0.2
 // @description  PASTELchat Native UI Engine for crack.wrtn.ai - Module 1: Base & Right Drawer Menu
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -402,12 +402,182 @@
     }
 
     /* ==========================================================================
-     * 3. UI 뼈대 DOM 마크업 주입 (우측 서랍 & 에피소드 노트 모달)
+     * 3. UI 뼈대 DOM 마크업 주입 (우측 서랍 & 에피소드 노트 모달 & 상단 버튼)
      * ========================================================================== */
     function injectBaseDOM() {
-        if (document.getElementById('ep-chat-right-drawer')) return;
+        // [A] 서랍 및 모달 뼈대 주입 (최초 1회만 실행)
+        if (!document.getElementById('ep-chat-right-drawer')) {
+            // 1. 딤 배경 오버레이
+            const overlay = document.createElement('div');
+            overlay.id = 'ep-chat-drawer-overlay';
+            overlay.className = 'ep-chat-drawer-overlay';
+            document.body.appendChild(overlay);
 
-        // 1. 크랙 헤더 내 순정 메뉴 버튼 옆에 파스텔 메뉴 버튼 주입
+            // 2. 우측 서랍 메뉴 컨테이너
+            const drawer = document.createElement('div');
+            drawer.id = 'ep-chat-right-drawer';
+            drawer.className = 'right-drawer-container';
+            drawer.innerHTML = `
+                <div class="right-drawer-body">
+                    <!-- 1) API 설정 아코디언 -->
+                    <div class="drawer-section-title" id="ep-api-accordion-title">
+                        <span>API 설정</span>
+                        <span class="accordion-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1 0-.708"/></svg></span>
+                    </div>
+                    <div class="api-boxed-card" id="api-collapsible-card">
+                        <div class="api-tabs-row">
+                            <button class="api-tab-btn active" id="ep-api-tab-gemini">Gemini</button>
+                            <button class="api-tab-btn" id="ep-api-tab-firebase">Firebase</button>
+                        </div>
+                        <div class="api-tab-content" id="ep-api-gemini-view">
+                            <div class="api-input-group">
+                                <label id="ep-api-label-text">Google Gemini API Key</label>
+                                <input type="text" class="api-textbox" id="ep-api-key-input">
+                                <textarea class="api-textbox" id="ep-api-firebase-textarea" style="display: none; height: 160px; resize: none;"></textarea>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 2) 모델 선택 아코디언 -->
+                    <div class="drawer-section-title" id="ep-model-accordion-title">
+                        <span>모델 선택</span>
+                        <span class="accordion-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1 0-.708"/></svg></span>
+                    </div>
+                    <div class="model-boxed-card" id="model-collapsible-card">
+                        <div class="model-tabs-row">
+                            <button class="model-tab-btn active" id="ep-model-tab-lore">로어</button>
+                            <button class="model-tab-btn" id="ep-model-tab-safety">안전 필터</button>
+                        </div>
+
+                        <!-- 탭 1: 로어 -->
+                        <div class="api-tab-content" id="ep-model-lore-view">
+                            <div class="model-input-group">
+                                <label>로어 생성 모델</label>
+                                <select class="model-select-dropdown" id="ep-lore-extract-model-select">
+                                    <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+                                    <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                                    <option value="gemini-3.6-flash" selected>Gemini 3.6 Flash</option>
+                                    <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                                    <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
+                                    <option value="_custom">직접 입력 (Custom)</option>
+                                </select>
+                                <input type="text" class="api-textbox ep-model-custom-input" id="ep-lore-extract-custom-input" placeholder="모델명 직접 입력" style="display: none;">
+
+                                <label>중요 장면 판단 모델</label>
+                                <select class="model-select-dropdown" id="ep-lore-judge-model-select">
+                                    <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+                                    <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                                    <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
+                                    <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                                    <option value="gemini-3.5-flash-lite" selected>Gemini 3.5 Flash Lite</option>
+                                    <option value="_custom">직접 입력 (Custom)</option>
+                                </select>
+                                <input type="text" class="api-textbox ep-model-custom-input" id="ep-lore-judge-custom-input" placeholder="모델명 직접 입력" style="display: none;">
+
+                                <label>로어 생성 생각 깊이 (Reasoning)</label>
+                                <select class="model-select-dropdown" id="ep-lore-reasoning-select">
+                                    <option value="off">Off (비활성)</option>
+                                    <option value="minimal">Minimal (기본 256)</option>
+                                    <option value="low">Low (1024)</option>
+                                    <option value="medium" selected>Medium (2048)</option>
+                                    <option value="high">High (4096)</option>
+                                    <option value="budget">Budget (직접 예산 입력)</option>
+                                </select>
+                                <input type="number" class="api-textbox ep-model-custom-input" id="ep-lore-reasoning-budget-input" placeholder="토큰 예산 직접 입력" style="display: none;" min="1" max="1000000">
+
+                                <label>중요 장면 판단 생각 깊이</label>
+                                <select class="model-select-dropdown" id="ep-lore-judge-reasoning-select">
+                                    <option value="minimal" selected>Minimal (권장)</option>
+                                    <option value="low">Low</option>
+                                    <option value="medium">Medium</option>
+                                    <option value="high">High</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- 탭 2: 안전 필터 -->
+                        <div class="api-tab-content" id="ep-model-safety-view" style="display: none;">
+                            <div class="model-input-group">
+                                <label>괴롭힘 필터 (Harassment)</label>
+                                <select class="model-select-dropdown" id="ep-safety-harassment-select">
+                                    <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
+                                    <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
+                                    <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
+                                    <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
+                                </select>
+
+                                <label>증오 발언 필터 (Hate Speech)</label>
+                                <select class="model-select-dropdown" id="ep-safety-hate-select">
+                                    <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
+                                    <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
+                                    <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
+                                    <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
+                                </select>
+
+                                <label>선정성 필터 (Sexually Explicit)</label>
+                                <select class="model-select-dropdown" id="ep-safety-explicit-select">
+                                    <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
+                                    <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
+                                    <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
+                                    <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
+                                </select>
+
+                                <label>위험 콘텐츠 필터 (Dangerous)</label>
+                                <select class="model-select-dropdown" id="ep-safety-dangerous-select">
+                                    <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
+                                    <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
+                                    <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
+                                    <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
+                                </select>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- 3) 어시스턴트 -->
+                    <div class="drawer-section-title">어시스턴트</div>
+                    <div class="menu-item" id="ep-menu-epnote-btn">
+                        <span>에피소드 노트</span>
+                    </div>
+                    <div class="menu-item" id="ep-menu-lore-btn">
+                        <span>로어 저장소</span>
+                    </div>
+
+                    <!-- 4) 데이터 관리 -->
+                    <div class="drawer-section-title">데이터 관리</div>
+                    <div class="menu-item" id="ep-menu-html-save-btn">
+                        <span>대화 저장</span>
+                    </div>
+                    <div class="menu-item" id="ep-menu-crack-clear-btn">
+                        <span>크랙 데이터 전체 정리</span>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(drawer);
+
+            // 3. 에피소드 노트 모달
+            const epNoteModal = document.createElement('div');
+            epNoteModal.id = 'ep-epnote-modal-overlay';
+            epNoteModal.className = 'ep-prompt-overlay';
+            epNoteModal.innerHTML = `
+                <div class="ep-prompt-modal ep-epnote-modal">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                        <h2 class="ep-header2" style="margin:0;">에피소드 노트 (미전송 메모)</h2>
+                        <button class="ep-menu-toggle" id="ep-epnote-close-btn" style="padding:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+                    </div>
+                    <textarea class="ep-profile-textarea" id="ep-epnote-unsent-textarea" placeholder="AI에게 전송되지 않는 자유 비공개 메모나 설정을 입력하세요..."></textarea>
+                </div>
+            `;
+            document.body.appendChild(epNoteModal);
+
+            bindDrawerEvents();
+        }
+
+        // [B] 헤더 내 파스텔 메뉴 버튼 상시 주입/유지 로직
+        injectHeaderButton();
+    }
+
+    // 헤더 버튼 정밀 탐색 및 주입 함수
+    function injectHeaderButton() {
         let menuBtn = document.getElementById('ep-native-menu-btn');
         if (!menuBtn) {
             menuBtn = document.createElement('button');
@@ -415,185 +585,40 @@
             menuBtn.type = 'button';
             menuBtn.title = 'PASTELchat 메뉴 열기';
             menuBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="24px" height="24px">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="22px" height="22px">
                     <path d="M11 11h2v2h-2zm-2.5 0h-2v2h2zm7 0h2v2h-2z"></path>
-                    <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
+                    <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
                 </svg>
             `;
+            // 버튼 클릭 이벤트 직접 연결
+            menuBtn.onclick = (e) => {
+                e.stopPropagation();
+                const drawer = document.getElementById('ep-chat-right-drawer');
+                const overlay = document.getElementById('ep-chat-drawer-overlay');
+                if (drawer && overlay) {
+                    const isOpen = drawer.style.display !== 'flex';
+                    if (isOpen) {
+                        const subHeader = document.querySelector('.absolute.z-docked.left-0.w-full.h-12') || document.querySelector('.h-12.px-5.flex.justify-between');
+                        if (subHeader) {
+                            const rect = subHeader.getBoundingClientRect();
+                            drawer.style.top = `${rect.bottom}px`;
+                            drawer.style.height = `calc(100% - ${rect.bottom}px)`;
+                        }
+                    }
+                    drawer.style.display = isOpen ? 'flex' : 'none';
+                    overlay.style.display = isOpen ? 'block' : 'none';
+                }
+            };
         }
 
-        // 헤더 안의 기존 메뉴 버튼 우측에 삽입 (헤더가 로드되었을 때)
-        const headerBtnContainer = document.querySelector('.flex.gap-3.items-center');
-        if (headerBtnContainer) {
-            if (!headerBtnContainer.contains(menuBtn)) {
-                headerBtnContainer.appendChild(menuBtn);
+        // 헤더 안의 순정 메뉴 버튼 컨테이너 탐색 (여러 패턴으로 확실하게 탐색)
+        const subHeader = document.querySelector('.absolute.z-docked.left-0.w-full.h-12') || document.querySelector('.h-12.px-5.flex.justify-between');
+        if (subHeader) {
+            const btnGroup = subHeader.querySelector('.flex.gap-3.items-center') || subHeader.lastElementChild;
+            if (btnGroup && !btnGroup.contains(menuBtn)) {
+                btnGroup.appendChild(menuBtn);
             }
         }
-
-        // 2. 딤 배경 오버레이
-        const overlay = document.createElement('div');
-        overlay.id = 'ep-chat-drawer-overlay';
-        overlay.className = 'ep-chat-drawer-overlay';
-        document.body.appendChild(overlay);
-
-        // 3. 우측 서랍 메뉴 컨테이너
-        const drawer = document.createElement('div');
-        drawer.id = 'ep-chat-right-drawer';
-        drawer.className = 'right-drawer-container';
-        drawer.innerHTML = `
-            <div class="right-drawer-body">
-                <!-- 1) API 설정 아코디언 -->
-                <div class="drawer-section-title" id="ep-api-accordion-title">
-                    <span>API 설정</span>
-                    <span class="accordion-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg></span>
-                </div>
-                <div class="api-boxed-card" id="api-collapsible-card">
-                    <div class="api-tabs-row">
-                        <button class="api-tab-btn active" id="ep-api-tab-gemini">Gemini</button>
-                        <button class="api-tab-btn" id="ep-api-tab-firebase">Firebase</button>
-                    </div>
-                    <div class="api-tab-content" id="ep-api-gemini-view">
-                        <div class="api-input-group">
-                            <label id="ep-api-label-text">Google Gemini API Key</label>
-                            <input type="text" class="api-textbox" id="ep-api-key-input">
-                            <textarea class="api-textbox" id="ep-api-firebase-textarea" style="display: none; height: 160px; resize: none;"></textarea>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 2) 모델 선택 아코디언 -->
-                <div class="drawer-section-title" id="ep-model-accordion-title">
-                    <span>모델 선택</span>
-                    <span class="accordion-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg></span>
-                </div>
-                <div class="model-boxed-card" id="model-collapsible-card">
-                    <div class="model-tabs-row">
-                        <button class="model-tab-btn active" id="ep-model-tab-lore">로어</button>
-                        <button class="model-tab-btn" id="ep-model-tab-safety">안전 필터</button>
-                    </div>
-
-                    <!-- 탭 1: 로어 -->
-                    <div class="api-tab-content" id="ep-model-lore-view">
-                        <div class="model-input-group">
-                            <label>로어 생성 모델</label>
-                            <select class="model-select-dropdown" id="ep-lore-extract-model-select">
-                                <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
-                                <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
-                                <option value="gemini-3.6-flash" selected>Gemini 3.6 Flash</option>
-                                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
-                                <option value="_custom">직접 입력 (Custom)</option>
-                            </select>
-                            <input type="text" class="api-textbox ep-model-custom-input" id="ep-lore-extract-custom-input" placeholder="모델명 직접 입력" style="display: none;">
-
-                            <label>중요 장면 판단 모델</label>
-                            <select class="model-select-dropdown" id="ep-lore-judge-model-select">
-                                <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
-                                <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
-                                <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
-                                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
-                                <option value="gemini-3.5-flash-lite" selected>Gemini 3.5 Flash Lite</option>
-                                <option value="_custom">직접 입력 (Custom)</option>
-                            </select>
-                            <input type="text" class="api-textbox ep-model-custom-input" id="ep-lore-judge-custom-input" placeholder="모델명 직접 입력" style="display: none;">
-
-                            <label>로어 생성 생각 깊이 (Reasoning)</label>
-                            <select class="model-select-dropdown" id="ep-lore-reasoning-select">
-                                <option value="off">Off (비활성)</option>
-                                <option value="minimal">Minimal (기본 256)</option>
-                                <option value="low">Low (1024)</option>
-                                <option value="medium" selected>Medium (2048)</option>
-                                <option value="high">High (4096)</option>
-                                <option value="budget">Budget (직접 예산 입력)</option>
-                            </select>
-                            <input type="number" class="api-textbox ep-model-custom-input" id="ep-lore-reasoning-budget-input" placeholder="토큰 예산 직접 입력" style="display: none;" min="1" max="1000000">
-
-                            <label>중요 장면 판단 생각 깊이</label>
-                            <select class="model-select-dropdown" id="ep-lore-judge-reasoning-select">
-                                <option value="minimal" selected>Minimal (권장)</option>
-                                <option value="low">Low</option>
-                                <option value="medium">Medium</option>
-                                <option value="high">High</option>
-                            </select>
-                        </div>
-                    </div>
-
-                    <!-- 탭 2: 안전 필터 -->
-                    <div class="api-tab-content" id="ep-model-safety-view" style="display: none;">
-                        <div class="model-input-group">
-                            <label>괴롭힘 필터 (Harassment)</label>
-                            <select class="model-select-dropdown" id="ep-safety-harassment-select">
-                                <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
-                                <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
-                                <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
-                                <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
-                            </select>
-
-                            <label>증오 발언 필터 (Hate Speech)</label>
-                            <select class="model-select-dropdown" id="ep-safety-hate-select">
-                                <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
-                                <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
-                                <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
-                                <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
-                            </select>
-
-                            <label>선정성 필터 (Sexually Explicit)</label>
-                            <select class="model-select-dropdown" id="ep-safety-explicit-select">
-                                <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
-                                <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
-                                <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
-                                <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
-                            </select>
-
-                            <label>위험 콘텐츠 필터 (Dangerous)</label>
-                            <select class="model-select-dropdown" id="ep-safety-dangerous-select">
-                                <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
-                                <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
-                                <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
-                                <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
-                            </select>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- 3) 어시스턴트 -->
-                <div class="drawer-section-title">어시스턴트</div>
-                <div class="menu-item" id="ep-menu-epnote-btn">
-                    <span>에피소드 노트</span>
-                </div>
-                <div class="menu-item" id="ep-menu-lore-btn">
-                    <span>로어 저장소</span>
-                </div>
-
-                <!-- 4) 데이터 관리 -->
-                <div class="drawer-section-title">데이터 관리</div>
-                <div class="menu-item" id="ep-menu-html-save-btn">
-                    <span>대화 저장</span>
-                </div>
-                <div class="menu-item" id="ep-menu-crack-clear-btn">
-                    <span>크랙 데이터 전체 정리</span>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(drawer);
-
-        // 4. 에피소드 노트 모달 (미전송 메모 전용)
-        const epNoteModal = document.createElement('div');
-        epNoteModal.id = 'ep-epnote-modal-overlay';
-        epNoteModal.className = 'ep-prompt-overlay';
-        epNoteModal.innerHTML = `
-            <div class="ep-prompt-modal ep-epnote-modal">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
-                    <h2 class="ep-header2" style="margin:0;">에피소드 노트 (미전송 메모)</h2>
-                    <button class="ep-menu-toggle" id="ep-epnote-close-btn" style="padding:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
-                </div>
-                <textarea class="ep-profile-textarea" id="ep-epnote-unsent-textarea" placeholder="AI에게 전송되지 않는 자유 비공개 메모나 설정을 입력하세요..."></textarea>
-            </div>
-        `;
-        document.body.appendChild(epNoteModal);
-
-        // 이벤트 리스너 바인딩 호출
-        bindDrawerEvents();
     }
 
     /* ==========================================================================
@@ -819,7 +844,7 @@
         checkAndInject();
     }
 
-    // SPA 페이지 이동 시에도 메뉴 버튼이 사라지지 않도록 가볍게 체크 (2초 주기)
-    setInterval(checkAndInject, 2000);
+    // SPA 라우팅으로 헤더가 새로 렌더링되어도 즉시 버튼을 복원하도록 0.5초 주기로 감시
+    setInterval(checkAndInject, 500);
 
 })();
