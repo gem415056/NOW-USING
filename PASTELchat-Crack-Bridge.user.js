@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Module 1 (Base & Menu)
 // @namespace    https://pastelchat.com/
-// @version      1.1.1
+// @version      1.1.244
 // @description  PASTELchat Native UI Engine for crack.wrtn.ai - Module 1: Base & Right Drawer Menu
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -410,14 +410,14 @@
             border: 1px solid #E6E6E6;
             border-radius: 12px;
             background-color: #fafafa;
-            padding: 15px 20px 10px 20px;
+            padding: 5px 10px 10px 10px; /* 상/좌/우 패딩 10px 축소로 가로폭 확장 */
             box-sizing: border-box;
             transition: border-color 0.2s, background-color 0.2s;
         }
         .input-area:focus-within {
             border: 2px solid #888888 !important;
             background-color: #ffffff !important;
-            padding: 14px 19px 9px 19px;
+            padding: 4px 9px 9px 9px;
         }
         body[data-theme="dark"] .input-area {
             background-color: #1a1918;
@@ -1102,26 +1102,37 @@
         const editor = document.querySelector('.ProseMirror') || document.querySelector('[contenteditable="true"]');
         if (editor) {
             editor.focus();
-            if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
-                document.execCommand('selectAll', false, null);
-                document.execCommand('insertText', false, rawText);
-            } else {
-                editor.innerHTML = `<p>${rawText.replace(/\\n/g, '<br>')}</p>`;
-            }
+            
+            // ProseMirror 단락 구조에 맞게 줄바꿈을 p 태그들로 변환 주입
+            const paragraphs = rawText.split('\n').map(line => `<p>${line || '<br>'}</p>`).join('');
+            editor.innerHTML = paragraphs;
+            
             editor.dispatchEvent(new Event('input', { bubbles: true }));
             editor.dispatchEvent(new Event('change', { bubbles: true }));
 
-            // 크랙의 원래 전송 버튼 탐색 및 클릭
+            // 제공해주신 전송 아이콘(path d="M18.77 11.13...")을 가진 순정 전송 버튼을 1:1로 정밀 탐색
             setTimeout(() => {
-                const nativeSendBtn = document.querySelector('button[style*="rgb(249, 182, 0)"]') || 
-                                     document.querySelector('button.bg-primary') ||
-                                     document.querySelector('button svg path[d^="M18.77"]')?.closest('button');
+                let nativeSendBtn = null;
+                const pathList = document.querySelectorAll('svg path');
+                for (const p of pathList) {
+                    const d = p.getAttribute('d') || '';
+                    if (d.startsWith('M18.77 11.13')) {
+                        const candidateBtn = p.closest('button');
+                        // 파스텔 자체 전송 버튼이 아닌 크랙의 원래 순정 전송 버튼인지 확인
+                        if (candidateBtn && candidateBtn.id !== 'ep-chat-send-btn') {
+                            nativeSendBtn = candidateBtn;
+                            break;
+                        }
+                    }
+                }
+
                 if (nativeSendBtn) {
+                    nativeSendBtn.removeAttribute('disabled');
                     nativeSendBtn.click();
                     textarea.value = '';
                     updateSendButtonColor();
                 } else {
-                    showToast("❌ 전송 버튼 탐색 실패");
+                    showToast("❌ 순정 전송 버튼 탐색 실패");
                 }
             }, 50);
         } else {
@@ -1140,11 +1151,12 @@
 
         if (textarea) {
             textarea.addEventListener('input', updateSendButtonColor);
+            // 엔터 입력 시 순수 줄바꿈을 허용하고 크랙의 다른 단축키가 가로채지 못하도록 격리
             textarea.addEventListener('keydown', (e) => {
-                if (e.key === 'Enter' && !e.shiftKey && !e.isComposing) {
-                    e.preventDefault();
-                    executeSendMessage();
-                }
+                e.stopPropagation();
+            });
+            textarea.addEventListener('keyup', (e) => {
+                e.stopPropagation();
             });
         }
 
