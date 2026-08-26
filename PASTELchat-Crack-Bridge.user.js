@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Module 1 (Base & Menu)
 // @namespace    https://pastelchat.com/
-// @version      1.1.244
+// @version      1.1.3
 // @description  PASTELchat Native UI Engine for crack.wrtn.ai - Module 1: Base & Right Drawer Menu
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -391,7 +391,15 @@
             display: none !important;
         }
 
-        /* 하단 입력바 & 특수문자 구슬 툴바 (crack.html 순정 100%) */
+        /* 크랙 하단 부모 컨테이너 가로폭을 좌우로 시원하게 확장 */
+        .bg-bg_screen.pointer-events-auto,
+        .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
+            max-width: 900px !important; /* 기존 768px에서 좌우로 넓게 확장 */
+            width: calc(100% - 20px) !important; /* 좌우 바깥 마진 대폭 축소 */
+            padding-top: 6px !important;
+        }
+
+        /* 하단 입력바 & 특수문자 구슬 툴바 (crack.html 순정 패딩 완벽 복원) */
         .chat-footer-control {
             width: 100%;
             display: flex;
@@ -410,14 +418,14 @@
             border: 1px solid #E6E6E6;
             border-radius: 12px;
             background-color: #fafafa;
-            padding: 5px 10px 10px 10px; /* 상/좌/우 패딩 10px 축소로 가로폭 확장 */
+            padding: 15px 20px 10px 20px; /* 가장 편안했던 순정 내부 패딩 복원 */
             box-sizing: border-box;
             transition: border-color 0.2s, background-color 0.2s;
         }
         .input-area:focus-within {
             border: 2px solid #888888 !important;
             background-color: #ffffff !important;
-            padding: 4px 9px 9px 9px;
+            padding: 14px 19px 9px 19px;
         }
         body[data-theme="dark"] .input-area {
             background-color: #1a1918;
