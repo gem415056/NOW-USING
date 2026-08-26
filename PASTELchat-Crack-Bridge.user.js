@@ -1,10 +1,16 @@
 // ==UserScript==
-// @name         PASTELchat × CRACK Module 1 (Base & Menu)
+// @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.2.0
-// @description  PASTELchat Native UI Engine for crack.wrtn.ai - Module 1: Base & Right Drawer Menu
+// @version      1.2.1
+// @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
+// @match        https://pastel-chat-coral.vercel.app/*
+// @match        *://*/*index.html*
+// @match        file:///*index.html*
+// @match        file:///*
+// @include      *index.html*
+// @include      file://*index.html*
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
@@ -13,6 +19,25 @@
 
 (function() {
     'use strict';
+
+    // [index.html 동기화 브릿지]: 파스텔챗 index.html이 열려있을 때 단축어/템플릿을 Tampermonkey 안전 저장소로 실시간 복사
+    if (!location.hostname.includes('wrtn.ai')) {
+        const syncPastelchatDataToGM = () => {
+            try {
+                const shortcuts = localStorage.getItem('pastel_mockShortcuts');
+                if (shortcuts) GM_setValue('pastel_mockShortcuts', JSON.parse(shortcuts));
+
+                const templates = localStorage.getItem('pastel_mockTemplates');
+                if (templates) GM_setValue('pastel_mockTemplates', JSON.parse(templates));
+
+                const folders = localStorage.getItem('pastel_mockTemplateFolders');
+                if (folders) GM_setValue('pastel_mockTemplateFolders', JSON.parse(folders));
+            } catch (_) {}
+        };
+        syncPastelchatDataToGM();
+        setInterval(syncPastelchatDataToGM, 2000);
+        return; // index.html에서는 UI를 주입하지 않고 데이터 동기화만 수행
+    }
 
     /* ==========================================================================
      * 1. crack.html 순정 CSS 스타일시트 (100% 원본 완전 일치)
@@ -399,12 +424,13 @@
             border: none !important;
         }
 
-        /* 크랙 하단 부모 컨테이너 가로폭 및 마진 1.5배 최적화 */
+        /* 크랙 하단 부모 컨테이너 가로폭 및 마진 1.5배 추가 확대 */
         .bg-bg_screen.pointer-events-auto,
         .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
-            max-width: 820px !important;
-            width: calc(100% - 32px) !important; /* 딱 알맞은 1.5배 바깥 마진 확보 */
+            max-width: 760px !important;
+            width: calc(100% - 48px) !important; /* 마진 1.5배 추가 확보 */
             padding-top: 6px !important;
+            overflow: visible !important; /* 팝업 잘림 방지 */
         }
 
         /* 하단 입력바 & 특수문자 구슬 툴바 (crack.html 순정 패딩 완벽 복원) */
@@ -417,107 +443,21 @@
             background: transparent;
             position: relative;
             user-select: none;
-        }
-        .input-area {
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            height: 160px;
-            border: 1px solid #E6E6E6;
-            border-radius: 12px;
-            background-color: #fafafa;
-            padding: 15px 20px 10px 20px; /* 가장 편안했던 순정 내부 패딩 복원 */
-            box-sizing: border-box;
-            transition: border-color 0.2s, background-color 0.2s;
-        }
-        .input-area:focus-within {
-            border: 2px solid #888888 !important;
-            background-color: #ffffff !important;
-            padding: 14px 19px 9px 19px;
-        }
-        body[data-theme="dark"] .input-area {
-            background-color: #1a1918;
-            border-color: #42413D;
-        }
-        body[data-theme="dark"] .input-area:focus-within {
-            background-color: #141413 !important;
-            border-color: #b0b0b0 !important;
-        }
-        .chat-textarea {
-            width: 100%;
-            height: 100%;
-            border: none !important;
-            background: transparent !important;
-            color: var(--text_primary);
-            padding: 0 !important;
-            resize: none;
-            font-size: 16px;
-            outline: none;
-            line-height: 20px;
-            font-family: inherit;
-            box-sizing: border-box;
-        }
-        .input-toolbar {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            width: 100%;
-            user-select: none;
-            margin-top: 5px;
-        }
-        .tool-btn {
-            position: relative;
-            background-color: #fcfcfc;
-            border: 1px solid #B0B0B0;
-            color: var(--text_primary);
-            cursor: pointer;
-            width: 26px;
-            height: 26px;
-            border-radius: 50%;
-            font-size: 16px;
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
-            padding: 0;
-            box-sizing: border-box;
-            transition: border-color 0.2s, box-shadow 0.2s;
-        }
-        .tool-btn::after {
-            content: "";
-            position: absolute;
-            top: -8px;
-            bottom: -8px;
-            left: -3px;
-            right: -3px;
-            border-radius: 50%;
-        }
-        .tool-btn.active {
-            border-color: #888888 !important;
-            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
-        }
-        body[data-theme="dark"] .tool-btn {
-            background-color: #242321;
-            border-color: #555;
-            color: #F0EFEB;
-        }
-        .vertical-divider {
-            width: 1px;
-            height: 14px;
-            border-left: 1px dashed #888888;
+            overflow: visible !important; /* 팝업 잘림 방지 */
         }
 
-        /* 단축어 팝업 순정 스타일 */
+        /* 단축어 팝업 순정 스타일 (z-index 최상위화) */
         #ep-shortcut-select-popup {
             display: none;
             position: absolute;
             left: 20px;
-            bottom: calc(100% - 10px);
-            z-index: 100010 !important;
+            bottom: calc(100% + 6px);
+            z-index: 2147483640 !important;
             border-radius: 12px;
             padding: 10px !important;
             width: 130px !important;
             height: auto !important;
-            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             flex-direction: column;
             gap: 8px;
             border: 1px solid #E6E6E6;
@@ -572,21 +512,21 @@
             color: #fff;
         }
 
-        /* 템플릿 퀵패널 순정 스타일 */
+        /* 템플릿 퀵패널 순정 스타일 (z-index 최상위화) */
         .ep-tpl-quick-panel {
             position: absolute;
-            left: 10px;
-            right: 10px;
-            bottom: calc(100% - 10px);
+            left: 0;
+            right: 0;
+            bottom: calc(100% + 6px);
             background: #ffffff;
             border: 1px solid #E6E6E6;
             border-radius: 12px;
-            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
             padding: 14px 16px;
             display: none;
             flex-direction: column;
             gap: 10px;
-            z-index: 100010 !important;
+            z-index: 2147483640 !important;
             max-height: 360px;
             box-sizing: border-box;
         }
