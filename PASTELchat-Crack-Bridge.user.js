@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.4.2
+// @version      1.4.3
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -15,6 +15,8 @@
 // @grant        GM_getValue
 // @grant        GM_addStyle
 // @require      https://cdn.jsdelivr.net/npm/dexie@4.2.1/dist/dexie.min.js
+// @require      https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js
+// @require      https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check-compat.js
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -3227,7 +3229,13 @@ Conversation Log:
                 safetySettings: getSafetySettingsPayload()
             };
 
-            const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            const appCheckToken = await getAppCheckToken();
+            const headers = { "Content-Type": "application/json" };
+            if (appCheckToken && url.includes("firebasevertexai")) {
+                headers["X-Firebase-AppCheck"] = appCheckToken;
+            }
+
+            const res = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
             if (!res.ok) throw new Error(`API 통신 실패 (HTTP ${res.status})`);
             const resData = await res.json();
 
@@ -4235,32 +4243,66 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         else if (panelId === 'ep-lore-panel-settings') loadCrackLoreSettingsTab();
     }
 
-    function stripLoreOnlyFromView() {
-        const containers = document.querySelectorAll('.break-words, .whitespace-pre-wrap, .prose');
-        containers.forEach(container => {
-            if (container.closest('.chat-footer-control') || container.closest('#ep-chat-right-drawer') || container.closest('.ep-prompt-overlay')) return;
+    // Firebase App Check 토큰 발급기 (crack.html 순정 100%)
+    let geminiAppCheckApp = null;
+    const RECAPTCHA_SITE_KEY = "6Lc_imwtAAAAADr3ojpxWjAb5ofGvBzD4rgEnfr4";
 
-            // 1. 단락(<p>) 태그 기반으로 쪼개진 로어 블록 은닉
-            const pTags = container.querySelectorAll('p');
-            if (pTags.length > 0) {
-                let inLoreBlock = false;
-                pTags.forEach(p => {
-                    const txt = (p.textContent || '').trim();
-                    if (txt.startsWith('[LORE')) {
-                        inLoreBlock = true;
-                        p.style.display = 'none';
-                    } else if (inLoreBlock && (txt === '' || txt.startsWith('[LORE'))) {
-                        p.style.display = 'none';
-                    } else {
-                        inLoreBlock = false;
+    async function getAppCheckToken() {
+        try {
+            const firebaseScript = localStorage.getItem('pastel_api_firebase') || '';
+            if (!firebaseScript.trim()) return null;
+
+            if (!geminiAppCheckApp && typeof firebase !== 'undefined') {
+                const config = parseFirebaseConfig(firebaseScript);
+                if (config && config.projectId && config.apiKey) {
+                    geminiAppCheckApp = firebase.initializeApp(config, 'pastel_crack_app');
+                    if (firebase.appCheck) {
+                        const appCheck = firebase.appCheck(geminiAppCheckApp);
+                        appCheck.activate(new firebase.appCheck.ReCaptchaV3Provider(RECAPTCHA_SITE_KEY), true);
                     }
-                });
+                }
             }
 
-            // 2. 단일 텍스트/줄바꿈 기반 로어 블록 은닉
-            if (container.innerHTML && container.innerHTML.includes('[LORE') && !container.getAttribute('data-lore-hidden')) {
-                container.innerHTML = container.innerHTML.replace(/^\[LORE[\s\S]*?(?=(?:<p>|<br\s*\/?>|\n\s*\n)(?!\[LORE)|$)/i, '').trim();
-                container.setAttribute('data-lore-hidden', 'true');
+            if (geminiAppCheckApp && typeof firebase !== 'undefined' && firebase.appCheck) {
+                const tokenResult = await firebase.appCheck(geminiAppCheckApp).getToken(false);
+                if (tokenResult && tokenResult.token) {
+                    return tokenResult.token;
+                }
+            }
+        } catch (e) {
+            console.warn("[AppCheck 알림]:", e ? e.message : e);
+        }
+        return null;
+    }
+
+    // [로어 완전 은닉 엔진]: 크랙이 <p>, <div>, 텍스트 어떤 형태로 렌더링하든 [LORE 1]... [LORE n]을 100% 감지하여 화면에서 숨김
+    function stripLoreOnlyFromView() {
+        const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || document.querySelector('main') || document.body;
+        if (!chatRoot) return;
+
+        // 1. 단락(<p>, <div>) 단위로 쪼개진 [LORE ...] 요소 전수 숨김
+        const paragraphs = chatRoot.querySelectorAll('p, div, span');
+        paragraphs.forEach(el => {
+            if (el.closest('.chat-footer-control') || el.closest('#ep-chat-right-drawer') || el.closest('.ep-prompt-overlay') || el.closest('#ep-lore-storage-modal-overlay')) return;
+            
+            const raw = (el.innerText || el.textContent || '').trim();
+            if (/^\[LORE\s*\d*\]/i.test(raw)) {
+                el.style.display = 'none';
+            }
+        });
+
+        // 2. 단일 텍스트 블록 안에 줄바꿈으로 붙어있는 [LORE 1]... [LORE n] 전수 적출
+        const textBlocks = chatRoot.querySelectorAll('.break-words, .whitespace-pre-wrap, .prose');
+        textBlocks.forEach(block => {
+            if (block.closest('.chat-footer-control') || block.closest('#ep-chat-right-drawer') || block.closest('.ep-prompt-overlay') || block.closest('#ep-lore-storage-modal-overlay')) return;
+
+            if (block.innerHTML && block.innerHTML.includes('[LORE')) {
+                let html = block.innerHTML;
+                html = html.replace(/\[LORE\s*\d*\][\s\S]*?(?=(?:<p\b|<div\b|<br\s*\/?>|\n\s*)(?!\[LORE)|$)/gi, '');
+                html = html.replace(/^(?:<p>\s*<\/p>|<br\s*\/?>|\s*)+/gi, '');
+                if (block.innerHTML !== html) {
+                    block.innerHTML = html;
+                }
             }
         });
     }
