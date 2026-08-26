@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.5.4
+// @version      1.5.5
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -3152,94 +3152,61 @@ Conversation Log:
     // ==========================================
     // 로깅, 턴수 및 스냅샷 복원 엔진
     // ==========================================
-    // [crack.html 순정 100%] 백엔드 API 10,000턴 전수 대화 수급 엔진 (DOM 가상 스크롤 누락 완벽 해결)
-    async function getCrackConversationHistory(targetChatId) {
+    // [crack.html 순정 100% 1:1 완전 일치] 10,000턴 원본 메시지 배열 수급기
+    async function fetchCrackMessagesPure(targetChatId) {
         const chatId = targetChatId || getChatId();
+        if (!chatId || chatId === 'global') return [];
+
+        const token = getCrackAuthToken();
+        const headers = { 'accept': 'application/json, text/plain, */*' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         let loadedMessages = [];
 
-        // 1. 크랙 백엔드 엔드포인트 직접 호출 (과거 1턴부터 최대 10,000턴 수급)
-        if (chatId && chatId !== 'global') {
-            const token = getCrackAuthToken();
-            const headers = { 'accept': 'application/json, text/plain, */*' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+        // 1단계: crack.html 순정 1순위 (/messages?limit=10000)
+        try {
+            const res = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=10000`, {
+                method: 'GET',
+                headers: headers,
+                credentials: 'include'
+            });
+            if (res.ok) {
+                const parsedMsgData = await res.json();
+                if (Array.isArray(parsedMsgData?.data)) loadedMessages = parsedMsgData.data;
+                else if (Array.isArray(parsedMsgData?.data?.messages)) loadedMessages = parsedMsgData.data.messages;
+                else if (Array.isArray(parsedMsgData?.messages)) loadedMessages = parsedMsgData.messages;
+                else if (Array.isArray(parsedMsgData)) loadedMessages = parsedMsgData;
+            }
+        } catch (_) {}
 
+        // 2단계: crack.html 순정 2순위 폴백 (/chats/${chatId}?limit=10000)
+        if (loadedMessages.length === 0) {
             try {
-                // 1순위: /messages?limit=10000
-                const res = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=10000`, {
+                const res2 = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}?limit=10000`, {
                     method: 'GET',
                     headers: headers,
                     credentials: 'include'
                 });
-
-                if (res.ok) {
-                    const parsed = await res.json();
-                    if (Array.isArray(parsed?.data)) loadedMessages = parsed.data;
-                    else if (Array.isArray(parsed?.data?.messages)) loadedMessages = parsed.data.messages;
-                    else if (Array.isArray(parsed?.messages)) loadedMessages = parsed.messages;
-                    else if (Array.isArray(parsed)) loadedMessages = parsed;
+                if (res2.ok) {
+                    const parsedChatData = await res2.json();
+                    if (Array.isArray(parsedChatData?.data?.messages)) loadedMessages = parsedChatData.data.messages;
+                    else if (Array.isArray(parsedChatData?.messages)) loadedMessages = parsedChatData.messages;
                 }
             } catch (_) {}
-
-            // 2순위 폴백: /chats/${chatId}?limit=10000
-            if (loadedMessages.length === 0) {
-                try {
-                    const res2 = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}?limit=10000`, {
-                        method: 'GET',
-                        headers: headers,
-                        credentials: 'include'
-                    });
-                    if (res2.ok) {
-                        const parsed2 = await res2.json();
-                        if (Array.isArray(parsed2?.data?.messages)) loadedMessages = parsed2.data.messages;
-                        else if (Array.isArray(parsed2?.messages)) loadedMessages = parsed2.messages;
-                    }
-                } catch (_) {}
-            }
         }
 
-        // 백엔드 API 수급에 성공한 경우: 정방향(과거 1턴 -> 최신 턴)으로 정렬하여 반환
+        // crack.html 순정 3단계: 과거 1턴부터 순서대로 reverse() 정렬
         if (loadedMessages.length > 0) {
-            // 크랙 API는 최신순(역순)으로 제공하므로 뒤집어서 과거->최신 순서로 정렬
-            const formatted = loadedMessages.slice().reverse().map(msg => {
-                const isUser = (msg.role === 'user' || msg.type === 'user');
-                const rawTxt = msg.content || msg.message || msg.text || '';
-                return {
-                    role: isUser ? 'user' : 'assistant',
-                    content: stripLoreInjectionBlock(rawTxt).trim()
-                };
-            }).filter(m => m.content.length > 0);
-
-            if (formatted.length > 0) return formatted;
+            loadedMessages.reverse();
+            return loadedMessages;
         }
 
-        // 3. 폴백: DOM 렌더링 텍스트 파싱
-        const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') ||
-                         document.querySelector('.flex.flex-col-reverse') ||
-                         document.querySelector('main') ||
-                         document.body;
+        return [];
+    }
 
-        if (!chatRoot) return [];
-
-        const turnsList = [];
-        const seenTexts = new Set();
-        const leaves = chatRoot.querySelectorAll('.whitespace-pre-wrap, .break-words, .prose');
-
-        leaves.forEach(leaf => {
-            if (leaf.closest('.chat-footer-control') || leaf.closest('#ep-chat-right-drawer') || leaf.closest('.ep-prompt-overlay') || leaf.closest('#ep-lore-storage-modal-overlay') || leaf.closest('.ProseMirror')) return;
-            let txt = (leaf.getAttribute('data-pastel-raw') || leaf.innerText || leaf.textContent || '').trim();
-            let clean = stripLoreInjectionBlock(txt).trim();
-            if (clean && !seenTexts.has(clean)) {
-                seenTexts.add(clean);
-                const isUser = !!leaf.closest('.justify-end, [class*="items-end"], .bg-accent_translucent');
-                turnsList.push({ role: isUser ? 'user' : 'assistant', content: clean });
-            }
-        });
-
-        if (chatRoot.classList.contains('flex-col-reverse') || chatRoot.querySelector('.flex-col-reverse')) {
-            turnsList.reverse();
-        }
-
-        return turnsList;
+    function getCrackChatTurns(chatId) {
+        const count = document.querySelectorAll('.justify-end, [class*="items-end"], .bg-accent_translucent').length;
+        return count || 0;
     }
 
     function getCrackChatTurns(chatId) {
@@ -3569,11 +3536,16 @@ Conversation Log:
         const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
         if (!url) throw new Error("우측 서랍의 [API 설정]에 Gemini API Key 또는 Firebase Script를 입력해 주십시오.");
 
-        const history = await getCrackConversationHistory(episodeId);
-        if (history.length === 0) throw new Error("분석할 대화 이력이 없습니다.");
+        const history = await fetchCrackMessagesPure(episodeId);
+        if (!history || history.length < 2) throw new Error("분석할 대화 이력이 부족합니다.");
 
-        const targetList = history.slice(-(turns * 2));
-        const context = targetList.map(m => `${m.role}: ${m.content}`).join("\n");
+        const targetMessagesCount = turns * 2;
+        const targetList = history.slice(-targetMessagesCount);
+        const context = targetList.map(m => {
+            const role = (m.role === 'user' || m.type === 'user') ? 'user' : 'assistant';
+            const cleanText = stripLoreInjectionBlock(m.content || m.message || m.text || '');
+            return `${role}: ${cleanText}`;
+        }).join("\n");
 
         const packName = `Ep_Crack_${episodeId}_Pack`;
         let entriesText = "[]";
@@ -3676,12 +3648,16 @@ Conversation Log:
         const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
         if (!url) return;
 
-        const history = await getCrackConversationHistory(episodeId);
-        if (history.length < 2) return;
+        const history = await fetchCrackMessagesPure(episodeId);
+        if (!history || history.length < 2) return;
 
         const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${episodeId}`), 10) || 6;
         const targetList = history.slice(-(extTurns * 2));
-        const context = targetList.map(m => `${m.role}: ${m.content}`).join("\n");
+        const context = targetList.map(m => {
+            const role = (m.role === 'user' || m.type === 'user') ? 'user' : 'assistant';
+            const cleanText = stripLoreInjectionBlock(m.content || m.message || m.text || '');
+            return `${role}: ${cleanText}`;
+        }).join("\n");
 
         const packName = `Ep_Crack_${episodeId}_Pack`;
         let entriesText = "[]";
@@ -3888,9 +3864,9 @@ Conversation Log:
             await loreDb.embeddings.where('packName').equals(packName).delete();
 
             showLoreExtPersistentToast("📥 1턴부터 전체 대화 내역 수급 중...");
-            const history = await getCrackConversationHistory(episodeId);
-            if (history.length === 0) throw new Error("대화 내용이 존재하지 않습니다.");
-            console.log(`[PASTEL:재생성] 총 ${history.length}개의 메시지(턴)를 기반으로 전체 재생성을 시작합니다.`);
+            const history = await fetchCrackMessagesPure(episodeId);
+            if (!history || history.length === 0) throw new Error("대화 내용이 존재하지 않습니다.");
+            console.log(`[PASTEL:재생성] crack.html 순정 API로부터 총 ${history.length}개의 메시지를 전수 수급 완료했습니다.`);
 
             const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${episodeId}`), 10) || 6;
             const step = extTurns * 2;
@@ -3902,13 +3878,17 @@ Conversation Log:
                 const slice = history.slice(0, i + step);
                 if (slice.length < 2) continue;
                 const windowSlice = slice.slice(-(step + 4));
-                const contextText = windowSlice.map(m => `${m.role}: ${m.content}`).join("\n");
+                const contextText = windowSlice.map(m => {
+                    const role = (m.role === 'user' || m.type === 'user') ? 'user' : 'assistant';
+                    const cleanText = stripLoreInjectionBlock(m.content || m.message || m.text || '');
+                    return `${role}: ${cleanText}`;
+                }).join("\n");
 
                 const progressPercent = Math.min(100, Math.round(((stepsRun + 1) / totalSteps) * 100));
                 showLoreExtPersistentToast(`🔮 전체 로어 재생성 중...(${progressPercent}%)`);
                 if (st) st.textContent = `재생성 스캔 중 (${stepsRun + 1}/${totalSteps} 단계)... (${progressPercent}%)`;
 
-                const chunkTurn = slice.filter(m => m.role === 'user').length;
+                const chunkTurn = slice.filter(m => (m.role === 'user' || m.type === 'user')).length;
                 await executeLoreExtractionAPIOnly(episodeId, contextText, chunkTurn);
                 stepsRun++;
             }
