@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.2.8
+// @version      1.2.9
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -73,18 +73,17 @@
             background-color: #141413 !important;
         }
 
-        /* 2. 대화창 바닥에 200px 여유 공간 확보 (마지막 대화 가림 및 붕 뜸 완벽 해결) */
-        .flex.flex-col-reverse.w-full.gap-10,
-        main, .flex.flex-col.w-full.max-w-\\[768px\\] {
-            padding-bottom: 200px !important;
+        /* 2. 과도한 중복 여백 완전 제거 (순정 대화창 스크롤 여백으로 원복) */
+        .flex.flex-col-reverse.w-full.gap-10 {
+            padding-bottom: 30px !important;
         }
 
-        /* 3. 크랙 순정 스크롤 버튼을 입력창 바로 위 15px 우측에 예쁘게 고정 */
+        /* 3. 크랙 순정 스크롤 버튼 위치 (10px 더 올려 195px로 정밀 조정) */
         button[class*="size-[34px]"],
         button:has(svg path[d^="m12 6.87"]),
         button:has(svg path[d^="M20.09 8.3"]) {
             position: fixed !important;
-            bottom: 185px !important;
+            bottom: 195px !important; /* 10px 상향 조정 */
             right: calc(50% - 380px + 10px) !important;
             z-index: 10005 !important;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
