@@ -1,21 +1,26 @@
 // ==UserScript==
-// @name         PASTELchat × CRACK (Module 1: UI Shell & Drawer)
+// @name         PASTELchat × CRACK (Module 1: UI Shell & Button Teleport)
 // @namespace    https://github.com/
-// @version      1.0.0
-// @description  Module 1: Complete In-Place PASTELchat UI Injection on crack.wrtn.ai
+// @version      1.1.0
+// @description  Module 1: Robust UI Injection & Native Recommend Button Relocation on crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
+// @match        *://crack.wrtn.ai/*
+// @include      https://crack.wrtn.ai/*
+// @include      *crack.wrtn.ai*
 // @grant        GM_addStyle
 // @grant        GM_setValue
 // @grant        GM_getValue
-// @run-at       document-idle
+// @run-at       document-start
 // ==/UserScript==
 
 (function() {
     'use strict';
 
+    console.log('%c[PASTELchat] 🚀 모듈 1 유저스크립트 엔진 가동 시작', 'color: #FF4432; font-weight: bold; font-size: 14px;');
+
     // =========================================================================
-    // [1. PASTELchat 순정 CSS 완벽 주입 (생략 없음)]
+    // [1. PASTELchat 순정 CSS 완벽 주입]
     // =========================================================================
     const pastelCSS = `
         :root {
@@ -275,20 +280,12 @@
         .decentral-grid-container { flex: 1; overflow-y: auto; }
         .ep-lore-panel { display: none; }
         .ep-lore-panel.active-panel { display: flex; flex-direction: column; gap: 12px; }
-
-        /* 커스텀 기호 모달 스위치 */
-        .drawer-toggle-switch { position: relative; display: inline-block; width: 30px; height: 16px; flex-shrink: 0; cursor: pointer; }
-        .drawer-toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .drawer-toggle-slider { position: absolute; inset: 0; background-color: #e2e2e2; border-radius: 16px; transition: background-color .2s; }
-        .drawer-toggle-slider:before { position: absolute; content: ""; height: 12px; width: 12px; left: 2px; bottom: 2px; background-color: white; border-radius: 50%; transition: transform .2s; }
-        .drawer-toggle-switch input:checked + .drawer-toggle-slider { background-color: #F5E19A !important; }
-        .drawer-toggle-switch input:checked + .drawer-toggle-slider:before { transform: translateX(14px); }
     `;
 
     GM_addStyle(pastelCSS);
 
     // =========================================================================
-    // [2. PASTELchat 메인 뷰 & 서랍 HTML 템플릿]
+    // [2. PASTELchat 메인 뷰 HTML 템플릿]
     // =========================================================================
     function getPastelHTMLTemplate() {
         return `
@@ -298,7 +295,7 @@
                     <div class="chat-content-box" id="ep-chat-content-box">
                         <div style="text-align:center; padding:40px 20px; color:#888; font-size:14px;">
                             ✨ <strong>PASTELchat 모듈 1</strong> UI 이식이 완료되었습니다.<br>
-                            우측 상단의 점 3개 메뉴 버튼을 눌러 서랍 메뉴와 모달창이 정상 작동하는지 확인해 보세요!
+                            우측 상단 모델 버튼 옆의 <strong>[추천답변]</strong> 버튼과 <strong>[점 3개 메뉴]</strong> 버튼을 확인해 보세요!
                         </div>
                     </div>
 
@@ -423,14 +420,14 @@
                         <button id="ep-lore-close-btn" style="background:none; border:none; cursor:pointer; font-weight:bold; font-size:18px;">✕</button>
                     </div>
                     <div class="decentral-menu-container">
-                        <button class="decentral-menu-element" active="true" data-tab="active">활성 로어</button>
-                        <button class="decentral-menu-element" data-tab="log">실행 로그</button>
-                        <button class="decentral-menu-element" data-tab="manage">로어 관리</button>
-                        <button class="decentral-menu-element" data-tab="restore">로어 복원</button>
-                        <button class="decentral-menu-element" data-tab="settings">설정</button>
+                        <button class="decentral-menu-element" active="true">활성 로어</button>
+                        <button class="decentral-menu-element">실행 로그</button>
+                        <button class="decentral-menu-element">로어 관리</button>
+                        <button class="decentral-menu-element">로어 복원</button>
+                        <button class="decentral-menu-element">설정</button>
                     </div>
                     <div class="decentral-grid-container">
-                        <div class="ep-lore-panel active-panel" id="panel-active">
+                        <div class="ep-lore-panel active-panel">
                             <div style="text-align:center; padding:30px; color:#888; font-size:13px;">[모듈 5]에서 5대 탭 로어 데이터베이스가 완벽 연결됩니다.</div>
                         </div>
                     </div>
@@ -440,68 +437,89 @@
     }
 
     // =========================================================================
-    // [3. 크랙 화면에 UI 이식 실행기]
+    // [3. 크랙 화면 감시 및 UI 이식 & 버튼 텔레포트 엔진]
     // =========================================================================
-    function mountPastelModule1() {
-        if (document.getElementById('ep-pastel-injected-container')) return;
-
-        // 1. 크랙 중앙 채팅 영역 찾기
+    function tryInjectPastelShell() {
+        // A. 크랙 중앙 채팅 영역 탐색
         const chatRoot = document.querySelector('div.flex.flex-col.w-full.px-5.sm\\:px-10.items-center') ||
                          document.querySelector('div.flex.flex-col-reverse.w-full.gap-10')?.parentElement?.parentElement ||
-                         document.querySelector('main');
+                         document.querySelector('main div.flex-col-reverse')?.parentElement;
 
-        if (!chatRoot) return;
+        if (chatRoot && !document.getElementById('ep-pastel-injected-container')) {
+            // 1. 크랙 본래의 중앙 대화창 숨기기
+            chatRoot.style.setProperty('display', 'none', 'important');
 
-        // 2. 크랙 본래의 중앙 대화창 & 하단 입력창 숨기기
-        const nativeInputContainer = document.querySelector('div.flex.flex-row.w-full.absolute.bottom-0');
-        if (nativeInputContainer) nativeInputContainer.style.setProperty('display', 'none', 'important');
-        chatRoot.style.setProperty('display', 'none', 'important');
+            // 2. 크랙 본래의 하단 고정 입력창 감싸개 숨기기
+            const nativeBottomBar = document.querySelector('div.flex.flex-row.w-full.absolute.bottom-0');
+            if (nativeBottomBar) {
+                nativeBottomBar.style.setProperty('display', 'none', 'important');
+            }
 
-        // 3. 파스텔챗 컨테이너를 크랙 중앙 영역에 마운트
-        const mountWrapper = chatRoot.parentElement;
-        const pastelWrapper = document.createElement('div');
-        pastelWrapper.id = 'pastel-mount-point';
-        pastelWrapper.style.cssText = 'width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative;';
-        pastelWrapper.innerHTML = getPastelHTMLTemplate();
-        mountWrapper.appendChild(pastelWrapper);
+            // 3. 파스텔챗 컨테이너 마운트
+            const mountParent = chatRoot.parentElement;
+            const mountPoint = document.createElement('div');
+            mountPoint.id = 'pastel-mount-point';
+            mountPoint.style.cssText = 'width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; flex: 1;';
+            mountPoint.innerHTML = getPastelHTMLTemplate();
+            mountParent.appendChild(mountPoint);
 
-        // 4. 크랙 우측 상단 모델 버튼 옆에 점 3개 서랍 트리거 버튼 삽입
-        const topActionRow = document.querySelector('div.flex.gap-3.items-center');
-        if (topActionRow && !document.getElementById('ep-chat-drawer-trigger')) {
-            const drawerBtn = document.createElement('button');
-            drawerBtn.id = 'ep-chat-drawer-trigger';
-            drawerBtn.className = 'relative inline-flex items-center justify-center p-2 rounded-md hover:bg-accent active:bg-accent/80 transition-colors';
-            drawerBtn.style.cssText = 'cursor: pointer; background: transparent; border: none; color: inherit;';
-            drawerBtn.title = '파스텔챗 메뉴';
-            drawerBtn.innerHTML = `
-                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="22px" height="22px">
-                    <path d="M11 11h2v2h-2zm-2.5 0h-2v2h2zm7 0h2v2h-2z"></path>
-                    <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
-                </svg>
-            `;
-            topActionRow.appendChild(drawerBtn);
+            initModule1Events();
+            console.log('%c[PASTELchat] ✅ 중앙 대화창 및 입력창 파스텔챗 이식 완료!', 'color: #2ecc71; font-weight: bold;');
         }
 
-        // 5. 서랍 및 모달창 이벤트 바인딩
-        initModule1Events();
-        console.log('[PASTEL] 🌟 모듈 1 UI 이식 완료!');
+        // B. 상단 헤더 영역 탐색 및 버튼 텔레포트
+        const topActionRow = document.querySelector('div.flex.gap-3.items-center') ||
+                             document.querySelector('button[role="combobox"]')?.parentElement;
+
+        if (topActionRow) {
+            // 1. [추천답변 버튼]을 상단 모델 버튼 옆으로 텔레포트 (이동)
+            const recBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('추천답변'));
+            if (recBtn && !topActionRow.contains(recBtn)) {
+                const comboboxBtn = topActionRow.querySelector('button[role="combobox"]');
+                if (comboboxBtn) {
+                    comboboxBtn.after(recBtn);
+                } else {
+                    topActionRow.prepend(recBtn);
+                }
+                console.log('%c[PASTELchat] 🎯 추천답변 버튼을 상단 헤더로 텔레포트 완료!', 'color: #88b9c8; font-weight: bold;');
+            }
+
+            // 2. [파스텔챗 점 3개 메뉴 버튼]을 상단 헤더 우측 끝에 탑재
+            if (!document.getElementById('ep-chat-drawer-trigger')) {
+                const drawerBtn = document.createElement('button');
+                drawerBtn.id = 'ep-chat-drawer-trigger';
+                drawerBtn.className = 'relative inline-flex items-center justify-center p-2 rounded-md hover:bg-accent active:bg-accent/80 transition-colors';
+                drawerBtn.style.cssText = 'cursor: pointer; background: transparent; border: none; color: inherit;';
+                drawerBtn.title = '파스텔챗 서랍 메뉴';
+                drawerBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="24px" height="24px">
+                        <path d="M11 11h2v2h-2zm-2.5 0h-2v2h2zm7 0h2v2h-2z"></path>
+                        <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
+                    </svg>
+                `;
+                topActionRow.appendChild(drawerBtn);
+
+                // 메뉴 버튼 이벤트 연결
+                const drawer = document.getElementById('ep-chat-right-drawer');
+                const overlay = document.getElementById('ep-chat-drawer-overlay');
+                drawerBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (!drawer || !overlay) return;
+                    const isOpen = drawer.style.display === 'flex';
+                    drawer.style.display = isOpen ? 'none' : 'flex';
+                    overlay.style.display = isOpen ? 'none' : 'block';
+                };
+            }
+        }
     }
 
     // =========================================================================
-    // [4. 모듈 1 UI 상호작용 이벤트 바인딩]
+    // [4. 모듈 1 상호작용 이벤트 바인딩]
     // =========================================================================
     function initModule1Events() {
-        const drawerBtn = document.getElementById('ep-chat-drawer-trigger');
-        const drawer = document.getElementById('ep-chat-right-drawer');
         const overlay = document.getElementById('ep-chat-drawer-overlay');
-
-        if (drawerBtn && drawer && overlay) {
-            drawerBtn.onclick = (e) => {
-                e.stopPropagation();
-                const isOpen = drawer.style.display === 'flex';
-                drawer.style.display = isOpen ? 'none' : 'flex';
-                overlay.style.display = isOpen ? 'none' : 'block';
-            };
+        const drawer = document.getElementById('ep-chat-right-drawer');
+        if (overlay && drawer) {
             overlay.onclick = () => {
                 drawer.style.display = 'none';
                 overlay.style.display = 'none';
@@ -555,13 +573,11 @@
         });
     }
 
-    // 크랙 사이트 렌더링 감시 및 자동 마운트
-    const observer = new MutationObserver(() => {
-        if (!document.getElementById('ep-pastel-injected-container')) {
-            mountPastelModule1();
-        }
-    });
+    // =========================================================================
+    // [5. 상시 0.2초 감시 루프 (Next.js SPA 페이지 전환 100% 대응)]
+    // =========================================================================
+    setInterval(tryInjectPastelShell, 250);
 
-    observer.observe(document.body, { childList: true, subtree: true });
-    setTimeout(mountPastelModule1, 1000);
+    const observer = new MutationObserver(tryInjectPastelShell);
+    observer.observe(document.documentElement, { childList: true, subtree: true });
 })();
