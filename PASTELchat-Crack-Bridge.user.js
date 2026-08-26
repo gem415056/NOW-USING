@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.2.9.2
+// @version      1.3.0
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -951,6 +951,52 @@
         body[data-theme="dark"] .ep-prompt-title { color: #F0EFEB !important; }
         body[data-theme="dark"] .ep-prompt-input { background: #141413 !important; border-color: #42413D !important; color: #F0EFEB !important; }
         body[data-theme="dark"] .ep-profile-label { color: #ccc; }
+
+        /* ==========================================================================
+         * crack.html 순정 마크다운 & 소설/채팅 서식 100% 일치 스타일
+         * ========================================================================== */
+        .ep-chat-bold { font-weight: 800 !important; }
+        .ep-chat-action { color: #666666 !important; font-weight: normal; }
+        .quote-block { border-left: 4px solid #888888; padding-left: 12px; margin: 8px 0 8px 8px; display: block; color: var(--text_primary); white-space: pre-wrap; }
+        .ep-inline-code { background-color: #F8F2F4; color: #6E5960; border: 1px solid #bfa5a6; border-radius: 4px; padding: 1.5px 4px; font-size: 15px !important; margin: 0 2px; display: inline; }
+        .ep-code-block-wrapper { border-radius: 8px; overflow: hidden; margin: 10px 0; box-sizing: border-box; }
+        .ep-code-block-header { background-color: #f2e5e9; color: #6E5960; font-weight: 800; font-size: 14px; padding: 8px 16px; text-align: left; user-select: none; }
+        .ep-code-block-body { background-color: #F8F2F4; color: #6E5960 !important; padding: 14px 16px !important; white-space: pre-wrap; font-size: 14.5px !important; line-height: 1.6; }
+        .ep-code-block-body.no-header { border-radius: 8px; }
+        
+        .ep-hud-box { position: relative; margin: 0 0 0 auto; width: fit-content; padding: 2px 0 0 0; text-align: right; font-size: 14px !important; font-weight: 300; letter-spacing: 1.4px; line-height: 1.6; }
+        .ep-hud-box::after { content: ""; display: block; width: 100%; margin-top: 6px; border-bottom: 6px double #D2C0C0; }
+
+        .ep-dialogue-card-wrapper { position: relative; display: flex; flex-direction: column; width: fit-content; max-width: 100%; margin: 12px 0; box-sizing: border-box; }
+        .ep-dialogue-card-wrapper.user-side { margin-left: auto; }
+        .ep-dialogue-badge-row { display: flex; width: 100%; padding: 0 16px; box-sizing: border-box; margin-top: -11px; margin-bottom: -11px; z-index: 2; pointer-events: none; }
+        .ep-dialogue-card-wrapper.user-side .ep-dialogue-badge-row { justify-content: flex-end; }
+        .ep-dialogue-badge { background-color: #bfa5a6; color: #FDFBFC; font-size: 13.5px; font-weight: 600; padding: 3.5px 13px; border-radius: 9999px; width: fit-content; display: inline-flex; align-items: center; white-space: nowrap; }
+        .ep-dialogue-card-box { background-color: #F8F2F4; border: 0.7px solid #bfa5a6; border-radius: 0 16px 0 16px; color: #9a868d; font-weight: 700; padding: 14px 16px 12px 16px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; width: 100%; box-sizing: border-box; }
+        .ep-dialogue-card-wrapper.user-side .ep-dialogue-card-box { border-radius: 16px 0 16px 0; }
+
+        .ep-sms-container { display: flex; gap: 10px; margin: 12px 0; align-items: flex-start; width: 100%; box-sizing: border-box; }
+        .ep-sms-container.user-side { flex-direction: row-reverse; }
+        .ep-sms-avatar-icon { width: 28px; height: 28px; flex-shrink: 0; }
+        .ep-sms-avatar-icon svg { width: 100%; height: 100%; stroke: #bfa5a6; }
+        .ep-sms-content-col { display: flex; flex-direction: column; gap: 6px; max-width: 75%; align-items: flex-start; }
+        .ep-sms-container.user-side .ep-sms-content-col { align-items: flex-end; }
+        .ep-sms-name { font-size: 13.5px; font-weight: 700; color: #bfa5a6; line-height: 1; }
+        .ep-sms-bubble { background-color: #F8F2F4; border: 1px solid #bfa5a6; border-radius: 16px; color: #9a868d; font-size: 15px; font-weight: 700; line-height: 1.5; padding: 10px 14px; width: fit-content; max-width: 100%; box-sizing: border-box; }
+        
+        hr.ep-chat-hr { border: none; border-top: 1.5px dashed #ccc; margin: 25px 0; width: 100%; }
+
+        .ep-chat-shortcut-token {
+            background-color: #f2e5e9; color: #6E5960; border: 1px solid #bfa5a6;
+            border-radius: 4px; padding: 1.5px 4px; font-family: inherit; font-size: 14px !important;
+            font-weight: inherit; margin: 0 2px; display: inline; box-decoration-break: clone;
+            -webkit-box-decoration-break: clone; vertical-align: 1px !important; line-height: 1.2;
+        }
+        body[data-theme="dark"] .ep-chat-shortcut-token {
+            background-color: #583034; color: #f2c0c3; border-color: #643b3f;
+        }
+        body[data-theme="dark"] .ep-chat-action { color: #aaaaaa !important; }
+        body[data-theme="dark"] .quote-block { border-color: #555555; }
     `;
 
     // CSS 주입
@@ -980,6 +1026,127 @@
                 if (container && container.contains(item)) item.remove();
             }, 200);
         }, 2500);
+    }
+
+    /* ==========================================================================
+     * 2.5 crack.html 순정 100% 마크다운 파서 & 로어 은닉 필터 엔진
+     * ========================================================================== */
+    function stripLoreInjectionBlock(text) {
+        if (!text) return "";
+        let str = String(text).replace(/\r\n/g, '\n').trimStart();
+        if (!str.startsWith('[LORE')) return str;
+
+        str = str.replace(/^\[LORE[\s\S]*?(?=(?:\n\s*\n(?!\s*\[LORE))|$)/i, '').trimStart();
+        while (/^\[LORE\s*\d*\]/i.test(str)) {
+            str = str.replace(/^\[LORE\s*\d*\][^\n]*(?:\n|$)/i, '').trimStart();
+        }
+        return str;
+    }
+
+    function parseChatMarkdown(text, msgType = 'model') {
+        if (!text) return "";
+        const isUser = (msgType === 'user');
+
+        let cleanedText = stripLoreInjectionBlock(text).replace(/\n{3,}/g, '\n\n').trim();
+
+        cleanedText = cleanedText
+            .replace(/([—―][^\n]+)\n+(?=▎)/g, '$1\n')
+            .replace(/(▎[^\n]*)\n+(?=▎)/g, '$1\n')
+            .replace(/([—―][^\n]+)\n+(?=`)/g, '$1\n')
+            .replace(/(`[^`\n]+`)\n+(?=`)/g, '$1\n');
+
+        let html = cleanedText
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+        // 0. HUD 전용 ❴ ❵ 파싱
+        html = html.replace(/❴\n?([\s\S]*?)\n?❵(\r?\n)?/g, function(match, hudContent) {
+            return `<div class="ep-hud-box">${hudContent.trim()}</div>`;
+        });
+
+        // 0.2 대사 카드 파싱
+        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*▎[^\n\r]*)+)(\r?\n)?/g, function(match, leadNL, name, lines) {
+            const cleanName = name.trim();
+            const contentList = lines.split('\n')
+                .map(l => l.trim())
+                .filter(l => l.startsWith('▎'))
+                .map(l => l.replace(/^▎\s*/, ''));
+            const cleanContent = contentList.join('\n');
+            return `${leadNL}<div class="ep-dialogue-card-wrapper ${isUser ? 'user-side' : ''}"><div class="ep-dialogue-badge-row"><div class="ep-dialogue-badge">${cleanName}</div></div><div class="ep-dialogue-card-box">${cleanContent}</div></div>`;
+        });
+
+        // 0.3 메신저 문자 말풍선 파싱
+        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*`[^`\n\r]+`)+)(\r?\n)?/g, function(match, leadNL, name, lines) {
+            const cleanName = name.trim();
+            const bubbleList = lines.split('\n')
+                .map(l => l.trim())
+                .filter(l => l.startsWith('`') && l.endsWith('`'))
+                .map(l => l.slice(1, -1).trim());
+            if (bubbleList.length === 0) return match;
+
+            const userSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M17.925 20.056a6 6 0 0 0-11.851.001"/><circle cx="12" cy="11" r="4"/><circle cx="12" cy="12" r="10"/></svg>`;
+            const bubblesHtml = bubbleList.map(b => `<div class="ep-sms-bubble">${b}</div>`).join('');
+            return `${leadNL}<div class="ep-sms-container ${isUser ? 'user-side' : ''}"><div class="ep-sms-avatar-icon">${userSvg}</div><div class="ep-sms-content-col"><span class="ep-sms-name">${cleanName}</span>${bubblesHtml}</div></div>`;
+        });
+
+        // 1. 코드블록 치환
+        html = html.replace(/`{3}([^\n]*?)(?:\r?\n([\s\S]*?))?`{3}(\r?\n)?/g, function(match, title, content) {
+            const trimmedTitle = title.trim();
+            if (content === undefined) return `<div class="ep-code-block-wrapper"><div class="ep-code-block-body no-header">${trimmedTitle}</div></div>`;
+            const cleanedContent = content.trim();
+            return trimmedTitle 
+                ? `<div class="ep-code-block-wrapper"><div class="ep-code-block-header">${trimmedTitle}</div><div class="ep-code-block-body">${cleanedContent}</div></div>`
+                : `<div class="ep-code-block-wrapper"><div class="ep-code-block-body no-header">${cleanedContent}</div></div>`;
+        });
+
+        // 2. 인라인 백틱
+        html = html.replace(/`([^`\n]+)`/g, '<span class="ep-inline-code">$1</span>');
+
+        // 2.5 단축어 전송 토큰 치환 (!단축어 뱃지)
+        html = html.replace(/(![a-zA-Z0-9가-힣/]+)/g, '<span class="ep-chat-shortcut-token">$1</span>');
+
+        // 2.8 점선 구분선
+        html = html.replace(/(^\s*([\*_=~+─━═┈┉┄┅―—–‒·•-]\s*){3,}\s*$|\*{3,}|={3,}|─{2,}|━{2,}|═{2,})(\r?\n)?/gm, '<hr class="ep-chat-hr">');
+
+        // 3. 볼드
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="ep-chat-bold">$1</strong>');
+
+        // 4. 행동 지문
+        html = html.replace(/\*([^*\n]+)\*/g, '<span class="ep-chat-action">$1</span>');
+
+        // 5. 연속 인용구 그룹핑 알고리즘 (> 로 시작하는 줄 연속 묶음)
+        const lines = html.split('\n');
+        const processedLines = [];
+        let inQuoteBlock = false;
+        let quoteBuffer = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmed = line.trim();
+
+            if (trimmed.startsWith('&gt;')) {
+                const content = line.replace(/^\s*&gt;\s?/, '');
+                if (!inQuoteBlock) inQuoteBlock = true;
+                quoteBuffer.push(content);
+            } else {
+                if (inQuoteBlock) {
+                    processedLines.push(`<span class="quote-block">${quoteBuffer.join('\n')}</span><!--qb-end-->`);
+                    quoteBuffer = [];
+                    inQuoteBlock = false;
+                }
+                processedLines.push(line);
+            }
+        }
+
+        if (inQuoteBlock) {
+            processedLines.push(`<span class="quote-block">${quoteBuffer.join('\n')}</span><!--qb-end-->`);
+        }
+
+        let result = processedLines.join('\n');
+        result = result.replace(/(<!--qb-end-->)\n/g, '$1');
+        result = result.replace(/<!--qb-end-->/g, '');
+        return result;
     }
 
     /* ==========================================================================
@@ -2177,10 +2344,99 @@
     }
 
     /* ==========================================================================
+     * 4.5 크랙 대화창 실시간 감시 및 순정 마크다운 자동 리렌더러
+     * ========================================================================== */
+    let chatObserverInstance = null;
+
+    function renderSingleMessageElement(msgEl) {
+        if (!msgEl || msgEl.getAttribute('data-pastel-rendering') === 'true') return;
+
+        // 원본 텍스트를 최초 1회만 캐싱하여 보존
+        let rawText = msgEl.getAttribute('data-pastel-raw');
+        if (!rawText) {
+            rawText = msgEl.innerText || msgEl.textContent || '';
+            if (!rawText.trim()) return;
+            msgEl.setAttribute('data-pastel-raw', rawText);
+        }
+
+        // 유저 메시지/AI 메시지 구분 (크랙 고유 클래스 탐색)
+        const isUser = !!msgEl.closest('.bg-accent_translucent') || 
+                       !!msgEl.closest('[class*="justify-end"]') || 
+                       !!msgEl.closest('[data-role="user"]') ||
+                       msgEl.parentElement?.classList?.contains('items-end');
+
+        const role = isUser ? 'user' : 'model';
+        const parsedHtml = parseChatMarkdown(rawText, role);
+
+        if (parsedHtml) {
+            msgEl.setAttribute('data-pastel-rendering', 'true');
+            msgEl.innerHTML = parsedHtml;
+            msgEl.setAttribute('data-pastel-parsed', 'true');
+            msgEl.removeAttribute('data-pastel-rendering');
+        }
+    }
+
+    function scanAndRenderAllMessages() {
+        // 크랙 대화방 메시지 본문 컨테이너 선택자들 전수 탐색
+        const messageNodes = document.querySelectorAll(
+            '.break-words:not([data-pastel-parsed="true"]), ' +
+            '.prose:not([data-pastel-parsed="true"]), ' +
+            '.whitespace-pre-wrap:not([data-pastel-parsed="true"]), ' +
+            '[class*="bubble"]:not([data-pastel-parsed="true"])'
+        );
+
+        messageNodes.forEach(node => {
+            // 입력창 내부나 서랍 내부 텍스트는 제외
+            if (node.closest('#ep-chat-right-drawer') || 
+                node.closest('.chat-footer-control') || 
+                node.closest('.ProseMirror') ||
+                node.closest('.ep-prompt-overlay') ||
+                node.closest('#ep-tpl-quick-panel') ||
+                node.closest('#ep-shortcut-select-popup')) {
+                return;
+            }
+            renderSingleMessageElement(node);
+        });
+    }
+
+    function attachCrackChatObserver() {
+        if (chatObserverInstance) return;
+
+        const chatContainer = document.querySelector('.flex.flex-col-reverse.w-full') || 
+                              document.querySelector('main') || 
+                              document.body;
+
+        if (!chatContainer) return;
+
+        chatObserverInstance = new MutationObserver((mutations) => {
+            let hasNewNodes = false;
+            for (const m of mutations) {
+                if (m.addedNodes.length > 0) {
+                    hasNewNodes = true;
+                    break;
+                }
+            }
+            if (hasNewNodes) {
+                scanAndRenderAllMessages();
+            }
+        });
+
+        chatObserverInstance.observe(chatContainer, {
+            childList: true,
+            subtree: true
+        });
+
+        // 초기 로드 시 1회 즉각 스캔
+        scanAndRenderAllMessages();
+    }
+
+    /* ==========================================================================
      * 5. SPA 라우팅 대응 상시 주입 감시 (무거운 감시 없음 / 가벼운 확인 루프)
      * ========================================================================== */
     function checkAndInject() {
         injectBaseDOM();
+        attachCrackChatObserver();
+        scanAndRenderAllMessages();
     }
 
     if (document.readyState === 'loading') {
