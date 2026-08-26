@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.5.6
+// @version      1.5.7
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1723,74 +1723,68 @@
         return 'global';
     }
 
-    // [3계층 무손실 수급기]: 백엔드 API 2종 + 강력한 만능 DOM 파서 폴백 (대화 내역 누락 0%)
+    // [limit=300 백엔드 API + 초강력 무조건 DOM 수집기]
     async function fetchCrackMessagesPure(targetChatId) {
         const chatId = targetChatId || getChatId();
         const token = getCrackAuthToken();
         let loadedMessages = [];
 
-        // [1계층]: 백엔드 API 1순위 (/messages?limit=10000)
+        // 1. 백엔드 API limit=300 호출 시도
         if (chatId && chatId !== 'global') {
             const headers = { 'accept': 'application/json, text/plain, */*' };
             if (token) headers['Authorization'] = `Bearer ${token}`;
 
-            try {
-                const res = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=10000`, {
-                    method: 'GET',
-                    headers: headers,
-                    credentials: 'include'
-                });
-                if (res.ok) {
-                    const parsed = await res.json();
-                    if (Array.isArray(parsed?.data)) loadedMessages = parsed.data;
-                    else if (Array.isArray(parsed?.data?.messages)) loadedMessages = parsed.data.messages;
-                    else if (Array.isArray(parsed?.messages)) loadedMessages = parsed.messages;
-                    else if (Array.isArray(parsed)) loadedMessages = parsed;
-                }
-            } catch (_) {}
+            const urls = [
+                `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=300`,
+                `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}?limit=300`,
+                `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=10000`,
+                `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}`
+            ];
 
-            // [2계층]: 백엔드 API 2순위 폴백 (/chats/${chatId}?limit=10000)
-            if (loadedMessages.length === 0) {
+            for (const u of urls) {
                 try {
-                    const res2 = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}?limit=10000`, {
-                        method: 'GET',
-                        headers: headers,
-                        credentials: 'include'
-                    });
-                    if (res2.ok) {
-                        const parsed2 = await res2.json();
-                        if (Array.isArray(parsed2?.data?.messages)) loadedMessages = parsed2.data.messages;
-                        else if (Array.isArray(parsed2?.messages)) loadedMessages = parsed2.messages;
+                    const res = await fetch(u, { method: 'GET', headers: headers, credentials: 'include' });
+                    if (res.ok) {
+                        const parsed = await res.json();
+                        let arr = [];
+                        if (Array.isArray(parsed?.data)) arr = parsed.data;
+                        else if (Array.isArray(parsed?.data?.messages)) arr = parsed.data.messages;
+                        else if (Array.isArray(parsed?.messages)) arr = parsed.messages;
+                        else if (Array.isArray(parsed)) arr = parsed;
+                        if (arr.length > 0) {
+                            loadedMessages = arr;
+                            break;
+                        }
                     }
                 } catch (_) {}
             }
         }
 
-        // 백엔드 API 성공 시: 과거 1턴부터 순서대로 정렬하여 반환
         if (loadedMessages.length > 0) {
             loadedMessages.reverse();
-            console.log(`📥 [PASTEL:수급] 크랙 백엔드 API에서 ${loadedMessages.length}개 메시지 전수 수급 완료!`);
+            console.log(`📥 [PASTEL:수급] 백엔드 API에서 300턴 대량 메시지(${loadedMessages.length}개) 수급 완료!`);
             return loadedMessages;
         }
 
-        // [3계층]: 만능 DOM 파서 폴백 (API 통신 실패 시 화면의 모든 말풍선 100% 긁어오기)
-        console.warn("⚠️ [PASTEL:수급] API 수급 지연으로 만능 DOM 파서 폴백을 가동합니다.");
-        const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || 
-                         document.querySelector('.flex.flex-col-reverse') || 
-                         document.querySelector('main') || 
-                         document.body;
-
+        // 2. 초강력 화면 텍스트 전수 수집기 (화면에 보이는 모든 <p> 단락 100% 수집)
+        console.warn("⚠️ [PASTEL:수급] 백엔드 응답 대기 초과로 화면 텍스트 전수 수집기를 가동합니다.");
+        const allParagraphs = Array.from(document.querySelectorAll('p, .whitespace-pre-wrap, .break-words, .prose'));
         const domTurns = [];
-        const seenTexts = new Set();
 
-        const textNodes = chatRoot.querySelectorAll('.whitespace-pre-wrap, .break-words, .prose, p, div[class*="bubble"], div[class*="message"]');
-        textNodes.forEach(el => {
-            if (el.closest('.chat-footer-control') || el.closest('#ep-chat-right-drawer') || el.closest('.ep-prompt-overlay') || el.closest('#ep-lore-storage-modal-overlay') || el.closest('.ProseMirror')) return;
-            let txt = (el.getAttribute('data-pastel-raw') || el.innerText || el.textContent || '').trim();
+        allParagraphs.forEach(p => {
+            // 모달창, 서랍 메뉴, 입력창 안의 텍스트만 제외
+            if (p.closest('#ep-chat-right-drawer') || 
+                p.closest('#ep-lore-storage-modal-overlay') || 
+                p.closest('.ep-prompt-overlay') || 
+                p.closest('.chat-footer-control') || 
+                p.closest('.ProseMirror')) {
+                return;
+            }
+
+            let txt = (p.getAttribute('data-pastel-raw') || p.innerText || p.textContent || '').trim();
             let clean = stripLoreInjectionBlock(txt).trim();
-            if (clean && !seenTexts.has(clean)) {
-                seenTexts.add(clean);
-                const isUser = !!el.closest('.justify-end, [class*="items-end"], .bg-accent_translucent') || el.classList.contains('bg-accent_translucent');
+            if (clean.length > 0) {
+                const isUser = !!p.closest('.justify-end, [class*="items-end"], .bg-accent_translucent') || p.classList.contains('bg-accent_translucent');
                 domTurns.push({
                     role: isUser ? 'user' : 'assistant',
                     content: clean,
@@ -1800,11 +1794,13 @@
             }
         });
 
-        if (chatRoot.classList.contains('flex-col-reverse') || chatRoot.querySelector('.flex-col-reverse')) {
+        // 역순 렌더링 컨테이너일 경우 순서 정방향 반전
+        const isReverseContainer = !!document.querySelector('.flex-col-reverse');
+        if (isReverseContainer) {
             domTurns.reverse();
         }
 
-        console.log(`📥 [PASTEL:수급] DOM 파서 폴백에서 ${domTurns.length}개 메시지 수급 완료!`);
+        console.log(`📥 [PASTEL:수급] 화면 텍스트 수집기에서 ${domTurns.length}개 메시지 수급 완료!`);
         return domTurns;
     }
 
