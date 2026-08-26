@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.4.0
+// @version      1.4.1
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -21,23 +21,33 @@
 (function() {
     'use strict';
 
-    // [index.html 동기화 브릿지]: 파스텔챗 index.html이 열려있을 때 단축어/템플릿을 Tampermonkey 안전 저장소로 실시간 복사
+    // [index.html 동기화 브릿지]: 데이터가 실제로 변경되었을 때만 안전하게 동기화 (과부하 방지)
     if (!location.hostname.includes('wrtn.ai')) {
+        let lastShStr = '', lastTplStr = '', lastFldStr = '';
         const syncPastelchatDataToGM = () => {
             try {
-                const shortcuts = localStorage.getItem('pastel_mockShortcuts');
-                if (shortcuts) GM_setValue('pastel_mockShortcuts', JSON.parse(shortcuts));
+                const shortcuts = localStorage.getItem('pastel_mockShortcuts') || '';
+                if (shortcuts && shortcuts !== lastShStr) {
+                    lastShStr = shortcuts;
+                    GM_setValue('pastel_mockShortcuts', JSON.parse(shortcuts));
+                }
 
-                const templates = localStorage.getItem('pastel_mockTemplates');
-                if (templates) GM_setValue('pastel_mockTemplates', JSON.parse(templates));
+                const templates = localStorage.getItem('pastel_mockTemplates') || '';
+                if (templates && templates !== lastTplStr) {
+                    lastTplStr = templates;
+                    GM_setValue('pastel_mockTemplates', JSON.parse(templates));
+                }
 
-                const folders = localStorage.getItem('pastel_mockTemplateFolders');
-                if (folders) GM_setValue('pastel_mockTemplateFolders', JSON.parse(folders));
+                const folders = localStorage.getItem('pastel_mockTemplateFolders') || '';
+                if (folders && folders !== lastFldStr) {
+                    lastFldStr = folders;
+                    GM_setValue('pastel_mockTemplateFolders', JSON.parse(folders));
+                }
             } catch (_) {}
         };
         syncPastelchatDataToGM();
-        setInterval(syncPastelchatDataToGM, 2000);
-        return; // index.html에서는 UI를 주입하지 않고 데이터 동기화만 수행
+        setInterval(syncPastelchatDataToGM, 3000);
+        return;
     }
 
     /* ==========================================================================
@@ -1521,12 +1531,13 @@
             document.body.appendChild(loreModal);
         }
 
-        // 1. 헤더 버튼 및 입력창 DOM을 먼저 확실하게 주입
+            // 이벤트 바인딩은 DOM 생성 시 단 1회만 실행 (메모리 폭발 및 입력창 초기화 완벽 차단)
+            bindDrawerEvents();
+        }
+
+        // 헤더 버튼 및 입력창은 SPA 화면 전환 시 가볍게 DOM 위치만 유지
         injectHeaderButton();
         injectCustomInputBox();
-
-        // 2. 모든 DOM이 올라간 후 안전하게 이벤트 바인딩
-        bindDrawerEvents();
     }
 
     // 헤더 버튼 정밀 탐색 및 주입 함수
@@ -2320,8 +2331,15 @@
             };
         }
 
-        if (apiKeyInp) apiKeyInp.onchange = (e) => localStorage.setItem('pastel_api_gemini', e.target.value.trim());
-        if (apiFbTextarea) apiFbTextarea.onchange = (e) => localStorage.setItem('pastel_api_firebase', e.target.value.trim());
+        // 붙여넣기 및 타이핑 즉시 영구 저장 (날아감 100% 방지)
+        if (apiKeyInp) {
+            apiKeyInp.addEventListener('input', (e) => localStorage.setItem('pastel_api_gemini', e.target.value.trim()));
+            apiKeyInp.addEventListener('change', (e) => localStorage.setItem('pastel_api_gemini', e.target.value.trim()));
+        }
+        if (apiFbTextarea) {
+            apiFbTextarea.addEventListener('input', (e) => localStorage.setItem('pastel_api_firebase', e.target.value.trim()));
+            apiFbTextarea.addEventListener('change', (e) => localStorage.setItem('pastel_api_firebase', e.target.value.trim()));
+        }
 
         // 2. 모델 선택 아코디언
         const modelTitle = document.getElementById('ep-model-accordion-title');
