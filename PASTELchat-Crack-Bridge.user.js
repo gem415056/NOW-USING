@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Module 1 (Base & Menu)
 // @namespace    https://pastelchat.com/
-// @version      1.0.3
+// @version      1.0.4
 // @description  PASTELchat Native UI Engine for crack.wrtn.ai - Module 1: Base & Right Drawer Menu
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -102,6 +102,16 @@
             justify-content: space-between;
             align-items: center;
             cursor: pointer;
+            user-select: none;
+        }
+        .accordion-arrow {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.2s ease;
+        }
+        .accordion-arrow.open {
+            transform: rotate(180deg);
         }
 
         .api-boxed-card {
@@ -427,7 +437,7 @@
                     <!-- 1) API 설정 아코디언 -->
                     <div class="drawer-section-title" id="ep-api-accordion-title">
                         <span>API 설정</span>
-                        <span class="accordion-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1 0-.708"/></svg></span>
+                        <span class="accordion-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
                     </div>
                     <div class="api-boxed-card" id="api-collapsible-card">
                         <div class="api-tabs-row">
@@ -446,7 +456,7 @@
                     <!-- 2) 모델 선택 아코디언 -->
                     <div class="drawer-section-title" id="ep-model-accordion-title">
                         <span>모델 선택</span>
-                        <span class="accordion-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1 0-.708"/></svg></span>
+                        <span class="accordion-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></span>
                     </div>
                     <div class="model-boxed-card" id="model-collapsible-card">
                         <div class="model-tabs-row">
@@ -672,9 +682,7 @@
                 const arrow = apiTitle.querySelector('.accordion-arrow');
                 const isOpen = apiCard.style.display === 'flex';
                 apiCard.style.display = isOpen ? 'none' : 'flex';
-                arrow.innerHTML = isOpen 
-                    ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>`
-                    : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-up" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708z"/></svg>`;
+                if (arrow) arrow.classList.toggle('open', !isOpen);
             };
         }
 
@@ -711,9 +719,7 @@
                 const arrow = modelTitle.querySelector('.accordion-arrow');
                 const isOpen = modelCard.style.display === 'flex';
                 modelCard.style.display = isOpen ? 'none' : 'flex';
-                arrow.innerHTML = isOpen 
-                    ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>`
-                    : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-up" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708z"/></svg>`;
+                if (arrow) arrow.classList.toggle('open', !isOpen);
             };
         }
 
