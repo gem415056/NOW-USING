@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.5.7
+// @version      1.5.8
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1673,134 +1673,134 @@
     let isSendConfirmed = false;
     let sendHoldTimer = null;
 
-    // 크랙 인증 토큰(JWT) 만능 탐색기 (인터셉터 캡처 + 스토리지 전수 조사)
+    // [오리지널 순정 _CrackCookieApi] 쿠키에서 access_token 직접 추출
     function getCrackAuthToken() {
-        if (capturedCrackToken) return capturedCrackToken;
-        const saved = localStorage.getItem('pastel_captured_crack_token');
-        if (saved) return saved;
+        const cookieMatch = document.cookie.match(/(?:^|; )access_token=([^;]*)/);
+        if (cookieMatch && cookieMatch[1]) {
+            return decodeURIComponent(cookieMatch[1]);
+        }
 
+        // 스토리지 보조 탐색
         try {
-            for (let i = 0; i < localStorage.length; i++) {
-                const k = localStorage.key(i);
-                const v = localStorage.getItem(k);
-                if (typeof v === 'string' && (v.startsWith('eyJ') || v.includes('Bearer '))) {
-                    return v.replace('Bearer ', '').replace(/^["']|["']$/g, '').trim();
-                }
-                if (k.includes('auth') || k.includes('token')) {
-                    try {
-                        const parsed = JSON.parse(v);
-                        const t = parsed?.state?.accessToken || parsed?.state?.token || parsed?.accessToken || parsed?.token;
-                        if (t) return String(t).replace(/^["']|["']$/g, '').trim();
-                    } catch (_) {}
-                }
+            const raw = localStorage.getItem('accessToken') || localStorage.getItem('access_token') || '';
+            if (raw) return raw.replace(/^["']|["']$/g, '').trim();
+            const auth = localStorage.getItem('auth-storage');
+            if (auth) {
+                const p = JSON.parse(auth);
+                const t = p?.state?.accessToken || p?.state?.token || p?.accessToken;
+                if (t) return String(t).replace(/^["']|["']$/g, '').trim();
             }
         } catch (_) {}
         return '';
     }
 
-    // 방별 고유 ID 정밀 식별기
+    // [오리지널 순정 _CrackPathApi] /characters/.../chats/<chatRoomId> 정밀 추출
     function getChatId() {
-        if (capturedCrackChatId) return capturedCrackChatId;
-        const saved = localStorage.getItem('pastel_captured_crack_chat_id');
-        if (saved) return saved;
-
         const path = location.pathname || '';
-        const match = path.match(/chats?\/([a-f0-9]{24}|[a-zA-Z0-9_-]{8,})/i) || 
-                      path.match(/stories\/[^/]+\/chats?\/([a-f0-9]{24}|[a-zA-Z0-9_-]{8,})/i) ||
-                      path.match(/([a-f0-9]{24})/i);
-        if (match && match[1] && match[1] !== 'chats' && match[1] !== 'stories') {
-            return match[1];
+        const split = path.substring(1).split('/');
+
+        // 1. /characters/<charId>/chats/<chatRoomId>
+        // 2. /stories/<storyId>/episodes/<chatRoomId>
+        // 3. /u/<userId>/c/<chatRoomId>
+        if (split.length >= 4 && (split[0] === 'characters' || split[0] === 'stories' || split[0] === 'u')) {
+            const chatRoomId = split[3];
+            if (chatRoomId && chatRoomId !== 'chats' && chatRoomId !== 'episodes' && chatRoomId !== 'c') {
+                return chatRoomId;
+            }
         }
 
-        try {
-            const savedRoom = localStorage.getItem('pastel_crack_active_room');
-            if (savedRoom) {
-                const parsed = JSON.parse(savedRoom);
-                if (parsed && parsed.chatId) return parsed.chatId;
-            }
-        } catch (_) {}
+        // 4. /chats/<chatRoomId>
+        if (split.length >= 2 && (split[0] === 'chats' || split[0] === 'chat')) {
+            if (split[1]) return split[1];
+        }
+
+        // 5. 24자리 ObjectId 정규식
+        const hexMatch = path.match(/([a-f0-9]{24})/i);
+        if (hexMatch && hexMatch[1]) return hexMatch[1];
 
         return 'global';
     }
 
-    // [limit=300 백엔드 API + 초강력 무조건 DOM 수집기]
-    async function fetchCrackMessagesPure(targetChatId) {
+    // [오리지널 순정 contents-api 커서 기반 300턴 전수 수급 엔진]
+    async function fetchCrackMessagesPure(targetChatId, maxCount = 300) {
         const chatId = targetChatId || getChatId();
+        if (!chatId || chatId === 'global') return [];
+
         const token = getCrackAuthToken();
+        const headers = { 'accept': 'application/json, text/plain, */*' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
         let loadedMessages = [];
+        let cursor = undefined;
 
-        // 1. 백엔드 API limit=300 호출 시도
-        if (chatId && chatId !== 'global') {
-            const headers = { 'accept': 'application/json, text/plain, */*' };
-            if (token) headers['Authorization'] = `Bearer ${token}`;
+        // [1계층]: 오리지널 contents-api.wrtn.ai 커서 반복 순회 (1턴부터 최대 maxCount까지 완벽 수급)
+        try {
+            while (maxCount === -1 || loadedMessages.length < maxCount) {
+                const itemPerPage = Math.min(20, (maxCount === -1 ? 20 : maxCount - loadedMessages.length));
+                const nextUrl = cursor === undefined
+                    ? `https://contents-api.wrtn.ai/character-chat/v3/chats/${chatId}/messages?limit=${itemPerPage}`
+                    : `https://contents-api.wrtn.ai/character-chat/v3/chats/${chatId}/messages?limit=${itemPerPage}&cursor=${encodeURIComponent(cursor)}`;
 
-            const urls = [
-                `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=300`,
-                `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}?limit=300`,
-                `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=10000`,
-                `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}`
-            ];
+                const res = await fetch(nextUrl, { method: 'GET', headers: headers, credentials: 'include' });
+                if (!res.ok) break;
 
-            for (const u of urls) {
-                try {
-                    const res = await fetch(u, { method: 'GET', headers: headers, credentials: 'include' });
-                    if (res.ok) {
-                        const parsed = await res.json();
-                        let arr = [];
-                        if (Array.isArray(parsed?.data)) arr = parsed.data;
-                        else if (Array.isArray(parsed?.data?.messages)) arr = parsed.data.messages;
-                        else if (Array.isArray(parsed?.messages)) arr = parsed.messages;
-                        else if (Array.isArray(parsed)) arr = parsed;
-                        if (arr.length > 0) {
-                            loadedMessages = arr;
-                            break;
-                        }
-                    }
-                } catch (_) {}
+                const result = await res.json();
+                const messages = result?.data?.messages || result?.messages || [];
+                if (!Array.isArray(messages) || messages.length === 0) break;
+
+                for (const msg of messages) {
+                    const rawContent = msg.content || msg.message || msg.text || '';
+                    if (!rawContent || rawContent.length === 0) continue;
+                    loadedMessages.push(msg);
+                    if (maxCount !== -1 && loadedMessages.length >= maxCount) break;
+                }
+
+                if (result?.data?.nextCursor) {
+                    cursor = result.data.nextCursor;
+                } else {
+                    break;
+                }
             }
+        } catch (err) {
+            console.warn("[contents-api 수급 예외]:", err);
         }
 
+        // [2계층 폴백]: crack-api 단일 호출
+        if (loadedMessages.length === 0) {
+            try {
+                const res2 = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=${maxCount}`, {
+                    method: 'GET', headers: headers, credentials: 'include'
+                });
+                if (res2.ok) {
+                    const p2 = await res2.json();
+                    const arr = p2?.data?.messages || p2?.data || p2?.messages || [];
+                    if (Array.isArray(arr) && arr.length > 0) loadedMessages = arr;
+                }
+            } catch (_) {}
+        }
+
+        // API 수급 성공: 과거 1턴부터 순서대로 reverse() 정렬
         if (loadedMessages.length > 0) {
             loadedMessages.reverse();
-            console.log(`📥 [PASTEL:수급] 백엔드 API에서 300턴 대량 메시지(${loadedMessages.length}개) 수급 완료!`);
+            console.log(`📥 [PASTEL:수급] contents-api에서 총 ${loadedMessages.length}개 메시지 전수 수급 완료!`);
             return loadedMessages;
         }
 
-        // 2. 초강력 화면 텍스트 전수 수집기 (화면에 보이는 모든 <p> 단락 100% 수집)
-        console.warn("⚠️ [PASTEL:수급] 백엔드 응답 대기 초과로 화면 텍스트 전수 수집기를 가동합니다.");
-        const allParagraphs = Array.from(document.querySelectorAll('p, .whitespace-pre-wrap, .break-words, .prose'));
+        // [3계층 폴백]: 화면 DOM 파서
+        console.warn("⚠️ [PASTEL:수급] API 수급 불가로 화면 DOM 파서를 가동합니다.");
         const domTurns = [];
-
-        allParagraphs.forEach(p => {
-            // 모달창, 서랍 메뉴, 입력창 안의 텍스트만 제외
-            if (p.closest('#ep-chat-right-drawer') || 
-                p.closest('#ep-lore-storage-modal-overlay') || 
-                p.closest('.ep-prompt-overlay') || 
-                p.closest('.chat-footer-control') || 
-                p.closest('.ProseMirror')) {
-                return;
-            }
-
-            let txt = (p.getAttribute('data-pastel-raw') || p.innerText || p.textContent || '').trim();
+        const allNodes = document.querySelectorAll('p, .whitespace-pre-wrap, .break-words, .prose');
+        allNodes.forEach(el => {
+            if (el.closest('#ep-chat-right-drawer') || el.closest('#ep-lore-storage-modal-overlay') || el.closest('.ep-prompt-overlay') || el.closest('.chat-footer-control') || el.closest('.ProseMirror')) return;
+            let txt = (el.getAttribute('data-pastel-raw') || el.innerText || el.textContent || '').trim();
             let clean = stripLoreInjectionBlock(txt).trim();
             if (clean.length > 0) {
-                const isUser = !!p.closest('.justify-end, [class*="items-end"], .bg-accent_translucent') || p.classList.contains('bg-accent_translucent');
-                domTurns.push({
-                    role: isUser ? 'user' : 'assistant',
-                    content: clean,
-                    message: clean,
-                    text: clean
-                });
+                const isUser = !!el.closest('.justify-end, [class*="items-end"], .bg-accent_translucent') || el.classList.contains('bg-accent_translucent');
+                domTurns.push({ role: isUser ? 'user' : 'assistant', content: clean, message: clean, text: clean });
             }
         });
-
-        // 역순 렌더링 컨테이너일 경우 순서 정방향 반전
-        const isReverseContainer = !!document.querySelector('.flex-col-reverse');
-        if (isReverseContainer) {
-            domTurns.reverse();
-        }
-
-        console.log(`📥 [PASTEL:수급] 화면 텍스트 수집기에서 ${domTurns.length}개 메시지 수급 완료!`);
+        if (document.querySelector('.flex-col-reverse')) domTurns.reverse();
+        console.log(`📥 [PASTEL:수급] DOM 파서에서 ${domTurns.length}개 메시지 수급 완료!`);
         return domTurns;
     }
 
