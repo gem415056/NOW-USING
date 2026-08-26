@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.5.5
+// @version      1.5.6
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -23,6 +23,38 @@
 
 (function() {
     'use strict';
+
+    // [크랙 네트워크 실시간 인터셉터]: 브라우저가 통신할 때 사용하는 진짜 토큰과 ChatId 자동 낚아채기
+    let capturedCrackToken = '';
+    let capturedCrackChatId = '';
+
+    const origFetch = window.fetch;
+    window.fetch = async function(...args) {
+        try {
+            const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
+            const opts = args[1] || {};
+            const headers = opts.headers || (typeof args[0] === 'object' ? args[0].headers : null);
+
+            // 1. Authorization 토큰 자동 캡처
+            if (headers) {
+                let auth = '';
+                if (typeof headers.get === 'function') auth = headers.get('Authorization') || headers.get('authorization');
+                else if (typeof headers === 'object') auth = headers['Authorization'] || headers['authorization'];
+                if (auth && typeof auth === 'string' && auth.startsWith('Bearer ')) {
+                    capturedCrackToken = auth.replace('Bearer ', '').trim();
+                    localStorage.setItem('pastel_captured_crack_token', capturedCrackToken);
+                }
+            }
+
+            // 2. ChatId 자동 캡처
+            const chatMatch = url.match(/chats?\/([a-f0-9]{24}|[a-zA-Z0-9_-]{8,})/i);
+            if (chatMatch && chatMatch[1] && chatMatch[1] !== 'messages' && chatMatch[1] !== 'cash') {
+                capturedCrackChatId = chatMatch[1];
+                localStorage.setItem('pastel_captured_crack_chat_id', capturedCrackChatId);
+            }
+        } catch (_) {}
+        return origFetch.apply(this, args);
+    };
 
     // [index.html 동기화 브릿지]: 데이터가 실제로 변경되었을 때만 안전하게 동기화 (과부하 방지)
     if (!location.hostname.includes('wrtn.ai')) {
@@ -1641,34 +1673,45 @@
     let isSendConfirmed = false;
     let sendHoldTimer = null;
 
-    // 크랙 인증 토큰(JWT) 안전 탐색기
+    // 크랙 인증 토큰(JWT) 만능 탐색기 (인터셉터 캡처 + 스토리지 전수 조사)
     function getCrackAuthToken() {
-        try {
-            const rawToken = localStorage.getItem('accessToken') || localStorage.getItem('access_token') || '';
-            if (rawToken) return rawToken.replace(/^["']|["']$/g, '');
+        if (capturedCrackToken) return capturedCrackToken;
+        const saved = localStorage.getItem('pastel_captured_crack_token');
+        if (saved) return saved;
 
-            const authStorage = localStorage.getItem('auth-storage') || localStorage.getItem('wrtn_auth') || '';
-            if (authStorage) {
-                const parsed = JSON.parse(authStorage);
-                const t = parsed?.state?.accessToken || parsed?.state?.token || parsed?.accessToken || '';
-                if (t) return String(t).replace(/^["']|["']$/g, '');
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const k = localStorage.key(i);
+                const v = localStorage.getItem(k);
+                if (typeof v === 'string' && (v.startsWith('eyJ') || v.includes('Bearer '))) {
+                    return v.replace('Bearer ', '').replace(/^["']|["']$/g, '').trim();
+                }
+                if (k.includes('auth') || k.includes('token')) {
+                    try {
+                        const parsed = JSON.parse(v);
+                        const t = parsed?.state?.accessToken || parsed?.state?.token || parsed?.accessToken || parsed?.token;
+                        if (t) return String(t).replace(/^["']|["']$/g, '').trim();
+                    } catch (_) {}
+                }
             }
         } catch (_) {}
         return '';
     }
 
-    // 방별 고유 ID 정밀 식별기 (URL, DOM, 스토리지 전수 탐색)
+    // 방별 고유 ID 정밀 식별기
     function getChatId() {
-        // 1. URL 경로에서 24자리 ObjectId 또는 chats/ID 탐색
+        if (capturedCrackChatId) return capturedCrackChatId;
+        const saved = localStorage.getItem('pastel_captured_crack_chat_id');
+        if (saved) return saved;
+
         const path = location.pathname || '';
-        const match = path.match(/chats?\/([a-f0-9]{24}|[a-zA-Z0-9_-]+)/i) || 
-                      path.match(/stories\/[^/]+\/chats?\/([a-f0-9]{24}|[a-zA-Z0-9_-]+)/i) ||
+        const match = path.match(/chats?\/([a-f0-9]{24}|[a-zA-Z0-9_-]{8,})/i) || 
+                      path.match(/stories\/[^/]+\/chats?\/([a-f0-9]{24}|[a-zA-Z0-9_-]{8,})/i) ||
                       path.match(/([a-f0-9]{24})/i);
         if (match && match[1] && match[1] !== 'chats' && match[1] !== 'stories') {
             return match[1];
         }
 
-        // 2. 크랙 활성 스토리지 탐색
         try {
             const savedRoom = localStorage.getItem('pastel_crack_active_room');
             if (savedRoom) {
@@ -1677,14 +1720,92 @@
             }
         } catch (_) {}
 
-        // 3. DOM 내의 대화방 링크나 속성 탐색
-        const chatLink = document.querySelector('a[href*="/chats/"]');
-        if (chatLink) {
-            const m = chatLink.getAttribute('href').match(/chats\/([a-f0-9]{24}|[a-zA-Z0-9_-]+)/i);
-            if (m && m[1]) return m[1];
+        return 'global';
+    }
+
+    // [3계층 무손실 수급기]: 백엔드 API 2종 + 강력한 만능 DOM 파서 폴백 (대화 내역 누락 0%)
+    async function fetchCrackMessagesPure(targetChatId) {
+        const chatId = targetChatId || getChatId();
+        const token = getCrackAuthToken();
+        let loadedMessages = [];
+
+        // [1계층]: 백엔드 API 1순위 (/messages?limit=10000)
+        if (chatId && chatId !== 'global') {
+            const headers = { 'accept': 'application/json, text/plain, */*' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            try {
+                const res = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=10000`, {
+                    method: 'GET',
+                    headers: headers,
+                    credentials: 'include'
+                });
+                if (res.ok) {
+                    const parsed = await res.json();
+                    if (Array.isArray(parsed?.data)) loadedMessages = parsed.data;
+                    else if (Array.isArray(parsed?.data?.messages)) loadedMessages = parsed.data.messages;
+                    else if (Array.isArray(parsed?.messages)) loadedMessages = parsed.messages;
+                    else if (Array.isArray(parsed)) loadedMessages = parsed;
+                }
+            } catch (_) {}
+
+            // [2계층]: 백엔드 API 2순위 폴백 (/chats/${chatId}?limit=10000)
+            if (loadedMessages.length === 0) {
+                try {
+                    const res2 = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}?limit=10000`, {
+                        method: 'GET',
+                        headers: headers,
+                        credentials: 'include'
+                    });
+                    if (res2.ok) {
+                        const parsed2 = await res2.json();
+                        if (Array.isArray(parsed2?.data?.messages)) loadedMessages = parsed2.data.messages;
+                        else if (Array.isArray(parsed2?.messages)) loadedMessages = parsed2.messages;
+                    }
+                } catch (_) {}
+            }
         }
 
-        return 'global';
+        // 백엔드 API 성공 시: 과거 1턴부터 순서대로 정렬하여 반환
+        if (loadedMessages.length > 0) {
+            loadedMessages.reverse();
+            console.log(`📥 [PASTEL:수급] 크랙 백엔드 API에서 ${loadedMessages.length}개 메시지 전수 수급 완료!`);
+            return loadedMessages;
+        }
+
+        // [3계층]: 만능 DOM 파서 폴백 (API 통신 실패 시 화면의 모든 말풍선 100% 긁어오기)
+        console.warn("⚠️ [PASTEL:수급] API 수급 지연으로 만능 DOM 파서 폴백을 가동합니다.");
+        const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || 
+                         document.querySelector('.flex.flex-col-reverse') || 
+                         document.querySelector('main') || 
+                         document.body;
+
+        const domTurns = [];
+        const seenTexts = new Set();
+
+        const textNodes = chatRoot.querySelectorAll('.whitespace-pre-wrap, .break-words, .prose, p, div[class*="bubble"], div[class*="message"]');
+        textNodes.forEach(el => {
+            if (el.closest('.chat-footer-control') || el.closest('#ep-chat-right-drawer') || el.closest('.ep-prompt-overlay') || el.closest('#ep-lore-storage-modal-overlay') || el.closest('.ProseMirror')) return;
+            let txt = (el.getAttribute('data-pastel-raw') || el.innerText || el.textContent || '').trim();
+            let clean = stripLoreInjectionBlock(txt).trim();
+            if (clean && !seenTexts.has(clean)) {
+                seenTexts.add(clean);
+                const isUser = !!el.closest('.justify-end, [class*="items-end"], .bg-accent_translucent') || el.classList.contains('bg-accent_translucent');
+                domTurns.push({
+                    role: isUser ? 'user' : 'assistant',
+                    content: clean,
+                    message: clean,
+                    text: clean
+                });
+            }
+        });
+
+        if (chatRoot.classList.contains('flex-col-reverse') || chatRoot.querySelector('.flex-col-reverse')) {
+            domTurns.reverse();
+        }
+
+        console.log(`📥 [PASTEL:수급] DOM 파서 폴백에서 ${domTurns.length}개 메시지 수급 완료!`);
+        return domTurns;
     }
 
     function injectCustomInputBox() {
