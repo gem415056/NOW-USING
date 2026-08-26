@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.2.9.1
+// @version      1.2.9.2
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -466,7 +466,7 @@
             border: none !important;
         }
 
-        /* 크랙 하단 부모 컨테이너 바깥 마진 완전 투명화 (주변 가림 100% 해결) */
+        /* 크랙 하단 부모 컨테이너 배경 복원 및 세로 마진 50% 축소 */
         .bg-bg_screen.pointer-events-auto,
         .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
             position: fixed !important;
@@ -475,15 +475,13 @@
             transform: translateX(-50%) !important;
             max-width: 760px !important;
             width: calc(100% - 64px) !important;
-            padding: 8px 0 !important;
-            background: transparent !important; /* 바깥 마진 영역 완전 투명화 */
-            background-color: transparent !important;
+            padding: 4px 0 4px 0 !important; /* 세로 마진/패딩을 반으로 대폭 슬림화 */
+            background-color: var(--bg_screen, #ffffff) !important;
             z-index: 10000 !important;
             overflow: visible !important;
-            pointer-events: none !important; /* 바깥 여백은 클릭이 뒤로 통과되도록 처리 */
         }
-        .chat-footer-control {
-            pointer-events: auto !important; /* 입력창과 툴바만 정상 클릭 반응 */
+        body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
+            background-color: #141413 !important;
         }
         body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
             background-color: #141413 !important;
