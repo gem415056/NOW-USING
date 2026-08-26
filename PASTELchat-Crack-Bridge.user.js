@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.4.1
+// @version      1.4.2
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1529,13 +1529,10 @@
                 </div>
             `;
             document.body.appendChild(loreModal);
-        }
 
-            // 이벤트 바인딩은 DOM 생성 시 단 1회만 실행 (메모리 폭발 및 입력창 초기화 완벽 차단)
             bindDrawerEvents();
         }
 
-        // 헤더 버튼 및 입력창은 SPA 화면 전환 시 가볍게 DOM 위치만 유지
         injectHeaderButton();
         injectCustomInputBox();
     }
@@ -4239,11 +4236,31 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
     }
 
     function stripLoreOnlyFromView() {
-        const bubbles = document.querySelectorAll('.break-words, .whitespace-pre-wrap, .prose');
-        bubbles.forEach(b => {
-            if (b.innerText && b.innerText.includes('[LORE') && !b.getAttribute('data-lore-hidden')) {
-                b.innerHTML = b.innerHTML.replace(/\[LORE[\s\S]*?(?=(?:\n\s*\n)|$)/i, '').trim();
-                b.setAttribute('data-lore-hidden', 'true');
+        const containers = document.querySelectorAll('.break-words, .whitespace-pre-wrap, .prose');
+        containers.forEach(container => {
+            if (container.closest('.chat-footer-control') || container.closest('#ep-chat-right-drawer') || container.closest('.ep-prompt-overlay')) return;
+
+            // 1. 단락(<p>) 태그 기반으로 쪼개진 로어 블록 은닉
+            const pTags = container.querySelectorAll('p');
+            if (pTags.length > 0) {
+                let inLoreBlock = false;
+                pTags.forEach(p => {
+                    const txt = (p.textContent || '').trim();
+                    if (txt.startsWith('[LORE')) {
+                        inLoreBlock = true;
+                        p.style.display = 'none';
+                    } else if (inLoreBlock && (txt === '' || txt.startsWith('[LORE'))) {
+                        p.style.display = 'none';
+                    } else {
+                        inLoreBlock = false;
+                    }
+                });
+            }
+
+            // 2. 단일 텍스트/줄바꿈 기반 로어 블록 은닉
+            if (container.innerHTML && container.innerHTML.includes('[LORE') && !container.getAttribute('data-lore-hidden')) {
+                container.innerHTML = container.innerHTML.replace(/^\[LORE[\s\S]*?(?=(?:<p>|<br\s*\/?>|\n\s*\n)(?!\[LORE)|$)/i, '').trim();
+                container.setAttribute('data-lore-hidden', 'true');
             }
         });
     }
