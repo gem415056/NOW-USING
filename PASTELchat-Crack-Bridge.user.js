@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Module 1 (Base & Menu)
 // @namespace    https://pastelchat.com/
-// @version      1.0.0
+// @version      1.0.1
 // @description  PASTELchat Native UI Engine for crack.wrtn.ai - Module 1: Base & Right Drawer Menu
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -31,46 +31,42 @@
             --icon_primary: #F0EFEB;
         }
 
-        /* 우측 상단 플로팅 파스텔 메뉴 트리거 버튼 */
+        /* 크랙 순정 메뉴 버튼과 완벽히 동일한 인라인 버튼 스타일 */
         #ep-native-menu-btn {
-            position: fixed;
-            top: 14px;
-            right: 20px;
-            z-index: 99999;
-            background: rgba(255, 255, 255, 0.85);
-            backdrop-filter: blur(8px);
-            border: 1px solid #E6E6E6;
-            border-radius: 50%;
-            width: 36px;
-            height: 36px;
-            display: flex;
+            position: relative;
+            display: inline-flex;
             align-items: center;
             justify-content: center;
+            gap: 4px;
+            overflow: hidden;
+            white-space: nowrap;
+            padding: 8px;
+            background: transparent;
+            border: none;
+            border-radius: 6px;
+            width: 32px;
+            height: 32px;
             cursor: pointer;
-            color: #222222;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-            transition: transform 0.2s, background-color 0.2s, border-color 0.2s;
-            padding: 0;
+            color: var(--icon_secondary, #737373);
+            transition: background-color 0.2s;
             outline: none;
+            box-sizing: border-box;
+            flex-shrink: 0;
         }
         #ep-native-menu-btn:hover {
-            transform: scale(1.05);
-            background: #ffffff;
-            border-color: #F5E19A;
+            background-color: rgba(0, 0, 0, 0.05);
         }
-        body[data-theme="dark"] #ep-native-menu-btn {
-            background: rgba(20, 20, 19, 0.85);
-            border-color: #42413D;
-            color: #F0EFEB;
+        body[data-theme="dark"] #ep-native-menu-btn:hover {
+            background-color: rgba(255, 255, 255, 0.08);
         }
 
-        /* 우측 서랍 컨테이너 */
+        /* 우측 서랍 컨테이너 (헤더 아래에서 시작) */
         .right-drawer-container {
             position: fixed;
-            top: 0;
+            top: 104px; /* 메인 상단 헤더(56px) + 대화창 서브 헤더(48px) 바로 아래 */
             right: 0;
             width: 255px;
-            height: 100%;
+            height: calc(100% - 104px); /* 헤더 영역을 제외한 높이 */
             background-color: var(--bg_primary);
             border-left: 1px solid #E6E6E6;
             box-sizing: border-box;
@@ -78,7 +74,7 @@
             display: none;
             flex-direction: column;
             user-select: none;
-            box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+            box-shadow: -4px 4px 24px rgba(0, 0, 0, 0.08);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
         }
         body[data-theme="dark"] .right-drawer-container {
@@ -411,17 +407,28 @@
     function injectBaseDOM() {
         if (document.getElementById('ep-chat-right-drawer')) return;
 
-        // 1. 우측 상단 플로팅 파스텔 메뉴 버튼 (crack.html 순정 3-Dot 원형 아이콘)
-        const menuBtn = document.createElement('button');
-        menuBtn.id = 'ep-native-menu-btn';
-        menuBtn.title = 'PASTELchat 메뉴 열기';
-        menuBtn.innerHTML = `
-            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="22px" height="22px">
-                <path d="M11 11h2v2h-2zm-2.5 0h-2v2h2zm7 0h2v2h-2z"></path>
-                <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
-            </svg>
-        `;
-        document.body.appendChild(menuBtn);
+        // 1. 크랙 헤더 내 순정 메뉴 버튼 옆에 파스텔 메뉴 버튼 주입
+        let menuBtn = document.getElementById('ep-native-menu-btn');
+        if (!menuBtn) {
+            menuBtn = document.createElement('button');
+            menuBtn.id = 'ep-native-menu-btn';
+            menuBtn.type = 'button';
+            menuBtn.title = 'PASTELchat 메뉴 열기';
+            menuBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="24px" height="24px">
+                    <path d="M11 11h2v2h-2zm-2.5 0h-2v2h2zm7 0h2v2h-2z"></path>
+                    <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
+                </svg>
+            `;
+        }
+
+        // 헤더 안의 기존 메뉴 버튼 우측에 삽입 (헤더가 로드되었을 때)
+        const headerBtnContainer = document.querySelector('.flex.gap-3.items-center');
+        if (headerBtnContainer) {
+            if (!headerBtnContainer.contains(menuBtn)) {
+                headerBtnContainer.appendChild(menuBtn);
+            }
+        }
 
         // 2. 딤 배경 오버레이
         const overlay = document.createElement('div');
@@ -597,9 +604,18 @@
         const drawer = document.getElementById('ep-chat-right-drawer');
         const overlay = document.getElementById('ep-chat-drawer-overlay');
 
-        // 서랍 열기/닫기
+        // 서랍 열기/닫기 (헤더 바로 아래로 위치 자동 동기화)
         const toggleDrawer = (open) => {
             const isOpen = (open !== undefined) ? open : (drawer.style.display !== 'flex');
+            if (isOpen) {
+                // 대화창 서브 헤더의 실제 위치를 실시간 측정하여 정확히 그 밑에 밀착
+                const subHeader = document.querySelector('.absolute.z-docked.left-0.w-full.h-12');
+                if (subHeader) {
+                    const rect = subHeader.getBoundingClientRect();
+                    drawer.style.top = `${rect.bottom}px`;
+                    drawer.style.height = `calc(100% - ${rect.bottom}px)`;
+                }
+            }
             drawer.style.display = isOpen ? 'flex' : 'none';
             overlay.style.display = isOpen ? 'block' : 'none';
         };
