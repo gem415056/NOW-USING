@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.3.5
+// @version      1.4.0
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -14,6 +14,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
+// @require      https://cdn.jsdelivr.net/npm/dexie@4.2.1/dist/dexie.min.js
 // @run-at       document-idle
 // ==/UserScript==
 
@@ -952,68 +953,103 @@
         body[data-theme="dark"] .ep-prompt-input { background: #141413 !important; border-color: #42413D !important; color: #F0EFEB !important; }
         body[data-theme="dark"] .ep-profile-label { color: #ccc; }
 
-        /* ==========================================================================
-         * crack.html 순정 마크다운 & 소설/채팅 서식 100% 일치 스타일
-         * ========================================================================== */
-        .ep-chat-bold { font-weight: 800 !important; }
-        .ep-chat-action { color: #666666 !important; font-weight: normal; }
-        .quote-block { border-left: 4px solid #888888; padding-left: 12px; margin: 8px 0 8px 8px; display: block; color: var(--text_primary); white-space: pre-wrap; }
-        .ep-inline-code { background-color: #F8F2F4; color: #6E5960; border: 1px solid #bfa5a6; border-radius: 4px; padding: 1.5px 4px; font-size: 15px !important; margin: 0 2px; display: inline; }
-        .ep-code-block-wrapper { border-radius: 8px; overflow: hidden; margin: 10px 0; box-sizing: border-box; }
-        .ep-code-block-header { background-color: #f2e5e9; color: #6E5960; font-weight: 800; font-size: 14px; padding: 8px 16px; text-align: left; user-select: none; }
-        .ep-code-block-body { background-color: #F8F2F4; color: #6E5960 !important; padding: 14px 16px !important; white-space: pre-wrap; font-size: 14.5px !important; line-height: 1.6; }
-        .ep-code-block-body.no-header { border-radius: 8px; }
-        
-        .ep-hud-box { 
-            position: relative; 
-            margin: 0 0 0 auto; 
-            width: fit-content; 
-            padding: 2px 0 0 0; 
-            text-align: right; 
-            font-size: 14px !important; 
-            font-weight: 300; 
-            letter-spacing: 1.4px; 
-            line-height: 1.6; 
-            white-space: pre-wrap !important; /* HUD 멀티라인 줄바꿈 100% 보존 */
+        /* 로어 저장소 모달 전용 순정 스타일시트 (crack.html 100% 일치) */
+        .decentral-color-container, .decentral-color-container * { box-sizing: border-box !important; }
+        .decentral-color-container {
+            --decentral-text: #2c3e50;
+            --decentral-text-inverted: #FFFFFF;
+            --decentral-text-formal: #555555;
+            --decentral-text-inactive-hover: #111111;
+            --decentral-text-inactive: #888888;
+            --decentral-background: #FFFFFF;
+            --decentral-border: #eeeeee;
+            --decentral-active-item: #88b9c8;
+            --decentral-inactive-item: #cbd5e0;
+            --decentral-text-background: #FFFFFF;
+            --decentral-text-border: #cccccc;
+            --decentral-switch-background: #FFFFFF;
+            --decentral-inner-border: #d4d4d4;
         }
-        .ep-hud-box::after { content: ""; display: block; width: 100%; margin-top: 6px; border-bottom: 6px double #D2C0C0; }
-
-        .ep-dialogue-card-wrapper { position: relative; display: flex; flex-direction: column; width: fit-content; max-width: 100%; margin: 12px 0; box-sizing: border-box; }
-        .ep-dialogue-card-wrapper.user-side { margin-left: auto; }
-        .ep-dialogue-badge-row { display: flex; width: 100%; padding: 0 16px; box-sizing: border-box; margin-top: -11px; margin-bottom: -11px; z-index: 2; pointer-events: none; }
-        .ep-dialogue-card-wrapper.user-side .ep-dialogue-badge-row { justify-content: flex-end; }
-        .ep-dialogue-badge { background-color: #bfa5a6; color: #FDFBFC; font-size: 13.5px; font-weight: 600; padding: 3.5px 13px; border-radius: 9999px; width: fit-content; display: inline-flex; align-items: center; white-space: nowrap; }
-        .ep-dialogue-card-box { background-color: #F8F2F4; border: 0.7px solid #bfa5a6; border-radius: 0 16px 0 16px; color: #9a868d; font-weight: 700; padding: 14px 16px 12px 16px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; width: 100%; box-sizing: border-box; }
-        .ep-dialogue-card-wrapper.user-side .ep-dialogue-card-box { border-radius: 16px 0 16px 0; }
-
-        .ep-sms-container { display: flex; gap: 10px; margin: 12px 0; align-items: flex-start; width: 100%; box-sizing: border-box; }
-        .ep-sms-container.user-side { flex-direction: row-reverse; }
-        .ep-sms-avatar-icon { width: 28px; height: 28px; flex-shrink: 0; }
-        .ep-sms-avatar-icon svg { width: 100%; height: 100%; stroke: #bfa5a6; }
-        .ep-sms-content-col { display: flex; flex-direction: column; gap: 6px; max-width: 75%; align-items: flex-start; }
-        .ep-sms-container.user-side .ep-sms-content-col { align-items: flex-end; }
-        .ep-sms-name { font-size: 13.5px; font-weight: 700; color: #bfa5a6; line-height: 1; }
-        .ep-sms-bubble { background-color: #F8F2F4; border: 1px solid #bfa5a6; border-radius: 16px; color: #9a868d; font-size: 15px; font-weight: 700; line-height: 1.5; padding: 10px 14px; width: fit-content; max-width: 100%; box-sizing: border-box; }
-        
-        hr.ep-chat-hr { border: none; border-top: 1.5px dashed #ccc; margin: 25px 0; width: 100%; }
-
-        .ep-chat-shortcut-token {
-            background-color: #f2e5e9; color: #6E5960; border: 1px solid #bfa5a6;
-            border-radius: 4px; padding: 1.5px 4px; font-family: inherit; font-size: 14px !important;
-            font-weight: inherit; margin: 0 2px; display: inline; box-decoration-break: clone;
-            -webkit-box-decoration-break: clone; vertical-align: 1px !important; line-height: 1.2;
+        body[data-theme="dark"] .decentral-color-container {
+            --decentral-text: #F0EFEB;
+            --decentral-text-inverted: #141413;
+            --decentral-text-formal: #aaa;
+            --decentral-text-inactive-hover: #fff;
+            --decentral-text-inactive: #888;
+            --decentral-background: #242321;
+            --decentral-border: #42413D;
+            --decentral-active-item: #bcd0d7;
+            --decentral-inactive-item: #42413D;
+            --decentral-text-background: #141413;
+            --decentral-text-border: #42413D;
+            --decentral-switch-background: #141413;
+            --decentral-inner-border: #4a4a46;
         }
-        body[data-theme="dark"] .ep-chat-shortcut-token {
-            background-color: #583034; color: #f2c0c3; border-color: #643b3f;
+        .decentral-modal-container {
+            display: flex; align-items: center !important; justify-content: center !important;
+            z-index: 2147483647 !important; pointer-events: auto; background-color: rgba(0,0,0,0.5);
+            top: 0; left: 0; width: 100%; height: 100%; position: fixed; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
         }
-        body[data-theme="dark"] .ep-chat-action { color: #aaaaaa !important; }
-        body[data-theme="dark"] .quote-block { border-color: #555555; }
-
-        /* 대화방 마크다운 렌더링 강제 줄바꿈 및 스타일 보존 */
-        [data-pastel-parsed="true"] {
-            white-space: pre-wrap !important;
-            word-break: break-word !important;
-            line-height: 1.6 !important;
+        .decentral-modal {
+            display: flex !important; flex-direction: column !important; width: 600px !important; max-width: 90vw !important;
+            height: 690px !important; min-height: 690px !important; max-height: 690px !important; border-radius: 16px !important;
+            background-color: var(--decentral-background) !important; margin: 0 auto !important; color: var(--decentral-text) !important;
+            box-shadow: 0 8px 40px rgba(0,0,0,0.2) !important; overflow: hidden !important; box-sizing: border-box !important; padding: 28px !important;
+        }
+        .decentral-modal-title-container.top-static-title {
+            display: flex !important; align-items: center !important; justify-content: space-between !important;
+            margin-bottom: 16px !important; flex-shrink: 0; width: 100% !important;
+        }
+        .decental-modal-title-text { margin: 0 !important; font-weight: 700 !important; font-size: 17px !important; color: var(--decentral-text) !important; }
+        .decentral-close-button {
+            background: none !important; border: none !important; cursor: pointer !important; padding: 4px 8px !important;
+            border-radius: 6px !important; color: #666 !important; transition: 0.2s !important; font-weight: bold !important;
+        }
+        .decentral-close-button:hover { background: #eee !important; color: #222 !important; }
+        .decentral-menu-container {
+            box-shadow: inset 0 -1px 0 var(--decentral-border) !important; display: flex !important; align-items: flex-end !important;
+            width: 100% !important; margin-bottom: 12px !important; overflow-x: auto !important; gap: 17px !important; flex-shrink: 0;
+        }
+        .decentral-menu-container::-webkit-scrollbar { display: none; }
+        .decentral-menu-container .decentral-menu-element {
+            background: none !important; border: none !important; font-size: 14px !important; font-weight: 500 !important;
+            color: var(--decentral-text-inactive) !important; padding: 0 4px 8px 4px !important; cursor: pointer !important;
+            border-bottom: 2.5px solid transparent !important; transition: 0.2s !important; white-space: nowrap !important;
+        }
+        .decentral-menu-container .decentral-menu-element[active="true"] {
+            color: var(--decentral-text) !important; border-bottom: 2.5px solid var(--decentral-active-item) !important; font-weight: bold !important;
+        }
+        .decentral-grid-container { display: block !important; width: 100% !important; height: 100% !important; overflow-y: auto !important; overflow-x: hidden !important; }
+        .decentral-grid { display: grid !important; width: 100% !important; grid-template-columns: repeat(2, 1fr) !important; gap: 12px !important; padding: 4px 0 16px 0 !important; }
+        .decentral-grid-element-long-semi-flat { display: flex; flex-direction: column; grid-column: 1 / 3; width: 100%; }
+        .decentral-boxed-field {
+            display: flex !important; width: 100%; background-color: var(--decentral-switch-background) !important;
+            border: 1px solid var(--decentral-text-border) !important; border-radius: 8px !important; padding: 12px; box-sizing: border-box;
+        }
+        .decentral-boxed-field .element-title { font-size: 13px; font-weight: bold; margin-bottom: 4px; color: var(--decentral-text) !important; text-align: left; }
+        .decentral-boxed-field .element-description { font-size: 11px; color: var(--decentral-text-formal) !important; line-height: 1.4; text-align: left; }
+        .decentral-text-field {
+            background-color: var(--decentral-text-background) !important; border: 1px solid var(--decentral-text-border) !important;
+            border-radius: 8px !important; width: 100%; padding: 4px 8px; color: var(--decentral-text); height: 32px; box-sizing: border-box; outline: none;
+        }
+        .decentral-text-area {
+            background-color: var(--decentral-text-background) !important; border: 1px solid var(--decentral-text-border) !important;
+            border-radius: 8px !important; resize: none; width: 100%; padding: 8px; color: var(--decentral-text); box-sizing: border-box; outline: none;
+        }
+        .decentral-button {
+            background-color: var(--decentral-active-item); color: var(--decentral-text-inverted); width: 100%; height: 32px;
+            padding: 4px 16px; border: none; border-radius: 8px; font-weight: bold; font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center;
+        }
+        .decentral-select { 
+            width: 100%; border-radius: 8px !important; background-color: var(--decentral-text-background) !important;
+            color: var(--decentral-text) !important; border: 1px solid var(--decentral-text-border) !important; font-size: 13px; height: 32px; padding: 0 10px; cursor: pointer; outline: none;
+        }
+        .ep-lore-panel { display: none !important; }
+        .ep-lore-panel.active-panel { display: grid !important; }
+        #ep-lore-panel-log.active-panel, #ep-lore-panel-restore.active-panel { display: flex !important; }
+        .ep-costs-log-item {
+            padding: 8px 12px; border: 1px solid var(--decentral-inner-border); border-radius: 8px;
+            background-color: var(--decentral-background); color: var(--decentral-text); font-size: 12px; line-height: 1.5; text-align: left; width: 100%; box-sizing: border-box;
         }
     `;
 
@@ -1047,7 +1083,7 @@
     }
 
     /* ==========================================================================
-     * 2.5 crack.html 순정 100% 마크다운 파서 & 로어 은닉 필터 엔진
+     * 2.5 로어 블록 화면 은닉 필터 (마크다운 파서 제거 완료)
      * ========================================================================== */
     function stripLoreInjectionBlock(text) {
         if (!text) return "";
@@ -1059,108 +1095,6 @@
             str = str.replace(/^\[LORE\s*\d*\][^\n]*(?:\n|$)/i, '').trimStart();
         }
         return str;
-    }
-
-    function parseChatMarkdown(text, msgType = 'model') {
-        if (!text) return "";
-        const isUser = (msgType === 'user');
-
-        // 1. 로어 블록 완벽 은닉
-        let str = stripLoreInjectionBlock(text);
-
-        // 2. HTML 특수문자 안전 이스케이프
-        let html = str
-            .replace(/&/g, "&amp;")
-            .replace(/</g, "&lt;")
-            .replace(/>/g, "&gt;");
-
-        // 3. HUD 박스: ❴ content ❵ (내부 엔터 100% 보존)
-        html = html.replace(/❴\n?([\s\S]*?)\n?❵/g, function(match, hudContent) {
-            return `<div class="ep-hud-box">${hudContent.trim()}</div>`;
-        });
-
-        // 4. 대사 카드: — 캐릭터명 \n ▎ 대사
-        html = html.replace(/(^|\n)[—―]\s*([^\n\r]+)((?:\n\s*▎[^\n\r]*)+)/g, function(match, leadNL, name, lines) {
-            const cleanName = name.trim();
-            const contentList = lines.split('\n')
-                .map(l => l.trim())
-                .filter(l => l.startsWith('▎'))
-                .map(l => l.replace(/^▎\s*/, ''));
-            const cleanContent = contentList.join('\n');
-            return `${leadNL}<div class="ep-dialogue-card-wrapper ${isUser ? 'user-side' : ''}"><div class="ep-dialogue-badge-row"><div class="ep-dialogue-badge">${cleanName}</div></div><div class="ep-dialogue-card-box">${cleanContent}</div></div>`;
-        });
-
-        // 5. SMS 메신저 말풍선: — 캐릭터명 \n `문자내용`
-        html = html.replace(/(^|\n)[—―]\s*([^\n\r]+)((?:\n\s*`[^`\n\r]+`)+)/g, function(match, leadNL, name, lines) {
-            const cleanName = name.trim();
-            const bubbleList = lines.split('\n')
-                .map(l => l.trim())
-                .filter(l => l.startsWith('`') && l.endsWith('`'))
-                .map(l => l.slice(1, -1).trim());
-            if (bubbleList.length === 0) return match;
-
-            const userSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M17.925 20.056a6 6 0 0 0-11.851.001"/><circle cx="12" cy="11" r="4"/><circle cx="12" cy="12" r="10"/></svg>`;
-            const bubblesHtml = bubbleList.map(b => `<div class="ep-sms-bubble">${b}</div>`).join('');
-            return `${leadNL}<div class="ep-sms-container ${isUser ? 'user-side' : ''}"><div class="ep-sms-avatar-icon">${userSvg}</div><div class="ep-sms-content-col"><span class="ep-sms-name">${cleanName}</span>${bubblesHtml}</div></div>`;
-        });
-
-        // 6. 코드 블록
-        html = html.replace(/`{3}([^\n]*?)(?:\n([\s\S]*?))?`{3}/g, function(match, title, content) {
-            const trimmedTitle = title.trim();
-            if (content === undefined) return `<div class="ep-code-block-wrapper"><div class="ep-code-block-body no-header">${trimmedTitle}</div></div>`;
-            const cleanedContent = content.trim();
-            return trimmedTitle 
-                ? `<div class="ep-code-block-wrapper"><div class="ep-code-block-header">${trimmedTitle}</div><div class="ep-code-block-body">${cleanedContent}</div></div>`
-                : `<div class="ep-code-block-wrapper"><div class="ep-code-block-body no-header">${cleanedContent}</div></div>`;
-        });
-
-        // 7. 인라인 백틱
-        html = html.replace(/`([^`\n]+)`/g, '<span class="ep-inline-code">$1</span>');
-
-        // 8. 단축어 뱃지: !단축어명
-        html = html.replace(/(![a-zA-Z0-9가-힣/]+)/g, '<span class="ep-chat-shortcut-token">$1</span>');
-
-        // 9. 점선 구분선
-        html = html.replace(/(^\s*([\*_=~+─━═┈┉┄┅―—–‒·•-]\s*){3,}\s*$|\*{3,}|={3,}|─{2,}|━{2,}|═{2,})/gm, '<hr class="ep-chat-hr">');
-
-        // 10. 볼드: **텍스트**
-        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="ep-chat-bold">$1</strong>');
-
-        // 11. 행동 지문: *지문* (단일 라인 보장)
-        html = html.replace(/\*([^*\n]+)\*/g, '<span class="ep-chat-action">$1</span>');
-
-        // 12. 인용구: > 텍스트
-        const lines = html.split('\n');
-        const processedLines = [];
-        let inQuoteBlock = false;
-        let quoteBuffer = [];
-
-        for (let i = 0; i < lines.length; i++) {
-            const line = lines[i];
-            const trimmed = line.trim();
-
-            if (trimmed.startsWith('&gt;')) {
-                const content = line.replace(/^\s*&gt;\s?/, '');
-                if (!inQuoteBlock) inQuoteBlock = true;
-                quoteBuffer.push(content);
-            } else {
-                if (inQuoteBlock) {
-                    processedLines.push(`<span class="quote-block">${quoteBuffer.join('\n')}</span><!--qb-end-->`);
-                    quoteBuffer = [];
-                    inQuoteBlock = false;
-                }
-                processedLines.push(line);
-            }
-        }
-
-        if (inQuoteBlock) {
-            processedLines.push(`<span class="quote-block">${quoteBuffer.join('\n')}</span><!--qb-end-->`);
-        }
-
-        let result = processedLines.join('\n');
-        result = result.replace(/(<!--qb-end-->)\n/g, '$1');
-        result = result.replace(/<!--qb-end-->/g, '');
-        return result;
     }
 
     /* ==========================================================================
@@ -1431,6 +1365,160 @@
                 </div>
             `;
             document.body.appendChild(tplPanel);
+
+            // 9. 로어 저장소 5대 탭 메인 모달창 (crack.html 순정 100% 완전 일치)
+            const loreModal = document.createElement('div');
+            loreModal.id = 'ep-lore-storage-modal-overlay';
+            loreModal.className = 'decentral-modal-container decentral-color-container';
+            loreModal.style.display = 'none';
+            loreModal.innerHTML = `
+                <div class="decentral-modal">
+                    <div class="decentral-modal-title-container top-static-title">
+                        <p class="decental-modal-title-text">로어 저장소</p>
+                        <div class="decentral-modal-button-container">
+                            <button class="decentral-close-button" id="ep-lore-close-btn"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+                        </div>
+                    </div>
+                    <div class="decentral-menu-container" style="justify-content: space-between !important; padding-right: 12px !important;">
+                        <div style="display:flex; gap:17px; align-items: flex-end;">
+                            <button class="decentral-menu-element" id="ep-lore-tab-active" active="true">활성 로어</button>
+                            <button class="decentral-menu-element" id="ep-lore-tab-log">실행 로그</button>
+                            <button class="decentral-menu-element" id="ep-lore-tab-manage">로어 관리</button>
+                            <button class="decentral-menu-element" id="ep-lore-tab-restore">로어 복원</button>
+                            <button class="decentral-menu-element" id="ep-lore-tab-settings">설정</button>
+                        </div>
+                    </div>
+                    <div class="decentral-grid-container">
+                        <!-- 탭 1: 활성 로어 -->
+                        <div class="decentral-grid ep-lore-panel active-panel" id="ep-lore-panel-active" style="padding-top: 10px;">
+                            <div style="grid-column: 1 / 3; text-align: center; padding: 30px; font-size: 13px; color: #999;">활성화된 지식이 존재하지 않습니다.</div>
+                        </div>
+
+                        <!-- 탭 2: 실행 로그 -->
+                        <div class="decentral-grid ep-lore-panel" id="ep-lore-panel-log" style="padding-top: 10px; flex-direction: column !important; height: 100% !important; min-height: 0; gap: 12px; box-sizing: border-box;">
+                            <div class="decentral-grid-element-long-semi-flat" style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+                                <div class="decentral-boxed-field" style="padding: 16px !important; display: flex; flex-direction: column; align-items: stretch; flex: 1; min-height: 0;">
+                                    <p class="element-title" style="color: #74a1c0 !important; font-size: 15px !important; margin: 0 0 8px 0;">주입 기록</p>
+                                    <div id="ep-lore-modal-inject-log-container" style="flex: 1; min-height: 0; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 8px; width: 100%;"></div>
+                                </div>
+                            </div>
+                            <div class="decentral-grid-element-long-semi-flat" style="flex: 1; min-height: 0; display: flex; flex-direction: column;">
+                                <div class="decentral-boxed-field" style="padding: 16px !important; display: flex; flex-direction: column; align-items: stretch; flex: 1; min-height: 0;">
+                                    <p class="element-title" style="color: #74a1c0 !important; font-size: 15px !important; margin: 0 0 8px 0;">추출 기록</p>
+                                    <div id="ep-lore-modal-extract-log-container" style="flex: 1; min-height: 0; overflow-y: auto; font-size: 12px; display: flex; flex-direction: column; gap: 8px; width: 100%;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 탭 3: 로어 관리 -->
+                        <div class="decentral-grid ep-lore-panel" id="ep-lore-panel-manage">
+                            <div class="decentral-grid-element-long-semi-flat" style="margin-bottom: 12px;">
+                                <div class="decentral-boxed-field" style="padding: 16px !important; display: flex; flex-direction: column; align-items: stretch;">
+                                    <p class="element-title" style="color: #74a1c0 !important; font-size: 15px !important; margin: 0 0 4px 0;">로어 병합</p>
+                                    <p class="element-description" style="margin: 0 0 12px 0;">대화방 내의 유사 로어들을 병합 정리합니다.</p>
+                                    <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
+                                        <div style="flex: 1; display: flex; flex-direction: column;">
+                                            <span style="font-size: 12px; margin-bottom: 4px; font-weight: bold;">최대 글자수</span>
+                                            <input type="number" id="ep-lore-merge-maxchars" class="decentral-text-field" value="1200" min="200" max="3000" step="50">
+                                        </div>
+                                        <div style="flex: 1; display: flex; flex-direction: column;">
+                                            <span style="font-size: 12px; margin-bottom: 4px; font-weight: bold;">병합 방식</span>
+                                            <select id="ep-lore-merge-bulk-mode" class="decentral-select">
+                                                <option value="keep-longest">가장 긴 항목 보존 (안전)</option>
+                                                <option value="llm-summarize" selected>LLM 인공지능 요약 병합</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div id="ep-lore-checklist-container" style="display: none; width: 100%;"></div>
+                                </div>
+                            </div>
+                            <div class="decentral-grid-element-long-semi-flat" style="margin-bottom: 12px;">
+                                <div class="decentral-boxed-field" style="padding: 16px !important; display: flex; flex-direction: column; align-items: stretch;">
+                                    <p class="element-title" style="color: #74a1c0 !important; font-size: 15px !important; margin: 0 0 4px 0;">로어로 변환 (텍스트 → 로어)</p>
+                                    <p class="element-description" style="margin: 0 0 12px 0;">별도의 텍스트를 로어 데이터로 가공합니다.</p>
+                                    <div style="display: flex; flex-direction: column; gap: 8px; width: 100%;">
+                                        <textarea id="ep-lore-text-textarea" class="decentral-text-area" placeholder="로어로 변환할 텍스트를 기입하십시오." style="height: 120px;"></textarea>
+                                        <button id="ep-lore-text-btn" class="decentral-button" style="background-color: #bcd0d7 !important; border: 1px solid #334a52; color: #334a52; font-weight: bold; height: 36px;">텍스트 지식 변환 실행</button>
+                                        <div id="ep-lore-text-status" style="font-size: 11px; color: #888888; text-align: left; margin-top: 2px;"></div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="decentral-grid-element-long-semi-flat" style="margin-bottom: 12px;">
+                                <div class="decentral-boxed-field" style="padding: 16px !important; display: flex; flex-direction: column; align-items: stretch;">
+                                    <p class="element-title" style="color: #74a1c0 !important; font-size: 15px !important; margin: 0 0 4px 0;">수동 로어 생성</p>
+                                    <p class="element-description" style="margin: 0 0 12px 0;">최근 대화 중 지정한 턴수만큼의 이력을 수동으로 분석하여 로어를 생성합니다.</p>
+                                    <div style="display: flex; flex-direction: column; margin-bottom: 14px; width: 100%;">
+                                        <span style="font-size: 12px; margin-bottom: 4px; font-weight: bold;">추출할 최근 턴 수</span>
+                                        <input type="number" id="ep-lore-manual-ext-turns" class="decentral-text-field" min="1" max="100" step="1">
+                                    </div>
+                                    <button id="ep-lore-manual-ext-btn" class="decentral-button" style="background-color: #bcd0d7 !important; border: 1px solid #334a52; color: #334a52; font-weight: bold; height: 36px;">지정 턴수만큼 수동 로어 생성</button>
+                                    <div id="ep-lore-manual-ext-status" style="font-size: 11px; color: #888888; margin-top: 6px; text-align: center;"></div>
+                                </div>
+                            </div>
+                            <div class="decentral-grid-element-long-semi-flat" style="margin-bottom: 16px;">
+                                <div class="decentral-boxed-field" style="padding: 16px !important; display: flex; flex-direction: column; align-items: stretch;">
+                                    <p class="element-title" style="color: #74a1c0 !important; font-size: 15px !important; margin: 0 0 4px 0;">로어 재생성</p>
+                                    <p class="element-description" style="margin: 0 0 12px 0;">대화 이력을 처음부터 재분석하여 모든 로어를 재구성합니다. 기존 로어는 초기화됩니다.</p>
+                                    <button id="ep-lore-regenerate-btn" class="decentral-button" style="background-color: #bcd0d7 !important; border: 1px solid #334a52; color: #334a52; font-weight: bold; height: 36px;">초기화 및 전체 로어 재생성</button>
+                                    <div id="ep-lore-regenerate-status" style="font-size: 11px; color: #888888; margin-top: 6px; text-align: center;"></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 탭 4: 로어 복원 -->
+                        <div class="decentral-grid ep-lore-panel" id="ep-lore-panel-restore" style="padding-top: 10px; flex-direction: column !important; height: 100% !important; min-height: 0; gap: 12px; box-sizing: border-box;">
+                            <div class="decentral-grid-element-long-semi-flat" style="margin-bottom: 12px;">
+                                <div class="decentral-boxed-field" style="padding: 16px !important; display: flex; flex-direction: column; align-items: stretch;">
+                                    <p class="element-title" style="color: #74a1c0 !important; font-size: 15px !important; margin: 0 0 4px 0;">로어 복원</p>
+                                    <p class="element-description" style="margin: 0 0 12px 0;">현재 로어들을 세이브 파일로 수동 백업하거나, 과거 시점으로 롤백합니다.</p>
+                                    <button id="ep-lore-btn-create-snapshot" class="decentral-button" style="background-color: #bcd0d7 !important; border: 1px solid #334a52; color: #334a52; font-weight: bold; height: 36px;">현재 로어 백업</button>
+                                    <div id="ep-lore-snapshot-status" style="font-size: 11px; color: #888888; margin-top: 6px; text-align: center;"></div>
+                                </div>
+                            </div>
+                            <div class="decentral-grid-element-long-semi-flat" style="display: flex; flex-direction: column; background-color: var(--decentral-switch-background); border: 1px solid var(--decentral-text-border); border-radius: 8px; padding: 16px; flex: 1; min-height: 0; margin-bottom: 12px;">
+                                <div style="font-size:13px; color:#74a1c0; font-weight:bold; margin-bottom:8px; border-bottom:1px solid var(--decentral-border); padding-bottom:6px; text-align:left;">백업 세이브 포인트</div>
+                                <div id="ep-lore-snapshot-list-container" style="flex: 1; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; width: 100%;"></div>
+                            </div>
+                        </div>
+
+                        <!-- 탭 5: 설정 -->
+                        <div class="decentral-grid ep-lore-panel" id="ep-lore-panel-settings">
+                            <div class="decentral-grid-element-long-semi-flat" style="margin-bottom: 12px;">
+                                <div class="decentral-boxed-field" style="padding: 16px !important; display: flex; flex-direction: column; align-items: stretch;">
+                                    <p class="element-title" style="color: #74a1c0 !important; font-size: 15px !important; margin: 0 0 4px 0;">로어 생성 설정</p>
+                                    <p class="element-description" style="margin: 0 0 12px 0;">대화 중 로어를 자동으로 추출할 주기 및 추가 세부 지시사항을 설정합니다.</p>
+                                    <div style="display: flex; flex-direction: column; margin-bottom: 14px; width: 100%;">
+                                        <span style="font-size: 12px; margin-bottom: 4px; font-weight: bold;">자동 생성 주기 (턴)</span>
+                                        <input type="number" id="ep-lore-auto-ext-turns" class="decentral-text-field" value="6" min="1" max="50" step="1">
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; width: 100%;">
+                                        <span style="font-size: 12px; margin-bottom: 4px; font-weight: bold;">로어 추출시 추가 지시사항</span>
+                                        <textarea id="ep-lore-auto-ext-instruction" class="decentral-text-area" style="height: 150px; font-size: 12px; line-height: 1.5;" placeholder="추가 지시사항은 입력하지 않으면 전송되지 않습니다."></textarea>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="decentral-grid-element-long-semi-flat" style="margin-bottom: 12px;">
+                                <div class="decentral-boxed-field" style="padding: 16px !important; display: flex; flex-direction: column; align-items: stretch;">
+                                    <p class="element-title" style="color: #74a1c0 !important; font-size: 15px !important; margin: 0 0 4px 0;">임베딩 API 설정</p>
+                                    <p class="element-description" style="margin: 0 0 12px 0;">임베딩을 위한 Google API 설정을 지정해 주십시오.</p>
+                                    <div style="display: flex; flex-direction: column; margin-bottom: 12px; width: 100%;">
+                                        <span style="font-size: 12px; margin-bottom: 4px; font-weight: bold;">Gemini API key</span>
+                                        <textarea id="ep-lore-embed-key-input" class="decentral-text-field" placeholder="AIzaSy..." style="height: 32px; overflow: hidden; white-space: nowrap;"></textarea>
+                                    </div>
+                                    <div style="display: flex; flex-direction: column; width: 100%;">
+                                        <span style="font-size: 12px; margin-bottom: 4px; font-weight: bold;">embedding 모델 선택</span>
+                                        <select id="ep-lore-embed-model-select" class="decentral-select">
+                                            <option value="gemini-embedding-001">gemini-embedding-001</option>
+                                            <option value="gemini-embedding-2-preview">gemini-embedding-2-preview</option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(loreModal);
         }
 
         // 1. 헤더 버튼 및 입력창 DOM을 먼저 확실하게 주입
@@ -1791,15 +1879,16 @@
         }
     }
 
-    // [단축어 자동 확장 동기화 함수]: 전송 시 !단축어를 additional note 포맷으로 확장 주입
-    function syncTextToNativeEditor() {
+    // [단축어 및 2000자 로어 RAG 자동 확장 동기화 함수]
+    async function syncTextToNativeEditor() {
         const textarea = document.getElementById('ep-chat-input-textarea');
         if (!textarea) return;
         let text = textarea.value;
+        if (!text.trim()) return;
 
-        // crack.html 순정 100% 단축어 확장 로직
+        // 1. 단축어 확장
         const shortcuts = GM_getValue('pastel_mockShortcuts', null) || JSON.parse(localStorage.getItem('pastel_mockShortcuts') || '[]');
-        if (Array.isArray(shortcuts) && text.trim()) {
+        if (Array.isArray(shortcuts)) {
             shortcuts.forEach(sh => {
                 const token = `!${sh.title}`;
                 if (text.includes(token)) {
@@ -1808,14 +1897,14 @@
             });
         }
 
+        // 2. 2,000자 로어 RAG 블록 자동 조합 (3턴 쿨타임 자동 적용)
+        const loreBlock = await buildCrackRAGLoreBlock(text, getChatId());
+        const finalText = loreBlock ? `${loreBlock}\n\n${text}` : text;
+
         const editor = document.querySelector('.ProseMirror') || document.querySelector('[contenteditable="true"]');
         if (editor) {
-            if (!text.trim()) {
-                editor.innerHTML = '<p class="is-empty is-editor-empty"><br class="ProseMirror-trailingBreak"></p>';
-            } else {
-                const paragraphs = text.split('\n').map(line => `<p>${line || '<br class="ProseMirror-trailingBreak">'}</p>`).join('');
-                editor.innerHTML = paragraphs;
-            }
+            const paragraphs = finalText.split('\n').map(line => `<p>${line || '<br class="ProseMirror-trailingBreak">'}</p>`).join('');
+            editor.innerHTML = paragraphs;
             editor.dispatchEvent(new Event('input', { bubbles: true }));
             editor.dispatchEvent(new Event('change', { bubbles: true }));
         }
@@ -2133,7 +2222,7 @@
             };
         }
 
-        // 전송 버튼 누를 때 동기화 및 전송 후 비우기
+        // 전송 버튼 누를 때 동기화 및 전송 후 비우기 + N턴 주기 자동 로어 추출 트리거
         const slot = document.getElementById('ep-native-send-slot');
         if (slot) {
             const triggerSyncBeforeSend = () => {
@@ -2144,8 +2233,23 @@
             slot.addEventListener('touchstart', triggerSyncBeforeSend, { passive: true });
 
             slot.addEventListener('click', () => {
+                const chatId = getChatId();
                 setTimeout(() => {
                     if (textarea) textarea.value = '';
+                    
+                    // N턴 주기 백그라운드 자동 로어 추출 검사 및 실행
+                    const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${chatId}`), 10) || 6;
+                    const currentTurns = getCrackChatTurns();
+                    if (currentTurns > 0 && currentTurns % extTurns === 0) {
+                        (async () => {
+                            try {
+                                showToast("🔮 백그라운드 로어 자동 생성 중...");
+                                await executeBackgroundAutoExtraction(chatId);
+                                showToast("✨ 로어 자동 생성 완료!");
+                                renderCrackActiveLores();
+                            } catch (_) {}
+                        })();
+                    }
                 }, 100);
             });
         }
@@ -2332,13 +2436,51 @@
             };
         }
 
-        // 4. 로어 저장소 (모듈 5에서 로어 모달 탑재 시 연결 예정)
+        // 4. 로어 저장소 모달 개폐 연동
         const loreBtn = document.getElementById('ep-menu-lore-btn');
-        if (loreBtn) {
-            loreBtn.onclick = () => {
-                showToast("🔮 로어 저장소는 모듈 5에서 연결됩니다.");
+        const loreModal = document.getElementById('ep-lore-storage-modal-overlay');
+        const loreCloseBtn = document.getElementById('ep-lore-close-btn');
+
+        if (loreBtn && loreModal) {
+            loreBtn.onclick = (e) => {
+                e.stopPropagation();
+                loadCrackLoreSettingsTab();
+                switchCrackLoreTab('ep-lore-tab-active', 'ep-lore-panel-active');
+                loreModal.style.display = 'flex';
             };
         }
+        if (loreCloseBtn && loreModal) {
+            loreCloseBtn.onclick = () => {
+                saveCrackLoreModalFields();
+                loreModal.style.display = 'none';
+            };
+        }
+        if (loreModal) {
+            loreModal.onclick = (e) => {
+                if (e.target === loreModal) {
+                    saveCrackLoreModalFields();
+                    loreModal.style.display = 'none';
+                }
+            };
+        }
+
+        // 로어 설정 및 관리 탭 변경 시 자동 저장
+        ['ep-lore-auto-ext-turns', 'ep-lore-auto-ext-instruction', 'ep-lore-embed-key-input', 'ep-lore-embed-model-select', 'ep-lore-merge-maxchars', 'ep-lore-merge-bulk-mode', 'ep-lore-manual-ext-turns'].forEach(id => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('change', saveCrackLoreModalFields);
+        });
+
+        // 로어 5대 탭 버튼 연결
+        const tabAct = document.getElementById('ep-lore-tab-active');
+        if (tabAct) tabAct.onclick = () => switchCrackLoreTab('ep-lore-tab-active', 'ep-lore-panel-active');
+        const tabLog = document.getElementById('ep-lore-tab-log');
+        if (tabLog) tabLog.onclick = () => switchCrackLoreTab('ep-lore-tab-log', 'ep-lore-panel-log');
+        const tabMan = document.getElementById('ep-lore-tab-manage');
+        if (tabMan) tabMan.onclick = () => switchCrackLoreTab('ep-lore-tab-manage', 'ep-lore-panel-manage');
+        const tabRes = document.getElementById('ep-lore-tab-restore');
+        if (tabRes) tabRes.onclick = () => switchCrackLoreTab('ep-lore-tab-restore', 'ep-lore-panel-restore');
+        const tabSet = document.getElementById('ep-lore-tab-settings');
+        if (tabSet) tabSet.onclick = () => switchCrackLoreTab('ep-lore-tab-settings', 'ep-lore-panel-settings');
 
         // 5. 크랙 데이터 전체 정리
         const clearBtn = document.getElementById('ep-menu-crack-clear-btn');
@@ -2475,12 +2617,1625 @@
     }
 
     /* ==========================================================================
-     * 5. SPA 라우팅 대응 상시 주입 감시 (무거운 감시 없음 / 가벼운 확인 루프)
+     * 5. [모듈 5] Dexie 로어 DB, crack.html 순정 100% 원문 프롬프트 & 5대 로어 엔진
      * ========================================================================== */
-   function checkAndInject() {
+    let loreDb = null;
+    try {
+        loreDb = new Dexie("lore-injector");
+        loreDb.version(9).stores({
+            entries: "++id, name, type, packName, project, rootId, isCurrentArc, createdTurn, updatedTurn, lastMentionedTurn, eventTurn, sceneId, arcId, realTimestamp, *entities, *subjects, *objects, *locations, *promises, *triggers",
+            packs: "name, entryCount, project",
+            snapshots: "++id, packName, timestamp, type",
+            embeddings: "++id, entryId, packName, model, field, sourceHash, entryUpdatedAt, schemaVersion, &[entryId+field]",
+            workingMemory: "url", encounters: "++id, &[char1+char2], lastSeenTurn", entryVersions: "++id, entryId, ts, turn"
+        });
+    } catch (e) { console.warn("Dexie 로어 DB 초기화:", e); }
+
+    const C = {
+        uniq(arr) {
+            return Array.from(new Set((arr || []).filter(Boolean).map(v => String(v).trim()).filter(Boolean)));
+        },
+        mergeObj(a, b) {
+            const out = a && typeof a === "object" && !Array.isArray(a) ? JSON.parse(JSON.stringify(a)) : {};
+            if (b && typeof b === "object" && !Array.isArray(b)) {
+                for (const [k, v] of Object.entries(b)) {
+                    if (Array.isArray(v)) out[k] = C.uniq([...Array.isArray(out[k]) ? out[k] : [], ...v]);
+                    else if (v && typeof v === "object" && !Array.isArray(v)) out[k] = C.mergeObj(out[k], v);
+                    else if (v !== undefined && v !== null && v !== "") out[k] = v;
+                }
+            }
+            return out;
+        },
+        clampText(text, max) {
+            text = String(text || "").replace(/\s+/g, " ").trim();
+            if (!max || text.length <= max) return text;
+            return text.slice(0, Math.max(0, max - 1)).trim() + "…";
+        },
+        normalizeSummaryValue(summary, name, state) {
+            if (summary && typeof summary === "object" && !Array.isArray(summary)) {
+                const full = this.clampText(summary.full || summary.compact || summary.micro || "", 700);
+                const compact = this.clampText(summary.compact || full, 180);
+                const micro = this.clampText(summary.micro || (state ? `${name}=${state}` : compact || name), 60);
+                return { full, compact, micro };
+            }
+            const full = this.clampText(summary || "", 700);
+            const compact = this.clampText(full || state || name || "", 180);
+            const micro = this.clampText(state ? `${name}=${state}` : compact || name || "", 60);
+            return { full, compact, micro };
+        },
+        mergeLoreSummary(existingSummary, incomingSummary, name, state) {
+            const ex = C.normalizeSummaryValue(existingSummary, name, state);
+            const inc = C.normalizeSummaryValue(incomingSummary, name, state);
+            let finalFull = inc.full || ex.full || "";
+            if (ex.full && inc.full && ex.full.length > 300) {
+                if (inc.full.length / ex.full.length < 0.65) finalFull = ex.full + " \n " + inc.full;
+            }
+            let finalCompact = inc.compact || ex.compact || "";
+            if (ex.compact && inc.compact && ex.compact.length > 150) {
+                if (inc.compact.length / ex.compact.length < 0.65) finalCompact = ex.compact + " \n " + inc.compact;
+            }
+            return {
+                full: this.clampText(finalFull, 700),
+                compact: this.clampText(finalCompact, 180),
+                micro: this.clampText(inc.micro || ex.micro || "", 60)
+            };
+        }
+    };
+
+    function reorderLoreKeys(entry) {
+        if (!entry || typeof entry !== 'object' || Array.isArray(entry)) return entry;
+        const ordered = {};
+        const keyOrder = ['type', 'name', 'promises', 'summary', 'callState', 'triggers', 'state', 'entities'];
+        const metaKeys = ['source', 'ts', 'lastUpdated'];
+        keyOrder.forEach(k => { if (Object.prototype.hasOwnProperty.call(entry, k)) ordered[k] = entry[k]; });
+        Object.keys(entry).forEach(k => { if (!keyOrder.includes(k) && k !== 'eventHistory' && !metaKeys.includes(k)) ordered[k] = entry[k]; });
+        if (Object.prototype.hasOwnProperty.call(entry, 'eventHistory')) ordered['eventHistory'] = entry['eventHistory'];
+        metaKeys.forEach(k => { if (Object.prototype.hasOwnProperty.call(entry, k)) ordered[k] = entry[k]; });
+        return ordered;
+    }
+
+    function parseFirebaseConfig(scriptStr) {
+        try {
+            const clean = scriptStr.trim();
+            if (clean.startsWith("{")) return JSON.parse(clean);
+            const match = scriptStr.match(/firebaseConfig\s*=\s*(\{[\s\S]*?\});?/);
+            if (match && match[1]) {
+                return new Function("return " + match[1])();
+            }
+        } catch (e) {}
+        return null;
+    }
+
+    function getGeminiOrFirebaseEndpoint(selectedModel, action = 'generateContent') {
+        const apiKey = localStorage.getItem('pastel_api_gemini') || '';
+        const firebaseScript = localStorage.getItem('pastel_api_firebase') || '';
+
+        if (apiKey.trim()) {
+            return `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:${action}?key=${apiKey.trim()}`;
+        } else if (firebaseScript.trim()) {
+            const config = parseFirebaseConfig(firebaseScript);
+            if (config && config.projectId && config.apiKey) {
+                return `https://firebasevertexai.googleapis.com/v1beta/projects/${config.projectId}/locations/global/publishers/google/models/${selectedModel}:${action}?key=${config.apiKey}`;
+            }
+        }
+        return "";
+    }
+
+    function getSafetySettingsPayload() {
+        return [
+            { category: "HARM_CATEGORY_HARASSMENT", threshold: localStorage.getItem('pastel_crack_safety_harassment') || 'BLOCK_NONE' },
+            { category: "HARM_CATEGORY_HATE_SPEECH", threshold: localStorage.getItem('pastel_crack_safety_hate') || 'BLOCK_NONE' },
+            { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: localStorage.getItem('pastel_crack_safety_explicit') || 'BLOCK_NONE' },
+            { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: localStorage.getItem('pastel_crack_safety_dangerous') || 'BLOCK_NONE' }
+        ];
+    }
+
+    // ==========================================
+    // crack.html 순정 100% 원문 프롬프트 템플릿
+    // ==========================================
+    const SCHEMA_FORMAT = `[
+    {
+        "type": "character|relationship|location|item|event|concept|setting|promise",
+        "name": "지식 명칭",
+        "triggers": ["키워드1", "인물&&사건"],
+        "promises": ["[인물A ↔ 인물B] 약속 내용"],
+        "summary": {
+            "full": "누적 요약: 현재 정보 및 진행 중인 서사",
+            "compact": "지식 핵심 내용",
+            "micro": "지식명=상태"
+        },
+        "state": "상태 구절",
+        "callState": { "A→B": "호칭/별명", "B→A": "호칭/별명" },
+        "entities": ["관련 인물/장소명"],
+        "eventHistory": [
+            { 
+                "turn": 0, 
+                "summary": "핵심 사건 1줄 요약 (명사형 종결 ~함, 최대 40자 제한. 예: '론과 오해로 싸움')", 
+                "quote": { "speaker": "말한/생각한 이", "listener": "들은 이 | 'self'", "text": "『대사』 또는 「속마음」" }
+            }
+        ]
+    }
+]`;
+
+    const PROMPT_TEMPLATE_TEXT = `You are an AI Lore Archivist.
+Convert the provided [Source Text to convert] into structured JSON lore entries for RP.
+Use the original language of the text (Korean).
+Output ONLY a valid JSON array matching the schema below. No markdown backticks, no trailing commas.
+
+=========================================
+[CORE MISSION: DUAL-TASK OF LORE ARCHIVIST]
+Your core mission is to manage the Lore Database with absolute consistency. You must perform two tasks simultaneously in a single pass:
+- Read the [Source Text to convert] carefully and merge its extracted information into the [Existing Lore generated so far] provided below.
+- Do NOT create duplicate cards under similar, altered, or differently formatted names. You must directly update the fields of the existing cards from [Existing Lore generated so far] if they represent the same entity, or append NEW cards if they are completely new.
+- Output the ENTIRE updated and merged JSON array containing both the retained old cards and any newly created cards.
+
+Task 1. GENERAL LORE & PROFILES (인물/관계/장소/세계관):
+- If a new character, relationship, location, item, setting, or world concept is introduced in the [Source Text to convert] that does NOT already exist in the [Existing Lore generated so far], you MUST create a NEW JSON card (object) for it.
+- If it already exists, you MUST edit and update the existing JSON card. Do NOT create duplicate cards.
+- For "character" and "relationship" type entries, you MUST populate the "promises" array ONLY with active, ongoing promises/agreements.
+    * Each item in "promises" MUST strictly follow the format: "[인물A ↔ 인물B] 무엇을 하기로 약속함" (specifying exactly who promised what to whom).
+    * CRITICAL (DELETION RULE): If a promise has been fulfilled, completed, canceled, or broken in the current context, you MUST REMOVE/OMIT it from the "promises" array completely. Do NOT keep resolved or past promises.
+    * If a new/updated promise overlaps or contradicts an existing one, overwrite it with the latest status.
+- For "relationship" type entries, ALWAYS populate the "callState" field mapping how characters address each other (e.g. {"A→B": "오빠", "B→A": "이름"}). For other types, leave it as an empty object {}.
+- "eventHistory": Actively extract and append any meaningful narrative progress, emotional changes, or actions as milestone events. You MUST ensure each event has a corresponding "quote" to capture the character's voice.
+  * "eventHistory.summary" Rules: This MUST be an extremely short, single-sentence summary (strictly under 40 characters) written in nominal style (~함). Do NOT narrate details; only write the core milestone (e.g., 'A와 화해함', '비밀 조약 체결함').
+  * quote: You MUST actively extract the most representative dialogue or inner thought of this event milestone under "quote". Do NOT omit the "quote" field unless the character was completely silent.
+- Target Length: Keep the "summary.full" of these cards strictly under 700 characters. Focus on identity and core rules, offloading specific scene descriptions to Task 2.
+
+Task 2. SCENE EVENTS (사건 기록) & LARGE PROMISES (대형 약속/계약):
+- Analyze the [Source Text to convert] to extract concrete, plot-critical scene milestones, major reveals, emotional shifts, or agreements that occurred in this log segment.
+- Create a NEW card of "type": "event" for each major scene milestone.
+- Create a card of "type": "promise" ONLY for major, high-stakes contracts, solemn covenants, or life-altering oaths (e.g., a psychopath's solemn oath not to harm someone, a playboy's promise to look only at you, or other major contracts/vows of similar or higher significance).
+  * This card threshold must be high. Do not create standalone "promise" cards for trivial agreements.
+  * For "type": "promise" cards, the "summary.full" field MUST strictly begin with "[진행 상황: <상태>] " (where <상태> represents the current status of the promise/contract dynamically determined by you, such as "진행중", "완료", "해제", "보류" etc.).
+  * Unlike minor promises inside profiles, a "type": "promise" card is an enduring historical record and MUST NOT be deleted even if its status is completed/resolved.
+- Focus: Capture the participants, location, the outcome of the scene, and crucially, any unresolved tension or ongoing plot threads under "hooks".
+- Target Length: Keep the "summary.full" of event cards strictly under 700 characters.
+- Event Date/Period Formatting: For "type": "event" entries, you MUST prepend the specific date or date range of the event at the very beginning of the "summary.full" field. You must strictly follow these exact formats with precise spaces:
+  * Single Date: "yyyy. mm. dd | " (Example: "2025. 10. 15 | ...". Year must be 4 digits, month and day must be 2 digits with leading zeros, separated by a dot and a space. Do NOT write "2025년 10월 15일", "2025/10/15", "2025.10.15", or "2025. 10. 15. 밤").
+  * Date Range: "yyyy. mm. dd ~ yyyy. mm. dd | " (Example: "2025. 10. 15 ~ 2025. 10. 18 | ...").
+  * Unknown Date: "Relative Timeline | " (Example: "합숙 첫째 날 낮 | ...", "축제 사흘째 밤 | ...". Only use this if the exact calendar date is unknown).
+
+=========================================
+[TOKEN-SAVING & STYLE CONSTRAINT]
+- EXCLUSION: Only the "text" field inside the "quote" array is allowed to use natural, colloquial speech (e.g. "『...』", "「...」").
+- MANDATORY STYLE: ALL other text fields—including "summary.full", "summary.compact", "summary.micro", and "state" fields—MUST be written in Korean using concise nominal/noun-ending styles (개조식 종결어미: e.g., "~함", "~임", "~음", "~했음", or noun form).
+- NEVER use polite, formal, or plain prose endings (e.g., "~합니다", "~이다", "~했다" 등 평서문/설명조 문체 영구 금지).
+
+=========================================
+[ADVANCED DEDUPLICATION & INTEGRITY RULES]
+- DIRECT UPDATE ONLY (APPLIES TO ALL CARD TYPES: character, rel, location, item, event, concept, setting): If any card of any type already exists in the provided Lore Database, DO NOT create a new duplicate card under an altered, shortened, or differently formatted name. You must directly update the fields of the existing card and output it.
+  * NO RECENT CHANGES? OMIT OUTPUT: If there is no new narrative progress, emotional shift, or factual change for an existing card (of any type), do NOT output it at all. Omit it from the output array to save tokens.
+  * UPDATE COMPLIANCE (FOR ALL CARD TYPES): When updating the fields (especially "summary.full") of any existing card, you MUST strictly adhere to the [PROPORTIONAL NARRATIVE CONDENSING RULE] and [TOKEN-SAVING & STYLE CONSTRAINT] below to maintain style consistency and prevent narrative fragmentation.
+  * CHARACTER NAME MATCHING: Specifically for characters, if they are referred to by a shortened name or nickname in the log (e.g., "하늘"), but their full name card (e.g., "강하늘") exists in the database, you MUST directly update the existing full name card ("강하늘"). Never output a new separate card under "하늘".
+  * CANONICAL RELATIONSHIPS (↔): Specifically for relationships, they must ALWAYS be named under the strict format "NameA ↔ NameB" (with space-bracket-space, sorted alphabetically, e.g., "강하늘 ↔ 김도훈"). If a relationship card between these two characters already exists (even if written as "김도훈 ↔ 강하늘", with different separators, or different orders), you MUST reuse the exact same name of that existing card and update its fields directly.
+
+- SACRED NARRATIVE ANCHORS (핵심 서사 보존 대원칙):
+  * You MUST NEVER delete, alter, or heavily compress the core plot milestones, traumatic past events, or defining relationship turning points (e.g., family background, childhood piano hideout memory, major injuries or violent incidents).
+  * These are the sacred narrative anchors of the character's identity and must be preserved verbatim in "summary.full" even if they are old.
+
+- ANCHOR AWARENESS (CRITICAL — USER-LOCKED NARRATIVE FACTS):
+  * Some existing entries in the Lore Database have "anchor": true. These are user-locked canonical facts.
+  * For anchored entries: NEVER output or overwrite "summary", "state", "detail", "call", "callState", "cond", "imp", "sur", "emo", "gs", or "arc". These fields are PROTECTED and any output will be discarded by the merge layer.
+  * You MAY only APPEND new items to "eventHistory" (if genuinely new and memorable), or add new keywords to "triggers".
+  * If nothing new qualifies for an anchored entry, OMIT it entirely from your output. Do not echo its existing fields.
+
+=========================================
+[DYNAMIC EXTRACTION BALANCE (서사 엔진 중심 수급 원칙)]
+- CHARACTER, RELATIONSHIP (relationship), and PROMISE (promise) are the absolute highest priority narrative engines of this story. You must be extremely vigilant in creating or updating these types whenever a bond shifts, an emotional milestone is reached, or an agreement is made.
+- Other background types like "location", "concept", and "setting" should ONLY be created or updated when a highly significant, plot-defining physical transformation or world-rule change actually occurs. Never create or update these for minor, transient details.
+
+=========================================
+[STRICT EVENT CARD RULES (사건 카드 수호 규칙)]
+- EVENT NAMING RULE: Never include turn markers (e.g. t12, turn 12), dates, or time indicators in the event "name" or "title". Keep it strictly as a clean, thematic title in the conversation language (e.g., '비밀의 방에서의 야간 비밀 회동', '헤르미온느의 약점 고백', '칼잡이의 습격과 대처').
+- EVENT DEDUPLICATION & REUSE: If the event being extracted is a continuation, update, or similar occurrence of an event that already exists in the provided Lore Database, you MUST reuse the EXACT same "name" of that existing event card so it merges cleanly, instead of inventing a new name.
+- EVENT SIGNIFICANCE CRITERIA (사건 추출의 실질성 원칙):
+  * Focus on the SUBSTANCE of the interaction, not just the setting.
+  * Even if the scene is set in a casual, daily-life environment (e.g., eating dinner, taking a walk, resting), if a significant emotional shift, a critical agreement, a major confession, or a narrative reveal actually occurs, you MUST extract it as an "event" card.
+  * Only ignore routine, meaningless small talk that has no narrative consequence or emotional development.
+
+=========================================
+[CONTEXTUAL QUOTE PLACEMENT (어록의 입체적 배정 원칙)]
+- Do NOT blindly record all quotes under 'character' cards. Instead, record the dialogue or inner thoughts inside the "quote" object of an "eventHistory" entry of the specific card that they define most critically:
+  * RELATIONSHIP QUOTES: If a quote defines a relationship shift, emotional bond, or oath between two characters, record it inside the "eventHistory" of the corresponding "relationship" card.
+  * EVENT QUOTES: If a quote is the defining highlight or climax of a scene event, record it inside the "eventHistory" of that specific "event" card.
+  * LOCATION QUOTES: If a quote is deeply tied to a location's atmosphere or occurrence, record it inside the "eventHistory" of that "location" card.
+  * CHARACTER QUOTES: Otherwise, default to recording it inside the "eventHistory" of the speaker's "character" card.
+
+=========================================
+[PROPORTIONAL NARRATIVE CONDENSING RULE (summary.full: Max 700 Chars)]
+- You are editing/creating the "summary.full" field, which has a strict 700-character budget.
+- When updating an existing entity's "summary.full" to reflect new events:
+  * If the existing summary length is UNDER 550 characters, you MUST copy the existing summary text WORD-FOR-WORD (Verbatim) and simply APPEND the new events chronologically at the end.
+  * If the combined length approaches or exceeds 700 characters, you MUST perform "Proportional Narrative Condensing":
+    - Priority 1 (Verbatim Preservation): Look at "eventHistory", "promises", and "callState". The nominal sentences in the summary describing these critical turning points (e.g., 고백함, 중상 입음, 계약 체결함) must be preserved VERBATIM. Never summarize or delete them.
+    - Priority 2 (Latest Situation): Append the events from the latest [Source Text to convert] in a highly dense nominal style at the very end of the summary.
+    - Priority 3 (Condensing Zone): Intellectually condense only the trivial, older, or minor past descriptions in the middle of the summary into brief, high-density background clauses (e.g., "~한 가벼운 일상이 있었으나").
+ - Date Prefix Preservation (CRITICAL): If the card being updated is an "event" type, you MUST preserve the exact date prefix at the very beginning of "summary.full" (e.g., "yyyy. mm. dd | " or "Relative Timeline | ") without changing even a single digit, space, or period.
+ - Ensure the entire updated summary is a single, grammatically complete, flowing paragraph ending in nominal style. Never end with an unfinished sentence or trailing dots (…).
+
+=========================================
+[METADATA PRESERVATION & UPDATE RULES]
+You MUST NOT lose or overwrite the other fields in the JSON. Preserve and update them with extreme care:
+- "triggers": Maintain existing keyword patterns, appending new relevant search queries.
+- "promises": Maintain active promises. Ensure all entries strictly use the "[인물A ↔ 인물B] 약속 내용" format. If a minor promise is completely resolved or broken, remove it. If it is updated, replace it with the latest status. Distinct promises must all be preserved separately.
+- "callState": Strictly preserve and update the honorific/vocative relationship matrix (from→to: title).
+
+=========================================
+[MEMORABLE QUOTES (명대사 및 어록 보존 규칙)]
+  * When extracting a key narrative event (eventHistory) representing emotional shifts, relationship milestones, or contract execution, always record the most influential and memorable dialogue or inner thoughts representing that event inside the quote object of that event.
+    - Dialogue (대사): Use 『 』 bracket quotes. e.g., "speaker": "해리포터", "listener": "론", "text": "『제발 한 번만 내 말 들어줘』"
+    - Inner Thoughts (속마음/독백): Use 「 」 bracket quotes. e.g., "speaker": "해리포터", "listener": "self", "text": "「볼드모트에게 절대로 지고 싶지 않음」"
+  * CRITICAL JSON SAFETY: Inside any JSON string values, you MUST NEVER use double quotes (") for dialogue or emphasis. Use single quotes (') or bracket-quotes instead to prevent JSON parsing syntax crashes.
+
+Schema:
+${SCHEMA_FORMAT}
+
+[Existing Lore generated so far]:
+{existing_lore}
+
+[Source Text to convert]:
+`;
+
+    const PROMPT_TEMPLATE_CHAT = `You are an AI Lore Archivist.
+Convert the following conversation log into structured JSON lore entries for RP.
+Output ONLY a valid JSON array matching the schema. No markdown backticks, no trailing commas.
+
+=========================================
+[CORE MISSION: DUAL-TASK OF LORE ARCHIVIST]
+Your core mission is to manage the Lore Database with absolute consistency. You must perform two tasks simultaneously in a single pass:
+
+Task 1. GENERAL LORE & PROFILES (인물/관계/장소/세계관):
+- If a new character, relationship, location, item, setting, or world concept is introduced in the [Conversation Log] that does NOT already exist in the [Existing Lore Database], you MUST create a NEW JSON card (object) for it.
+- If it already exists, you MUST edit and update the existing JSON card. Do NOT create duplicate cards.
+- For "character" and "relationship" type entries, you MUST populate the "promises" array ONLY with active, ongoing promises/agreements.
+  * Each item in "promises" MUST strictly follow the format: "[인물A ↔ 인물B] 무엇을 하기로 약속함" (specifying exactly who promised what to whom).
+  * CRITICAL (DELETION RULE): If a promise has been fulfilled, completed, canceled, or broken in the current context, you MUST REMOVE/OMIT it from the "promises" array completely. Do NOT keep resolved or past promises.
+  * If a new/updated promise overlaps or contradicts an existing one, overwrite it with the latest status.
+- For "relationship" type entries, ALWAYS populate the "callState" field mapping how characters address each other (e.g. {"A→B": "오빠", "B→A": "이름"}). For other types, leave it as an empty object {}.
+- "eventHistory": Actively extract and append any meaningful narrative progress, emotional changes, or actions as milestone events. You MUST ensure each event has a corresponding "quote" to capture the character's voice.
+  * "eventHistory.summary" Rules: This MUST be an extremely short, single-sentence summary (strictly under 40 characters) written in nominal style (~함). Do NOT narrate details; only write the core milestone (e.g., 'A와 화해함', '비밀 조약 체결함').
+  * quote: You MUST actively extract the most representative dialogue or inner thought of this event milestone under "quote". Do NOT omit the "quote" field unless the character was completely silent.
+- Target Length: Keep the "summary.full" of these cards strictly under 700 characters. Focus on identity and core rules, offloading specific scene descriptions to Task 2.
+
+Task 2. SCENE EVENTS (사건 기록) & LARGE PROMISES (대형 약속/계약):
+- Analyze the [Conversation Log] to extract concrete, plot-critical scene milestones, major reveals, emotional shifts, or agreements that occurred in this log segment.
+- Create a NEW card of "type": "event" for each major scene milestone.
+- Create a card of "type": "promise" ONLY for major, high-stakes contracts, solemn covenants, or life-altering oaths (e.g., a psychopath's solemn oath not to harm someone, a playboy's promise to look only at you, or other major contracts/vows of similar or higher significance).
+  * This card threshold must be high. Do not create standalone "promise" cards for trivial agreements.
+  * For "type": "promise" cards, the "summary.full" field MUST strictly begin with "[진행 상황: <상태>] " (where <상태> represents the current status of the promise/contract dynamically determined by you, such as "진행중", "완료", "해제", "보류" etc.).
+  * Unlike minor promises inside profiles, a "type": "promise" card is an enduring historical record and MUST NOT be deleted even if its status is completed/resolved.
+- Focus: Capture the participants, location, the outcome of the scene, and crucially, any unresolved tension or ongoing plot threads under "hooks".
+- Target Length: Keep the "summary.full" of event cards strictly under 700 characters.
+- Event Date/Period Formatting: For "type": "event" entries, you MUST prepend the specific date or date range of the event at the very beginning of the "summary.full" field. You must strictly follow these exact formats with precise spaces:
+  * Single Date: "yyyy. mm. dd | " (Example: "2025. 10. 15 | ...". Year must be 4 digits, month and day must be 2 digits with leading zeros, separated by a dot and a space. Do NOT write "2025년 10월 15일", "2025/10/15", "2025.10.15", or "2025. 10. 15. 밤").
+  * Date Range: "yyyy. mm. dd ~ yyyy. mm. dd | " (Example: "2025. 10. 15 ~ 2025. 10. 18 | ...").
+  * Unknown Date: "Relative Timeline | " (Example: "합숙 첫째 날 낮 | ...", "축제 사흘째 밤 | ...". Only use this if the exact calendar date is unknown).
+
+=========================================
+[TOKEN-SAVING & STYLE CONSTRAINT]
+- EXCLUSION: Only the "text" field inside the "quote" array is allowed to use natural, colloquial speech (e.g. "『...』", "「...」").
+- MANDATORY STYLE: ALL other text fields—including "summary.full", "summary.compact", "summary.micro", and "state" fields—MUST be written in Korean using concise nominal/noun-ending styles (개조식 종결어미: e.g., "~함", "~임", "~음", "~했음", or noun form).
+- NEVER use polite, formal, or plain prose endings (e.g., "~합니다", "~이다", "~했다" 등 평서문/설명조 문체 영구 금지).
+
+=========================================
+[ADVANCED DEDUPLICATION & INTEGRITY RULES]
+- DIRECT UPDATE ONLY (APPLIES TO ALL CARD TYPES: character, rel, location, item, event, concept, setting): If any card of any type already exists in the provided Lore Database, DO NOT create a new duplicate card under an altered, shortened, or differently formatted name. You must directly update the fields of the existing card and output it.
+  * NO RECENT CHANGES? OMIT OUTPUT: If there is no new narrative progress, emotional shift, or factual change for an existing card (of any type), do NOT output it at all. Omit it from the output array to save tokens.
+  * UPDATE COMPLIANCE (FOR ALL CARD TYPES): When updating the fields (especially "summary.full") of any existing card, you MUST strictly adhere to the [PROPORTIONAL NARRATIVE CONDENSING RULE] and [TOKEN-SAVING & STYLE CONSTRAINT] below to maintain style consistency and prevent narrative fragmentation.
+  * CHARACTER NAME MATCHING: Specifically for characters, if they are referred to by a shortened name or nickname in the log (e.g., "하늘"), but their full name card (e.g., "강하늘") exists in the database, you MUST directly update the existing full name card ("강하늘"). Never output a new separate card under "하늘".
+  * CANONICAL RELATIONSHIPS (↔): Specifically for relationships, they must ALWAYS be named under the strict format "NameA ↔ NameB" (with space-bracket-space, sorted alphabetically, e.g., "강하늘 ↔ 김도훈"). If a relationship card between these two characters already exists (even if written as "김도훈 ↔ 강하늘", with different separators, or different orders), you MUST reuse the exact same name of that existing card and update its fields directly.
+
+- SACRED NARRATIVE ANCHORS (핵심 서사 보존 대원칙):
+  * You MUST NEVER delete, alter, or heavily compress the core plot milestones, traumatic past events, or defining relationship turning points (e.g., family background, childhood piano hideout memory, major injuries or violent incidents).
+  * These are the sacred narrative anchors of the character's identity and must be preserved verbatim in "summary.full" even if they are old.
+
+- ANCHOR AWARENESS (CRITICAL — USER-LOCKED NARRATIVE FACTS):
+  * Some existing entries in the Lore Database have "anchor": true. These are user-locked canonical facts.
+  * For anchored entries: NEVER output or overwrite "summary", "state", "detail", "call", "callState", "cond", "imp", "sur", "emo", "gs", or "arc". These fields are PROTECTED and any output will be discarded by the merge layer.
+  * You MAY only APPEND new items to "eventHistory" (if genuinely new and memorable), or add new keywords to "triggers".
+  * If nothing new qualifies for an anchored entry, OMIT it entirely from your output. Do not echo its existing fields.
+
+=========================================
+[DYNAMIC EXTRACTION BALANCE (서사 엔진 중심 수급 원칙)]
+- CHARACTER, RELATIONSHIP (relationship), and PROMISE (promise) are the absolute highest priority narrative engines of this story. You must be extremely vigilant in creating or updating these types whenever a bond shifts, an emotional milestone is reached, or an agreement is made.
+- Other background types like "location", "concept", and "setting" should ONLY be created or updated when a highly significant, plot-defining physical transformation or world-rule change actually occurs. Never create or update these for minor, transient details.
+
+=========================================
+[STRICT EVENT CARD RULES (사건 카드 수호 규칙)]
+- EVENT NAMING RULE: Never include turn markers (e.g. t12, turn 12), dates, or time indicators in the event "name" or "title". Keep it strictly as a clean, thematic title in the conversation language (e.g., '비밀의 방에서의 야간 비밀 회동', '헤르미온느의 약점 고백', '칼잡이의 습격과 대처').
+- EVENT DEDUPLICATION & REUSE: If the event being extracted is a continuation, update, or similar occurrence of an event that already exists in the provided Lore Database, you MUST reuse the EXACT same "name" of that existing event card so it merges cleanly, instead of inventing a new name.
+- EVENT SIGNIFICANCE CRITERIA (사건 추출의 실질성 원칙):
+  * Focus on the SUBSTANCE of the interaction, not just the setting.
+  * Even if the scene is set in a casual, daily-life environment (e.g., eating dinner, taking a walk, resting), if a significant emotional shift, a critical agreement, a major confession, or a narrative reveal actually occurs, you MUST extract it as an "event" card.
+  * Only ignore routine, meaningless small talk that has no narrative consequence or emotional development.
+
+=========================================
+[CONTEXTUAL QUOTE PLACEMENT (어록의 입체적 배정 원칙)]
+- Do NOT blindly record all quotes under 'character' cards. Instead, record the dialogue or inner thoughts inside the "quote" object of an "eventHistory" entry of the specific card that they define most critically:
+  * RELATIONSHIP QUOTES: If a quote defines a relationship shift, emotional bond, or oath between two characters, record it inside the "eventHistory" of the corresponding "relationship" card.
+  * EVENT QUOTES: If a quote is the defining highlight or climax of a scene event, record it inside the "eventHistory" of that specific "event" card.
+  * LOCATION QUOTES: If a quote is deeply tied to a location's atmosphere or occurrence, record it inside the "eventHistory" of that "location" card.
+  * CHARACTER QUOTES: Otherwise, default to recording it inside the "eventHistory" of the speaker's "character" card.
+
+=========================================
+[PROPORTIONAL NARRATIVE CONDENSING RULE (summary.full: Max 700 Chars)]
+- You are editing/creating the "summary.full" field, which has a strict 700-character budget.
+- When updating an existing entity's "summary.full" to reflect new events:
+  * If the existing summary length is UNDER 550 characters, you MUST copy the existing summary text WORD-FOR-WORD (Verbatim) and simply APPEND the new events chronologically at the end.
+  * If the combined length approaches or exceeds 700 characters, you MUST perform "Proportional Narrative Condensing":
+    - Priority 1 (Verbatim Preservation): Look at "eventHistory", "promises", and "callState". The nominal sentences in the summary describing these critical turning points (e.g., 고백함, 중상 입음, 계약 체결함) must be preserved VERBATIM. Never summarize or delete them.
+    - Priority 2 (Latest Situation): The events from the latest [Conversation Log] must be appended in a highly dense nominal style at the very end of the summary.
+    - Priority 3 (Condensing Zone): Intellectually condense only the trivial, older, or minor past descriptions in the middle of the summary into brief, high-density background clauses (e.g., "~한 가벼운 일상이 있었으나").
+  - Date Prefix Preservation (CRITICAL): If the card being updated is an "event" type, you MUST preserve the exact date prefix at the very beginning of "summary.full" (e.g., "yyyy. mm. dd | " or "Relative Timeline | ") without changing even a single digit, space, or period.
+  - Ensure the entire updated summary is a single, grammatically complete, flowing paragraph ending in nominal style. Never end with an unfinished sentence or trailing dots (…).
+
+=========================================
+[METADATA PRESERVATION & UPDATE RULES]
+You MUST NOT lose or overwrite the other fields in the JSON. Preserve and update them with extreme care:
+- "triggers": Maintain existing keyword patterns, appending new relevant search queries.
+- "promises": Maintain active promises. Ensure all entries strictly use the "[인물A ↔ 인물B] 약속 내용" format. If a minor promise is completely resolved or broken, remove it. If it is updated, replace it with the latest status. Distinct promises must all be preserved separately.
+- "callState": Strictly preserve and update the honorific/vocative relationship matrix (from→to: title).
+
+=========================================
+[MEMORABLE QUOTES (명대사 및 어록 보존 규칙)]
+  * When extracting a key narrative event (eventHistory) representing emotional shifts, relationship milestones, or contract execution, always record the most influential and memorable dialogue or inner thoughts representing that event inside the quote object of that event.
+    - Dialogue (대사): Use 『 』 bracket quotes. e.g., "speaker": "해리포터", "listener": "론", "text": "『제발 한 번만 내 말 들어줘』"
+    - Inner Thoughts (속마음/독백): Use 「 」 bracket quotes. e.g., "speaker": "해리포터", "listener": "self", "text": "「볼드모트에게 절대로 지고 싶지 않음」"
+  * CRITICAL JSON SAFETY: Inside any JSON string values, you MUST NEVER use double quotes (") for dialogue or emphasis. Use single quotes (') or bracket-quotes instead to prevent JSON parsing syntax crashes.
+
+Schema:
+${SCHEMA_FORMAT}
+
+Existing Lore Database:
+{existing_lore}
+
+Conversation Log:
+`;
+
+    // ==========================================
+    // 로깅, 턴수 및 스냅샷 복원 엔진
+    // ==========================================
+    function getCrackChatTurns() {
+        const msgs = document.querySelectorAll('.flex.flex-col-reverse.w-full > div') || [];
+        return Math.max(1, Math.floor(msgs.length / 2));
+    }
+
+    function recordInjectLog(epId, turn, matched, count, usedChars, budget) {
+        try {
+            const targetEpId = epId ? String(epId) : 'global';
+            const key = `pastel_crack_inject_logs_${targetEpId}`;
+            const logs = JSON.parse(localStorage.getItem(key) || '[]');
+            const newLog = {
+                ts: Date.now(),
+                epId: targetEpId,
+                turn: turn || getCrackChatTurns(),
+                matched: Array.isArray(matched) ? matched : [],
+                count: count || 0,
+                usedChars: usedChars || 0,
+                budget: budget || 2000
+            };
+            localStorage.setItem(key, JSON.stringify([newLog, ...logs.slice(0, 29)]));
+        } catch (_) {}
+    }
+
+    function recordExtractLog(epId, turn, count, msgs, status, model, elapsedMs) {
+        try {
+            const targetEpId = epId ? String(epId) : 'global';
+            const key = `pastel_crack_extract_logs_${targetEpId}`;
+            const logs = JSON.parse(localStorage.getItem(key) || '[]');
+            const newLog = {
+                ts: Date.now(),
+                epId: targetEpId,
+                turn: turn || getCrackChatTurns(),
+                count: count || 0,
+                msgs: msgs || 0,
+                status: status || 'success',
+                model: model || 'unknown',
+                elapsedMs: elapsedMs || 0
+            };
+            localStorage.setItem(key, JSON.stringify([newLog, ...logs.slice(0, 29)]));
+        } catch (_) {}
+    }
+
+    async function createLoreSnapshot(episodeId, typeText) {
+        if (!loreDb || !episodeId) return;
+        const packName = `Ep_Crack_${episodeId}_Pack`;
+        const currentEntries = await loreDb.entries.where('packName').equals(packName).toArray();
+        await loreDb.snapshots.add({
+            packName: packName,
+            timestamp: Date.now(),
+            type: typeText,
+            data: JSON.stringify(currentEntries)
+        });
+    }
+
+    async function restoreLoreSnapshot(snapshotId) {
+        if (!loreDb) return;
+        const snapshot = await loreDb.snapshots.get(snapshotId);
+        if (!snapshot) return;
+
+        const packName = snapshot.packName;
+        const restoredEntries = JSON.parse(snapshot.data || '[]');
+
+        await loreDb.transaction('rw', loreDb.entries, loreDb.embeddings, async () => {
+            await loreDb.entries.where('packName').equals(packName).delete();
+            await loreDb.embeddings.where('packName').equals(packName).delete();
+
+            for (const e of restoredEntries) {
+                await loreDb.entries.add(e);
+            }
+        });
+    }
+
+    async function executeLoreEmbeddingForEntry(entry) {
+        const selectedModel = localStorage.getItem('pastel_crack_lore_embed_model') || 'gemini-embedding-001';
+        if (!loreDb) return;
+
+        let embedUrl = "";
+        const customEmbedKey = localStorage.getItem('pastel_crack_lore_embed_key') || localStorage.getItem('pastel_api_gemini') || '';
+        if (customEmbedKey.trim()) {
+            embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${selectedModel}:embedContent?key=${customEmbedKey.trim()}`;
+        } else {
+            embedUrl = getGeminiOrFirebaseEndpoint(selectedModel, 'embedContent');
+        }
+
+        if (!embedUrl) return;
+        const sumText = entry.summary ? (typeof entry.summary === 'object' ? (entry.summary.full || entry.summary.compact || "") : entry.summary) : "";
+        const text = [entry.name, (entry.triggers || []).join(" "), entry.state, sumText].filter(Boolean).join(" ").slice(0, 1000);
+
+        try {
+            const res = await fetch(embedUrl, {
+                method: "POST", headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ content: { parts: [{ text }] }, taskType: "RETRIEVAL_DOCUMENT" })
+            });
+
+            if (!res.ok) return;
+            const resData = await res.json();
+            const vec = resData.embedding?.values;
+            if (vec && Array.isArray(vec)) {
+                const payload = { entryId: entry.id, field: "summary", packName: entry.packName, sourceHash: 0, schemaVersion: 2, model: selectedModel, vector: vec, updatedAt: Date.now() };
+                const existingEmb = await loreDb.embeddings.where('entryId').equals(entry.id).first();
+                if (existingEmb) payload.id = existingEmb.id;
+                await loreDb.embeddings.put(payload);
+            }
+        } catch (_) {}
+    }
+
+    async function mergeAndSaveLoreEntry(e, packName, chatId) {
+        if (!e || !e.name || !loreDb) return null;
+        e = reorderLoreKeys(e);
+        const ensureArray = (val) => Array.isArray(val) ? val.filter(x => typeof x === 'string' || typeof x === 'number').map(String) : (typeof val === 'string' && val.trim() ? [val.trim()] : []);
+
+        delete e.id;
+        e.summary = C.normalizeSummaryValue(e.summary, e.name, e.state);
+        e.entities = ensureArray(e.entities);
+        e.promises = ensureArray(e.promises);
+        e.triggers = ensureArray(e.triggers);
+        e.packName = packName;
+        e.project = "";
+        e.enabled = false;
+        e.source = "auto_extracted";
+        e.ts = Date.now();
+        e.lastUpdated = e.ts;
+
+        let existing = await loreDb.entries.where('packName').equals(packName).and(x => x.name === e.name).first();
+        let targetId = null;
+
+        if (existing) {
+            targetId = existing.id;
+            if (!existing.anchor) {
+                existing.triggers = C.uniq([...existing.triggers || [], ...e.triggers || []]);
+                existing.entities = C.uniq([...existing.entities || [], ...e.entities || []]);
+                if (Array.isArray(e.promises)) existing.promises = e.promises;
+                if (e.embed_text) existing.embed_text = e.embed_text;
+                if (e.state !== undefined) existing.state = e.state;
+                existing.summary = C.mergeLoreSummary(existing.summary, e.summary, existing.name, e.state || existing.state);
+                if (e.callState) existing.callState = { ...existing.callState || {}, ...e.callState };
+            }
+
+            if (Array.isArray(e.eventHistory) && e.eventHistory.length > 0) {
+                existing.eventHistory = existing.eventHistory || [];
+                for (const ev of e.eventHistory) {
+                    if (!ev || !ev.summary) continue;
+                    const normSum = ev.summary.trim();
+                    const matchedEv = existing.eventHistory.find(x => x.summary === normSum);
+                    if (matchedEv) {
+                        if (!matchedEv.quote && ev.quote) matchedEv.quote = ev.quote;
+                        continue;
+                    }
+                    existing.eventHistory.push({ turn: ev.turn || 0, summary: normSum, quote: ev.quote || undefined, ts: Date.now() });
+                }
+                existing.eventHistory.sort((a, b) => (a.turn || 0) - (b.turn || 0));
+            }
+
+            existing.lastUpdated = Date.now();
+            existing = reorderLoreKeys(existing);
+            await loreDb.entries.put(existing);
+            await loreDb.embeddings.where('entryId').equals(existing.id).delete();
+        } else {
+            targetId = await loreDb.entries.add(e);
+        }
+
+        try {
+            const totalCount = await loreDb.entries.where('packName').equals(packName).count();
+            await loreDb.packs.put({ name: packName, entryCount: totalCount, project: "" });
+            const savedEntry = await loreDb.entries.get(targetId);
+            if (savedEntry) await executeLoreEmbeddingForEntry(savedEntry);
+        } catch (_) {}
+
+        return targetId;
+    }
+
+    /* ==========================================================================
+     * 1. 텍스트 → 로어 변환 엔진 (crack.html 100% 일치)
+     * ========================================================================== */
+    async function convertTextToStructuredLore(rawText, statusEl) {
+        const _extT0 = Date.now();
+        const chatId = getChatId();
+        let selectedModel = localStorage.getItem('pastel_crack_lore_extract_model') || 'gemini-3.6-flash';
+        if (selectedModel === '_custom') selectedModel = localStorage.getItem('pastel_crack_lore_extract_custom') || 'gemini-3.6-flash';
+
+        const reasoningValue = localStorage.getItem('pastel_crack_lore_reasoning') || 'medium';
+        const thinkingConfig = {};
+        if (selectedModel.includes('gemini-3') || selectedModel.includes('gemini-2.0-flash-thinking')) {
+            if (reasoningValue !== 'off') {
+                if (reasoningValue === 'budget') thinkingConfig.thinkingBudget = parseInt(localStorage.getItem('pastel_crack_lore_reasoning_budget')) || 2048;
+                else thinkingConfig.thinkingLevel = reasoningValue;
+            }
+        }
+
+        const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
+        if (!url) throw new Error("우측 서랍의 [API 설정]에 Gemini API Key 또는 Firebase Script를 입력해 주십시오.");
+
+        if (loreDb && chatId) {
+            try { await createLoreSnapshot(chatId, "텍스트 변환 전 백업"); } catch(_) {}
+        }
+
+        const chunks = [];
+        const CHUNK_SIZE = 15000;
+        for (let i = 0; i < rawText.length; i += CHUNK_SIZE) chunks.push(rawText.slice(i, i + CHUNK_SIZE));
+
+        let accumulatedLore = [];
+        let importedCount = 0;
+        const packName = `Ep_Crack_${chatId}_Pack`;
+
+        for (let ci = 0; ci < chunks.length; ci++) {
+            if (statusEl) statusEl.textContent = `텍스트 변환 중... (청크 ${ci+1}/${chunks.length})`;
+            const customInst = localStorage.getItem(`pastel_crack_lore_auto_ext_instruction_ep_${chatId}`) || '';
+            const customBlock = customInst.trim() ? `\n\n[USER DIRECTIVES - EXTRACTION GUIDELINES (MANDATORY)]:\n- ${customInst.trim()}` : '';
+            const finalPrompt = PROMPT_TEMPLATE_TEXT.replace('{existing_lore}', JSON.stringify(accumulatedLore, null, 2)) + chunks[ci] + customBlock;
+
+            const body = {
+                contents: [{ role: "user", parts: [{ text: finalPrompt }] }],
+                generationConfig: Object.keys(thinkingConfig).length > 0 ? { thinkingConfig, responseMimeType: "application/json" } : { responseMimeType: "application/json" },
+                safetySettings: getSafetySettingsPayload()
+            };
+
+            const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            if (!res.ok) throw new Error(`API 통신 실패 (HTTP ${res.status})`);
+            const resData = await res.json();
+
+            const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
+            const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
+            const cost = (inTok * (0.00075 / 1000)) + (outTok * (0.00375 / 1000));
+            accumulateCrackLoreCost(cost);
+
+            const rawJsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            if (!rawJsonText.trim()) throw new Error("AI가 로어 데이터를 반환하지 않았습니다.");
+            let raw = rawJsonText.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
+            const fb = raw.indexOf("["), fc = raw.indexOf("{"), first = fb === -1 ? fc : fc === -1 ? fb : Math.min(fb, fc);
+            if (first > 0) raw = raw.slice(first);
+            const lastB = Math.max(raw.lastIndexOf("]"), raw.lastIndexOf("}"));
+            if (lastB !== -1 && lastB < raw.length - 1) raw = raw.slice(0, lastB + 1);
+
+            const parsedArray = JSON.parse(raw);
+            if (Array.isArray(parsedArray)) accumulatedLore = parsedArray;
+        }
+
+        const currentTurn = getCrackChatTurns();
+
+        if (Array.isArray(accumulatedLore) && accumulatedLore.length > 0) {
+            for (let e of accumulatedLore) {
+                const tid = await mergeAndSaveLoreEntry(e, packName, chatId);
+                if (tid) importedCount++;
+            }
+            recordExtractLog(chatId, currentTurn, importedCount, chunks.length, 'success', selectedModel, Date.now() - _extT0);
+        } else {
+            recordExtractLog(chatId, currentTurn, 0, chunks.length, 'failed', selectedModel, Date.now() - _extT0);
+        }
+        return importedCount;
+    }
+
+    async function executeTextConversion() {
+        const ta = document.getElementById('ep-lore-text-textarea');
+        const btn = document.getElementById('ep-lore-text-btn');
+        const st = document.getElementById('ep-lore-text-status');
+        if (!ta || !btn || !st) return;
+
+        const text = ta.value.trim();
+        if (!text) return alert("변환할 텍스트를 입력해 주십시오.");
+
+        btn.disabled = true; btn.textContent = "변환 중...";
+        st.textContent = "로어 가공 시작..."; st.style.color = "#74a1c0";
+
+        try {
+            const cnt = await convertTextToStructuredLore(text, st);
+            st.textContent = `✅ 성공: ${cnt}개의 로어가 저장소에 병합되었습니다.`;
+            st.style.color = "#88b9c8";
+            ta.value = '';
+            renderCrackActiveLores();
+        } catch (err) {
+            st.textContent = "❌ 실패: " + err.message; st.style.color = "#da8";
+        } finally {
+            btn.disabled = false; btn.textContent = "텍스트 지식 변환 실행";
+        }
+    }
+
+    /* ==========================================================================
+     * 2. 수동 로어 생성 엔진 (crack.html 100% 일치)
+     * ========================================================================== */
+    async function executeManualLoreExtraction(episodeId, turns) {
+        const _manT0 = Date.now();
+        let selectedModel = localStorage.getItem('pastel_crack_lore_extract_model') || 'gemini-3.6-flash';
+        if (selectedModel === '_custom') selectedModel = localStorage.getItem('pastel_crack_lore_extract_custom') || 'gemini-3.6-flash';
+
+        const reasoningValue = localStorage.getItem('pastel_crack_lore_reasoning') || 'medium';
+        const thinkingConfig = {};
+        if (selectedModel.includes('gemini-3') || selectedModel.includes('gemini-2.0-flash-thinking')) {
+            if (reasoningValue !== 'off') {
+                if (reasoningValue === 'budget') thinkingConfig.thinkingBudget = parseInt(localStorage.getItem('pastel_crack_lore_reasoning_budget')) || 2048;
+                else thinkingConfig.thinkingLevel = reasoningValue;
+            }
+        }
+
+        const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
+        if (!url) throw new Error("우측 서랍의 [API 설정]에 Gemini API Key 또는 Firebase Script를 입력해 주십시오.");
+
+        const msgElements = Array.from(document.querySelectorAll('.flex.flex-col-reverse.w-full > div') || []).reverse();
+        if (msgElements.length === 0) throw new Error("분석할 대화 이력이 없습니다.");
+
+        const targetList = msgElements.slice(-(turns * 2));
+        const context = targetList.map(el => {
+            const isUser = !!el.querySelector('.justify-end') || !!el.querySelector('.bg-accent_translucent');
+            const cleanText = stripLoreInjectionBlock(el.innerText || '');
+            return `${isUser ? 'user' : 'assistant'}: ${cleanText}`;
+        }).join("\n");
+
+        const packName = `Ep_Crack_${episodeId}_Pack`;
+        let entriesText = "[]";
+        if (loreDb) {
+            try {
+                const existingEntries = await loreDb.entries.where('packName').equals(packName).toArray();
+                if (existingEntries.length > 0) {
+                    entriesText = JSON.stringify(existingEntries.slice(0, 20).map(e => {
+                        const cloned = { ...e };
+                        delete cloned.id; delete cloned.packName; delete cloned.project;
+                        return cloned;
+                    }), null, 2);
+                }
+            } catch (_) {}
+        }
+
+        const customInst = localStorage.getItem(`pastel_crack_lore_auto_ext_instruction_ep_${episodeId}`) || '';
+        const customBlock = customInst.trim() ? `\n\n[USER DIRECTIVES - EXTRACTION GUIDELINES (MANDATORY)]:\n- ${customInst.trim()}` : '';
+        const finalPrompt = PROMPT_TEMPLATE_CHAT.replace('{existing_lore}', entriesText) + context + customBlock;
+
+        const body = {
+            contents: [{ role: "user", parts: [{ text: finalPrompt }] }],
+            generationConfig: Object.keys(thinkingConfig).length > 0 ? { thinkingConfig, responseMimeType: "application/json" } : { responseMimeType: "application/json" },
+            safetySettings: getSafetySettingsPayload()
+        };
+
+        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error(`API 통신 에러 (HTTP ${res.status})`);
+        const resData = await res.json();
+
+        const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
+        const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
+        const cost = (inTok * (0.00075 / 1000)) + (outTok * (0.00375 / 1000));
+        accumulateCrackLoreCost(cost);
+
+        const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (!rawText.trim()) throw new Error("AI가 로어 데이터를 반환하지 않았습니다.");
+        let raw = rawText.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
+        const fb = raw.indexOf("["), fc = raw.indexOf("{"), first = fb === -1 ? fc : fc === -1 ? fb : Math.min(fb, fc);
+        if (first > 0) raw = raw.slice(first);
+        const lastB = Math.max(raw.lastIndexOf("]"), raw.lastIndexOf("}"));
+        if (lastB !== -1 && lastB < raw.length - 1) raw = raw.slice(0, lastB + 1);
+
+        let parsedArray = JSON.parse(raw);
+        if (parsedArray && !Array.isArray(parsedArray)) {
+            if (Array.isArray(parsedArray.entries)) parsedArray = parsedArray.entries;
+            else if (Array.isArray(parsedArray.lore)) parsedArray = parsedArray.lore;
+            else if (parsedArray.name) parsedArray = [parsedArray];
+            else parsedArray = [];
+        }
+
+        const currentTurn = getCrackChatTurns();
+
+        if (Array.isArray(parsedArray) && parsedArray.length > 0) {
+            try { await createLoreSnapshot(episodeId, "수동 생성 전 백업"); } catch(_) {}
+            for (const e of parsedArray) {
+                await mergeAndSaveLoreEntry(e, packName, episodeId);
+            }
+            recordExtractLog(episodeId, currentTurn, parsedArray.length, targetList.length, 'success', selectedModel, Date.now() - _manT0);
+            renderCrackActiveLores();
+        } else {
+            recordExtractLog(episodeId, currentTurn, 0, targetList.length, 'failed', selectedModel, Date.now() - _manT0);
+        }
+    }
+
+    /* ==========================================================================
+     * 3. 백그라운드 자동 로어 추출 엔진 (crack.html 100% 일치)
+     * ========================================================================== */
+    async function executeBackgroundAutoExtraction(episodeId) {
+        const _autoT0 = Date.now();
+        let selectedModel = localStorage.getItem('pastel_crack_lore_extract_model') || 'gemini-3.6-flash';
+        if (selectedModel === '_custom') selectedModel = localStorage.getItem('pastel_crack_lore_extract_custom') || 'gemini-3.6-flash';
+
+        const reasoningValue = localStorage.getItem('pastel_crack_lore_reasoning') || 'medium';
+        const thinkingConfig = {};
+        if (selectedModel.includes('gemini-3') || selectedModel.includes('gemini-2.0-flash-thinking')) {
+            if (reasoningValue !== 'off') {
+                if (reasoningValue === 'budget') thinkingConfig.thinkingBudget = parseInt(localStorage.getItem('pastel_crack_lore_reasoning_budget')) || 2048;
+                else thinkingConfig.thinkingLevel = reasoningValue;
+            }
+        }
+
+        const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
+        if (!url) return;
+
+        const msgElements = Array.from(document.querySelectorAll('.flex.flex-col-reverse.w-full > div') || []).reverse();
+        if (msgElements.length < 2) return;
+
+        const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${episodeId}`), 10) || 6;
+        const targetList = msgElements.slice(-(extTurns * 2));
+        const context = targetList.map(el => {
+            const isUser = !!el.querySelector('.justify-end') || !!el.querySelector('.bg-accent_translucent');
+            const cleanText = stripLoreInjectionBlock(el.innerText || '');
+            return `${isUser ? 'user' : 'assistant'}: ${cleanText}`;
+        }).join("\n");
+
+        const packName = `Ep_Crack_${episodeId}_Pack`;
+        let entriesText = "[]";
+        if (loreDb) {
+            try {
+                const existingEntries = await loreDb.entries.where('packName').equals(packName).toArray();
+                if (existingEntries.length > 0) {
+                    entriesText = JSON.stringify(existingEntries.slice(0, 20).map(e => {
+                        const cloned = { ...e };
+                        delete cloned.id; delete cloned.packName; delete cloned.project;
+                        return cloned;
+                    }), null, 2);
+                }
+            } catch (_) {}
+        }
+
+        const customInst = localStorage.getItem(`pastel_crack_lore_auto_ext_instruction_ep_${episodeId}`) || '';
+        const customBlock = customInst.trim() ? `\n\n[USER DIRECTIVES - EXTRACTION GUIDELINES (MANDATORY)]:\n- ${customInst.trim()}` : '';
+        const finalPrompt = PROMPT_TEMPLATE_CHAT.replace('{existing_lore}', entriesText) + context + customBlock;
+
+        const body = {
+            contents: [{ role: "user", parts: [{ text: finalPrompt }] }],
+            generationConfig: Object.keys(thinkingConfig).length > 0 ? { thinkingConfig, responseMimeType: "application/json" } : { responseMimeType: "application/json" },
+            safetySettings: getSafetySettingsPayload()
+        };
+
+        try {
+            const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            if (!res.ok) return;
+            const resData = await res.json();
+
+            const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
+            const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
+            const cost = (inTok * (0.00075 / 1000)) + (outTok * (0.00375 / 1000));
+            accumulateCrackLoreCost(cost);
+
+            const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+            if (!rawText.trim()) return;
+
+            let raw = rawText.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
+            const fb = raw.indexOf("["), fc = raw.indexOf("{"), first = fb === -1 ? fc : fc === -1 ? fb : Math.min(fb, fc);
+            if (first > 0) raw = raw.slice(first);
+            const lastB = Math.max(raw.lastIndexOf("]"), raw.lastIndexOf("}"));
+            if (lastB !== -1 && lastB < raw.length - 1) raw = raw.slice(0, lastB + 1);
+
+            let parsedArray = JSON.parse(raw);
+            if (parsedArray && !Array.isArray(parsedArray)) {
+                if (Array.isArray(parsedArray.entries)) parsedArray = parsedArray.entries;
+                else if (Array.isArray(parsedArray.lore)) parsedArray = parsedArray.lore;
+                else if (parsedArray.name) parsedArray = [parsedArray];
+                else parsedArray = [];
+            }
+
+            const currentTurn = getCrackChatTurns();
+
+            if (Array.isArray(parsedArray) && parsedArray.length > 0) {
+                try { await createLoreSnapshot(episodeId, "자동 추출 전 백업"); } catch(_) {}
+                for (const e of parsedArray) await mergeAndSaveLoreEntry(e, packName, episodeId);
+                recordExtractLog(episodeId, currentTurn, parsedArray.length, targetList.length, 'success', selectedModel, Date.now() - _autoT0);
+            } else {
+                recordExtractLog(episodeId, currentTurn, 0, targetList.length, 'failed', selectedModel, Date.now() - _autoT0);
+            }
+        } catch (err) {
+            const currentTurn = getCrackChatTurns();
+            recordExtractLog(episodeId, currentTurn, 0, 12, 'failed', selectedModel, Date.now() - _autoT0);
+        }
+    }
+
+    /* ==========================================================================
+     * 4. 슬라이딩 전체 로어 재생성 엔진 (crack.html 100% 일치)
+     * ========================================================================== */
+    async function executeLoreExtractionAPIOnly(episodeId, contextText, chunkTurn = 0) {
+        const _regenT0 = Date.now();
+        let selectedModel = localStorage.getItem('pastel_crack_lore_extract_model') || 'gemini-3.6-flash';
+        if (selectedModel === '_custom') selectedModel = localStorage.getItem('pastel_crack_lore_extract_custom') || 'gemini-3.6-flash';
+
+        const reasoningValue = localStorage.getItem('pastel_crack_lore_reasoning') || 'medium';
+        const thinkingConfig = {};
+        if (selectedModel.includes('gemini-3') || selectedModel.includes('gemini-2.0-flash-thinking')) {
+            if (reasoningValue !== 'off') {
+                if (reasoningValue === 'budget') thinkingConfig.thinkingBudget = parseInt(localStorage.getItem('pastel_crack_lore_reasoning_budget')) || 2048;
+                else thinkingConfig.thinkingLevel = reasoningValue;
+            }
+        }
+
+        const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
+        if (!url) throw new Error("우측 서랍의 [API 설정]에 Gemini API Key 또는 Firebase Script를 입력해 주십시오.");
+
+        const packName = `Ep_Crack_${episodeId}_Pack`;
+        let entriesText = "[]";
+        if (loreDb) {
+            try {
+                const existingEntries = await loreDb.entries.where('packName').equals(packName).toArray();
+                if (existingEntries.length > 0) {
+                    entriesText = JSON.stringify(existingEntries.slice(0, 20).map(e => {
+                        const cloned = { ...e };
+                        delete cloned.id; delete cloned.packName; delete cloned.project;
+                        return cloned;
+                    }), null, 2);
+                }
+            } catch (_) {}
+        }
+
+        const customInst = localStorage.getItem(`pastel_crack_lore_auto_ext_instruction_ep_${episodeId}`) || '';
+        const customBlock = customInst.trim() ? `\n\n[USER DIRECTIVES - EXTRACTION GUIDELINES (MANDATORY)]:\n- ${customInst.trim()}` : '';
+        const finalPrompt = PROMPT_TEMPLATE_CHAT.replace('{existing_lore}', entriesText) + contextText + customBlock;
+
+        const body = {
+            contents: [{ role: "user", parts: [{ text: finalPrompt }] }],
+            generationConfig: Object.keys(thinkingConfig).length > 0 ? { thinkingConfig, responseMimeType: "application/json" } : { responseMimeType: "application/json" },
+            safetySettings: getSafetySettingsPayload()
+        };
+
+        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        if (!res.ok) throw new Error(`API 통신 실패 (HTTP ${res.status})`);
+        const resData = await res.json();
+
+        const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
+        const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
+        const cost = (inTok * (0.00075 / 1000)) + (outTok * (0.00375 / 1000));
+        accumulateCrackLoreCost(cost);
+
+        const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+        if (!rawText.trim()) return;
+
+        let raw = rawText.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
+        const fb = raw.indexOf("["), fc = raw.indexOf("{"), first = fb === -1 ? fc : fc === -1 ? fb : Math.min(fb, fc);
+        if (first > 0) raw = raw.slice(first);
+        const lastB = Math.max(raw.lastIndexOf("]"), raw.lastIndexOf("}"));
+        if (lastB !== -1 && lastB < raw.length - 1) raw = raw.slice(0, lastB + 1);
+
+        let parsedArray = JSON.parse(raw);
+        if (parsedArray && !Array.isArray(parsedArray)) {
+            if (Array.isArray(parsedArray.entries)) parsedArray = parsedArray.entries;
+            else if (Array.isArray(parsedArray.lore)) parsedArray = parsedArray.lore;
+            else if (parsedArray.name) parsedArray = [parsedArray];
+            else parsedArray = [];
+        }
+
+        if (Array.isArray(parsedArray) && parsedArray.length > 0) {
+            for (const e of parsedArray) await mergeAndSaveLoreEntry(e, packName, episodeId);
+            recordExtractLog(episodeId, chunkTurn, parsedArray.length, 16, 'success', selectedModel, Date.now() - _regenT0);
+        } else {
+            recordExtractLog(episodeId, chunkTurn, 0, 16, 'failed', selectedModel, Date.now() - _regenT0);
+        }
+    }
+
+    async function executeLoreRegeneration(episodeId) {
+        const btn = document.getElementById('ep-lore-regenerate-btn');
+        const st = document.getElementById('ep-lore-regenerate-status');
+        if (!confirm("현재 방의 로컬 로어들을 완전히 포맷하고, 대화의 처음부터 끝까지 순차 분석하여 전체 재생성하시겠습니까?")) return;
+
+        if (btn) { btn.disabled = true; btn.textContent = "재생성 진행 중..."; }
+        if (st) { st.textContent = "초기화 및 분석 시작..."; st.style.color = "#74a1c0"; }
+
+        const packName = `Ep_Crack_${episodeId}_Pack`;
+
+        try {
+            try { await createLoreSnapshot(episodeId, "전체 재생성 전 백업"); } catch(_) {}
+            showToast("🔮 전체 로어 재생성 시작...");
+            await loreDb.entries.where('packName').equals(packName).delete();
+            await loreDb.embeddings.where('packName').equals(packName).delete();
+
+            const msgElements = Array.from(document.querySelectorAll('.flex.flex-col-reverse.w-full > div') || []).reverse();
+            if (msgElements.length === 0) throw new Error("대화 내용이 존재하지 않습니다.");
+
+            const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${episodeId}`), 10) || 6;
+            const step = extTurns * 2;
+            const total = msgElements.length;
+            const totalSteps = Math.ceil(total / step);
+            let stepsRun = 0;
+
+            for (let i = 0; i < total; i += step) {
+                const slice = msgElements.slice(0, i + step);
+                if (slice.length < 2) continue;
+                const windowSlice = slice.slice(-(step + 4));
+                const contextText = windowSlice.map(el => {
+                    const isUser = !!el.querySelector('.justify-end') || !!el.querySelector('.bg-accent_translucent');
+                    const cleanText = stripLoreInjectionBlock(el.innerText || '');
+                    return `${isUser ? 'user' : 'assistant'}: ${cleanText}`;
+                }).join("\n");
+
+                const progressPercent = Math.min(100, Math.round(((stepsRun + 1) / totalSteps) * 100));
+                if (st) st.textContent = `재생성 스캔 중 (${stepsRun + 1}/${totalSteps} 단계)... (${progressPercent}%)`;
+
+                const chunkTurn = Math.max(1, Math.floor(slice.length / 2));
+                await executeLoreExtractionAPIOnly(episodeId, contextText, chunkTurn);
+                stepsRun++;
+            }
+
+            const totalCount = await loreDb.entries.where('packName').equals(packName).count();
+            if (st) { st.textContent = `✅ 성공: 총 ${totalCount}개의 로어가 재생성되었습니다.`; st.style.color = "#88b9c8"; }
+            renderCrackActiveLores();
+            showToast("✨ 전체 로어 재생성이 완수되었습니다!");
+        } catch (err) {
+            if (st) { st.textContent = "❌ 실패: " + err.message; st.style.color = "#da8"; }
+            showToast("❌ 로어 재생성 실패");
+        } finally {
+            if (btn) { btn.disabled = false; btn.textContent = "초기화 및 전체 로어 재생성"; }
+        }
+    }
+
+    /* ==========================================================================
+     * 5. 수동 로어 병합 & 프리뷰 엔진 (crack.html 100% 순정 프롬프트 탑재)
+     * ========================================================================== */
+    async function runDuplicateMergerSearch() {
+        const mergeBtn = document.getElementById('ep-lore-merge-find-btn');
+        const statusEl = document.getElementById('ep-lore-merge-status');
+        const maxCharsInput = document.getElementById('ep-lore-merge-maxchars');
+        const bulkModeSelect = document.getElementById('ep-lore-merge-bulk-mode');
+
+        if (!maxCharsInput || !bulkModeSelect) return alert("병합 설정 엘리먼트를 찾을 수 없습니다.");
+
+        const maxChars = parseInt(maxCharsInput.value) || 1200;
+        const chatId = getChatId();
+        const packName = `Ep_Crack_${chatId}_Pack`;
+
+        const checkedBoxes = Array.from(document.querySelectorAll('.ep-crack-merge-chk:checked'));
+        if (checkedBoxes.length < 2) return alert("병합할 로어 항목을 최소 2개 이상 선택해 주십시오.");
+
+        const selectedIds = checkedBoxes.map(cb => parseInt(cb.dataset.id, 10));
+        const selectedEntries = await loreDb.entries.where('id').anyOf(selectedIds).toArray();
+
+        const anchored = selectedEntries.find(e => e.anchor === true);
+        const targetMaster = anchored || selectedEntries[0];
+        const toDelete = selectedEntries.filter(e => e.id !== targetMaster.id);
+
+        let previewCard = document.getElementById('ep-lore-preview-container');
+        if (previewCard) previewCard.remove();
+
+        if (mergeBtn) { mergeBtn.disabled = true; mergeBtn.textContent = "프리뷰 연산 중..."; }
+        if (statusEl) { statusEl.textContent = "병합 결과 조합 연산 중..."; statusEl.style.color = "#74a1c0"; }
+
+        try {
+            let mergedDraft = null;
+            const mode = bulkModeSelect ? bulkModeSelect.value : 'keep-longest';
+
+            if (mode === 'keep-longest') {
+                const sorted = [...selectedEntries].sort((a, b) => {
+                    const aSum = a.summary ? (typeof a.summary === 'object' ? (a.summary.full || '') : String(a.summary)) : '';
+                    const bSum = b.summary ? (typeof b.summary === 'object' ? (b.summary.full || '') : String(b.summary)) : '';
+                    return bSum.length - aSum.length;
+                });
+                const longestEntry = sorted[0];
+                const base = JSON.parse(JSON.stringify(longestEntry));
+                let mergedTriggers = [...base.triggers || []];
+                let mergedEntities = [...base.entities || []];
+
+                selectedEntries.forEach(e => {
+                    if (e.id === longestEntry.id) return;
+                    mergedTriggers.push(...e.triggers || []);
+                    mergedEntities.push(...e.entities || []);
+                });
+
+                base.triggers = Array.from(new Set(mergedTriggers)).slice(0, 15);
+                base.entities = Array.from(new Set(mergedEntities));
+                base.summary = C.normalizeSummaryValue(base.summary, base.name, base.state);
+                base.summary.full = C.clampText(base.summary.full, maxChars);
+                mergedDraft = base;
+            } else {
+                const cleanList = selectedEntries.map(({ id, packName, project, enabled, ...rest }) => rest);
+                const customInstruction = localStorage.getItem(`pastel_crack_lore_auto_ext_instruction_ep_${chatId}`) || '';
+                const customBlock = customInstruction.trim() ? `\n\n[USER DIRECTIVES - ADDITIONAL GUIDELINES (MANDATORY)]:\n- ${customInstruction.trim()}` : '';
+
+                const prompt = `아래 제공된 중복 로어 조각 리스트를 읽고, 중복된 개념들을 완벽히 단일화한 하나의 초정밀 병합 로어로 요약 가공하여 JSON 객체로만 출력하시오.
+
+[작명 및 정합성 지침 (Name Synthesis Rule)]:
+1. 관계(relationship) 타입 병합 지침 (CRITICAL/MANDATORY):
+   - 만약 병합 대상이 'relationship' 타입이라면, "name"은 반드시 '인물A ↔ 인물B' 형식(가운데 대칭 화살표 기호 '↔' 필수, 이름 순서는 가나다순/알파벳순 정렬)을 엄격히 고수하십시오. (예: "강하늘 ↔ 김도훈"). 절대로 일반 서술형 제목(예: "두 사람의 우정", "동맹 관계")으로 이름을 변경하거나 새로 짓지 마십시오.
+2. 일반 타입 병합 지침:
+   - 일반 타입(character, location, item, event, concept, setting, promise 등)의 경우, 병합 대상 중 가장 완성도가 높고 구체적이며 온전한 이름(예: 'Harry' 대신 'Harry Potter')을 그대로 "name"으로 채택하십시오. 임의로 전혀 새로운 명칭이나 제3의 설명조 단어를 지어내지 마십시오.
+
+[약속 병합 및 상태 지침 (Promise Merging & Status Rule)]:
+1. 인물/관계 카드 내의 "promises" 배열 병합 지침:
+   - 병합 대상 카드들의 모든 "promises" 필드를 수합하십시오.
+   - 만약 동일한 주체(예: [인물A ↔ 인물B]) 간에 체결된 약속 중 중복/대치되거나 갱신된 내역이 감지되면, 무조건 가장 최근 정보의 값만 보존하고 과거의 중복 약속 문자열은 삭제하십시오.
+   - 주체가 다르거나 서로 다른 독립된 약속들은 누락 없이 각각의 고유 스트링 형태로 보존하여 배열에 모두 남겨놓아야 합니다. (배열 내부 포맷은 무조건 "[인물A ↔ 인물B] 약속 행동" 형식을 엄격히 고수해야 합니다.)
+2. 대형 독립 약속(type: "promise") 카드 병합 지침:
+   - 대형 약속 카드를 병합할 때, "summary.full" 맨 처음에 표시되는 접두사인 "[진행 상황: <상태>] " 값을 완벽히 보존하십시오. 
+   - 상태값(<상태>)은 병합 대상 카드들의 상태 중 가장 최근/최신의 실질적 상황을 고려하여 AI가 상황에 맞춰 동적으로 판단하여 기입하십시오 (예: [진행 상황: 완료], [진행 상황: 진행중] 등).
+
+[트리거 보존 지침 (Trigger Keyword Rule)]:
+- "triggers": 병합 대상인 모든 로어 카드들의 기존 트리거 단어들을 단 하나도 누락시키지 말고 전부 개별 스트링(Array element)으로 그대로 보존하여 합치십시오. 절대로 여러 키워드를 하나의 긴 문자열로 뭉개거나 합치지 마십시오.
+
+[요약 고도화 지침 (Rich Summary Rule)]:
+- "summary.full": 줄거리 요약은 엄격하게 최대 700자 이하로 압축하여 작성하되, 절대로 기존 줄거리 정보들을 대충 생략하거나 요약해서 날려버리지 마십시오. 병합 대상 카드들이 가진 모든 역사적 사실, 관계 이정표, 주요 상태 등을 꼼꼼하게 전부 누적하여 디테일하고 풍부한 내용의 완성된 문단으로 기술하십시오.
+- Date/Period Merging (For "event" type cards): If the cards being merged are of type "event", handle dates in "summary.full" as follows:
+  * Same/Single Date: If all merged events occurred on the exact same date, prepend the date at the very beginning: "yyyy. mm. dd | 사건 내용" (Example: "2025. 10. 15 | 해리와 론이 만나 다툼.")
+  * Different Dates: If merged events occurred on different dates, format as a single-line sequence without newlines, separating each dated event with ' | ': "<yyyy. mm. dd> 사건 내용 | <yyyy. mm. dd> 사건 내용"
+  * Unknown Date: Use "Relative Timeline | 사건 내용" or "<상대적 시점> 사건 내용 | <상대적 시점> 사건 내용"
+
+[사건 및 대사 병합 규칙 (Event History & Quote Merging Rule)]:
+- "eventHistory": 병합 대상 카드들이 가진 모든 사건 기록을 연대순으로 정밀 통합하십시오. 중복되는 사건은 제거하되, 해당 사건의 "quote"가 있을 경우 절대 유실하지 말고 온전히 병합 보존하여 최종 JSON에 출력해야 합니다.
+
+[TOKEN-SAVING & STYLE CONSTRAINT (명사형 개조식 필수)]:
+- EXCLUSION: Only the "text" field inside the "quote" array is allowed to use natural, colloquial speech (e.g. "Briefly 『...』", "「...」").
+- MANDATORY STYLE: ALL other text fields—including "summary.full", "summary.compact", "summary.micro", "state" fields—MUST be written in Korean using concise nominal/noun-ending styles (개조식 종결어미: e.g., "~함", "~임", "~음", "~했음", or noun form).
+- NEVER use polite, formal, or plain prose endings (e.g., "~합니다", "~이다", "~했다" 등 평서문/설명조 문체 영구 금지).
+
+[summary.full BUDGET]:
+- "summary.full" 줄거리 요약은 설정된 최대 700자 이하를 꽉 채워 최대한 구체적으로 작성하십시오.
+
+[출력 규칙]:
+- Markdown 백틱(\`\`\`) 기호 없이 단일 JSON 오브젝트 구조 { ... } 로만 출력하시오.
+
+병합 대상 데이터:
+${JSON.stringify(cleanList, null, 2)}${customBlock}`;
+
+                let selectedModel = localStorage.getItem('pastel_crack_lore_extract_model') || 'gemini-3.6-flash';
+                if (selectedModel === '_custom') selectedModel = localStorage.getItem('pastel_crack_lore_extract_custom') || 'gemini-3.6-flash';
+
+                const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
+                if (!url) throw new Error("우측 서랍의 [API 설정]에 Gemini API Key 또는 Firebase Script를 입력해 주십시오.");
+
+                const res = await fetch(url, {
+                    method: "POST", headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
+                });
+
+                if (!res.ok) throw new Error("AI 병합 통신 실패 (HTTP " + res.status + ")");
+                const resData = await res.json();
+
+                const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(prompt.length * 1.2);
+                const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
+                const cost = (inTok * (0.00075 / 1000)) + (outTok * (0.00375 / 1000));
+                accumulateCrackLoreCost(cost);
+
+                let txt = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+                let raw = txt.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
+                const parsedObj = JSON.parse(raw);
+                mergedDraft = { ...JSON.parse(JSON.stringify(targetMaster)), ...parsedObj };
+            }
+
+            previewCard = document.createElement('div');
+            previewCard.id = 'ep-lore-preview-container';
+            previewCard.style.cssText = "display:flex; flex-direction:column; align-items:stretch; width:100%; border-top:1.5px dashed var(--decentral-text-border); padding-top:14px; margin-top:14px; box-sizing:border-box;";
+
+            const previewHeader = document.createElement('div');
+            previewHeader.style.cssText = "display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid var(--decentral-border); padding-bottom:6px; margin-bottom:12px; width:100%; user-select:none;";
+            
+            const previewTitle = document.createElement('span');
+            previewTitle.textContent = "병합 프리뷰";
+            previewTitle.style.cssText = "font-size:13px; color:#74a1c0; font-weight:bold;";
+
+            const finalExecuteBtn = document.createElement('button');
+            finalExecuteBtn.type = "button";
+            finalExecuteBtn.title = "선택한 로어 병합 최종 실행";
+            finalExecuteBtn.style.cssText = "background:transparent; border:none; color:#74a1c0; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; padding:4px;";
+            finalExecuteBtn.innerHTML = `
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M16 12v2a2 2 0 0 1-2 2H9a1 1 0 0 0-1 1v3a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V10a2 2 0 0 0-2-2h0"/><path d="M4 16a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v3a1 1 0 0 1-1 1h-5a2 2 0 0 0-2 2v2"/></svg>
+            `;
+
+            previewHeader.appendChild(previewTitle);
+            previewHeader.appendChild(finalExecuteBtn);
+            previewCard.appendChild(previewHeader);
+
+            const previewBody = document.createElement('div');
+            previewBody.style.cssText = "text-align:left; width:100%; box-sizing:border-box;";
+
+            let previewCode = { ...mergedDraft };
+            delete previewCode.id; delete previewCode.packName; delete previewCode.project; delete previewCode.enabled;
+            previewCode = reorderLoreKeys(previewCode);
+
+            previewBody.innerHTML = `
+                <textarea id="ep-lore-preview-textarea" class="decentral-text-area" 
+                    style="height:220px; font-size:11px; line-height:1.5; border-radius:8px; border:1px solid #cccccc; background:#ffffff; color:#2c3e50; resize:none; width:100%; box-sizing:border-box; outline:none;"
+                >${JSON.stringify(previewCode, null, 2)}</textarea>
+            `;
+            previewCard.appendChild(previewBody);
+
+            document.getElementById('ep-lore-checklist-container').after(previewCard);
+
+            if (statusEl) {
+                statusEl.textContent = "✅ 프리뷰 수정을 거친 후, 우상단 아이콘을 눌러 병합 완료하십시오.";
+                statusEl.style.color = "#88b9c8";
+            }
+
+            finalExecuteBtn.onclick = async () => {
+                const editedText = document.getElementById('ep-lore-preview-textarea').value.trim();
+                let finalMergedDraft = null;
+                try {
+                    finalMergedDraft = JSON.parse(editedText);
+                } catch (jsonErr) {
+                    return alert("JSON 문법 오류: " + jsonErr.message);
+                }
+
+                if (!confirm(`선택한 지식 조각 ${selectedEntries.length}개를 완전히 병합하시겠습니까?`)) return;
+
+                try {
+                    const finalEntry = { ...finalMergedDraft, id: targetMaster.id, packName: packName, project: "" };
+                    await loreDb.entries.put(finalEntry);
+                    await loreDb.embeddings.where('entryId').equals(targetMaster.id).delete();
+                    await loreDb.entries.where('id').anyOf(toDelete.map(d => d.id)).delete();
+                    await loreDb.embeddings.where('entryId').anyOf(toDelete.map(d => d.id)).delete();
+
+                    showToast("✨ 수동 로어 병합 완료!");
+                    previewCard.remove();
+                    renderCrackActiveLores();
+                    renderCrackManageTab();
+                } catch (err) {
+                    alert("병합 실패: " + err.message);
+                }
+            };
+
+        } catch (err) {
+            console.error("프리뷰 생성 실패:", err);
+            if (statusEl) {
+                statusEl.textContent = "❌ 실패: " + err.message;
+                statusEl.style.color = "#da8";
+            }
+            alert("로어 병합 실패: " + err.message);
+        } finally {
+            if (mergeBtn) {
+                mergeBtn.disabled = false;
+                mergeBtn.textContent = "선택한 로어 병합 실행";
+            }
+        }
+    }
+
+    async function renderCrackManageTab() {
+        const chatId = getChatId();
+        const maxCharsInp = document.getElementById('ep-lore-merge-maxchars');
+        const bulkModeSel = document.getElementById('ep-lore-merge-bulk-mode');
+        const manualTurnsInp = document.getElementById('ep-lore-manual-ext-turns');
+        if (maxCharsInp) maxCharsInp.value = localStorage.getItem(`pastel_crack_lore_merge_maxchars_ep_${chatId}`) || '1200';
+        if (bulkModeSel) bulkModeSel.value = localStorage.getItem(`pastel_crack_lore_merge_bulk_mode_ep_${chatId}`) || 'llm-summarize';
+        if (manualTurnsInp) manualTurnsInp.value = localStorage.getItem(`pastel_crack_lore_manual_ext_turns_ep_${chatId}`) || '6';
+
+        const container = document.getElementById('ep-lore-checklist-container');
+        if (!container || !loreDb || !chatId) return;
+
+        container.innerHTML = '';
+        container.style.display = 'flex';
+        container.style.flexDirection = 'column';
+        container.style.marginTop = '14px';
+        container.style.paddingTop = '14px';
+        container.style.borderTop = '1.5px dashed var(--decentral-text-border)';
+
+        const packName = `Ep_Crack_${chatId}_Pack`;
+        const entries = await loreDb.entries.where('packName').equals(packName).toArray();
+
+        if (entries.length < 2) {
+            container.innerHTML = `<div style="text-align:center; padding:14px; font-size:12px; color:#888;">수동 병합을 수행할 활성 로어가 부족합니다. (최소 2개 이상 필요)</div>`;
+            return;
+        }
+
+        entries.sort((a, b) => {
+            const typeA = String(a.type || "").toLowerCase().trim();
+            const typeB = String(b.type || "").toLowerCase().trim();
+            if (typeA !== typeB) return typeA.localeCompare(typeB);
+            return (a.id || 0) - (b.id || 0);
+        });
+
+        const listWrapper = document.createElement('div');
+        listWrapper.style.cssText = "max-height: 250px; overflow-y: auto; width: 100%; margin-bottom: 12px; box-sizing: border-box;";
+
+        entries.forEach(e => {
+            const row = document.createElement('div');
+            row.style.cssText = "padding:8px 0; border-bottom:1px dashed var(--decentral-border); display:flex; justify-content:space-between; align-items:center; width:100%;";
+
+            const left = document.createElement('div');
+            left.style.cssText = "display:flex; flex-direction:column; gap:4px; text-align:left; flex:1; min-width:0; padding-right:8px;";
+
+            const nameSpan = document.createElement('span');
+            nameSpan.innerHTML = `<span style="color:var(--decentral-text); font-weight:bold; font-size:12px;">[${e.type}] ${e.name}</span>` + (e.anchor ? ' <span style="color:#88b9c8; font-weight:bold; font-size:10px;">[⚓︎앵커]</span>' : '');
+
+            const summaryText = e.summary ? (typeof e.summary === 'object' ? (e.summary.full || e.summary.compact || '') : String(e.summary)) : '';
+            const descSpan = document.createElement('span');
+            descSpan.style.cssText = "font-size:10px; color:#888; word-break:break-all; white-space:normal;";
+            descSpan.textContent = summaryText ? summaryText.slice(0, 100) : "(설명 요약 없음)";
+
+            left.appendChild(nameSpan);
+            left.appendChild(descSpan);
+
+            const right = document.createElement('div');
+            right.style.cssText = "display:flex; align-items:center; flex-shrink:0;";
+
+            const chk = document.createElement('input');
+            chk.type = "checkbox";
+            chk.className = "ep-crack-merge-chk";
+            chk.dataset.id = e.id;
+            chk.style.cssText = "width:16px; height:16px; cursor:pointer; accent-color:#88b9c8;";
+
+            row.onclick = (ev) => {
+                if (ev.target === chk) return;
+                chk.checked = !chk.checked;
+            };
+
+            right.appendChild(chk);
+            row.appendChild(left);
+            row.appendChild(right);
+            listWrapper.appendChild(row);
+        });
+
+        container.appendChild(listWrapper);
+
+        const mergeBtn = document.createElement('button');
+        mergeBtn.id = "ep-lore-merge-find-btn";
+        mergeBtn.className = "decentral-button";
+        mergeBtn.style.cssText = "background-color: #bcd0d7 !important; border: 1px solid #334a52; color: #334a52; font-weight: bold; height: 36px; width: 100%; margin-top: 4px; display: inline-flex; align-items: center; justify-content: center; cursor: pointer;";
+        mergeBtn.textContent = "선택한 로어 병합 실행";
+        mergeBtn.onclick = runDuplicateMergerSearch;
+
+        const statusEl = document.createElement('div');
+        statusEl.id = "ep-lore-merge-status";
+        statusEl.style.cssText = "font-size: 11px; color: #888888; margin-top: 6px; text-align: center; width: 100%;";
+
+        container.appendChild(mergeBtn);
+        container.appendChild(statusEl);
+    }
+
+    // ==========================================
+    // 2,000자 3순위 로어 RAG 검색 & [3턴 쿨타임 제도] 주입기
+    // ==========================================
+    async function buildCrackRAGLoreBlock(userRawText, chatId) {
+        try {
+            if (!loreDb || !chatId) return "";
+            const packName = `Ep_Crack_${chatId}_Pack`;
+            const allEntries = await loreDb.entries.where('packName').equals(packName).toArray();
+            if (!allEntries || allEntries.length === 0) return "";
+
+            const currentTurn = getCrackChatTurns();
+            const query = userRawText.toLowerCase();
+
+            // 1. 트리거 매칭
+            const matchedByTrigger = [];
+            allEntries.forEach(e => {
+                if (!e.triggers || e.triggers.length === 0) return;
+                let maxScore = 0;
+                e.triggers.forEach(t => {
+                    const triggerStr = t.trim().toLowerCase();
+                    if (!triggerStr) return;
+                    if (query.includes(triggerStr)) maxScore = Math.max(maxScore, 1.0);
+                });
+                if (maxScore > 0) matchedByTrigger.push({ entry: e, score: maxScore });
+            });
+
+            // 2. 오버라이드(스위치 ON) & 매칭 결합
+            const forcedEntries = allEntries.filter(e => e.enabled === true);
+            const rankedAutoList = matchedByTrigger.sort((a, b) => b.score - a.score).map(r => r.entry);
+
+            const candidatePool = [];
+            forcedEntries.forEach(e => { if (!candidatePool.some(x => x.id === e.id)) candidatePool.push(e); });
+            rankedAutoList.forEach(e => { if (!candidatePool.some(x => x.id === e.id)) candidatePool.push(e); });
+
+            // 3. [요청 기능] 3턴 쿨타임 제도 적용
+            const selectedLores = [];
+            const injectReport = [];
+
+            for (const e of candidatePool) {
+                if (selectedLores.length >= 3) break;
+                const lastInjectedTurnKey = `pastel_crack_lore_last_turn_${chatId}_${e.id}`;
+                const lastTurn = parseInt(localStorage.getItem(lastInjectedTurnKey) || '-999', 10);
+
+                // 최근 3턴 이내에 이미 주입된 로어는 쿨타임 대기
+                if (lastTurn !== -999 && (currentTurn - lastTurn) <= 3) {
+                    injectReport.push({ name: e.name, status: 'failed', reason: '(쿨타임 대기)' });
+                    continue;
+                }
+
+                selectedLores.push(e);
+            }
+
+            if (selectedLores.length === 0) {
+                if (injectReport.length > 0) recordInjectLog(chatId, currentTurn, injectReport, 0, 0, 2000);
+                return "";
+            }
+
+            // 4. 2000자 버퍼 역순 순차 압축
+            const loreBudget = Math.max(0, 2000 - userRawText.length - 4);
+            const buildCardText = (e, level, rank) => {
+                const prefix = `[LORE ${rank}] [${e.type}] ${e.name}`;
+                if (level === 2) return `${prefix}: ${e.summary?.full || e.name}`;
+                if (level === 1) return `${prefix}: ${e.summary?.compact || e.name}`;
+                return `${prefix}=${e.summary?.micro || e.name}`;
+            };
+
+            const levels = selectedLores.map(() => 2);
+            const getLen = () => selectedLores.reduce((acc, e, idx) => acc + buildCardText(e, levels[idx], idx + 1).length + 1, 0);
+
+            while (selectedLores.length > 0 && getLen() > loreBudget) {
+                let changed = false;
+                for (let i = selectedLores.length - 1; i >= 0; i--) {
+                    if (levels[i] > 0) { levels[i]--; changed = true; if (getLen() <= loreBudget) break; }
+                }
+                if (!changed || getLen() > loreBudget) { selectedLores.pop(); levels.pop(); }
+            }
+
+            if (selectedLores.length === 0) return "";
+
+            // 주입 성공한 로어의 최근 주입 턴수 갱신
+            selectedLores.forEach(e => {
+                localStorage.setItem(`pastel_crack_lore_last_turn_${chatId}_${e.id}`, String(currentTurn));
+                injectReport.unshift({ name: e.name, status: 'success', info: e.enabled ? '오버라이드' : 'RAG' });
+            });
+
+            const finalLoreBlock = selectedLores.map((e, idx) => buildCardText(e, levels[idx], idx + 1)).join("\n");
+            recordInjectLog(chatId, currentTurn, injectReport, selectedLores.length, finalLoreBlock.length, 2000);
+
+            return finalLoreBlock;
+        } catch (_) { return ""; }
+    }
+
+    // ==========================================
+    // 로어 UI 렌더러 및 스냅샷 복원 UI
+    // ==========================================
+    function saveCrackLoreModalFields() {
+        const chatId = getChatId();
+        const autoTurns = document.getElementById('ep-lore-auto-ext-turns')?.value;
+        const autoInst = document.getElementById('ep-lore-auto-ext-instruction')?.value;
+        const embedKey = document.getElementById('ep-lore-embed-key-input')?.value;
+        const embedModel = document.getElementById('ep-lore-embed-model-select')?.value;
+        const maxChars = document.getElementById('ep-lore-merge-maxchars')?.value;
+        const bulkMode = document.getElementById('ep-lore-merge-bulk-mode')?.value;
+        const manualTurns = document.getElementById('ep-lore-manual-ext-turns')?.value;
+
+        if (autoTurns) localStorage.setItem(`pastel_crack_lore_auto_ext_turns_ep_${chatId}`, autoTurns);
+        if (autoInst !== undefined) localStorage.setItem(`pastel_crack_lore_auto_ext_instruction_ep_${chatId}`, autoInst);
+        if (embedKey !== undefined) localStorage.setItem('pastel_crack_lore_embed_key', embedKey.trim());
+        if (embedModel) localStorage.setItem('pastel_crack_lore_embed_model', embedModel);
+        if (maxChars) localStorage.setItem(`pastel_crack_lore_merge_maxchars_ep_${chatId}`, maxChars);
+        if (bulkMode) localStorage.setItem(`pastel_crack_lore_merge_bulk_mode_ep_${chatId}`, bulkMode);
+        if (manualTurns) localStorage.setItem(`pastel_crack_lore_manual_ext_turns_ep_${chatId}`, manualTurns);
+    }
+
+    function loadCrackLoreSettingsTab() {
+        const chatId = getChatId();
+        const autoTurns = document.getElementById('ep-lore-auto-ext-turns');
+        const autoInst = document.getElementById('ep-lore-auto-ext-instruction');
+        const embedKey = document.getElementById('ep-lore-embed-key-input');
+        const embedModel = document.getElementById('ep-lore-embed-model-select');
+        const maxChars = document.getElementById('ep-lore-merge-maxchars');
+        const bulkMode = document.getElementById('ep-lore-merge-bulk-mode');
+        const manualTurns = document.getElementById('ep-lore-manual-ext-turns');
+
+        if (autoTurns) autoTurns.value = localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${chatId}`) || '6';
+        if (autoInst) autoInst.value = localStorage.getItem(`pastel_crack_lore_auto_ext_instruction_ep_${chatId}`) || '';
+        if (embedKey) embedKey.value = localStorage.getItem('pastel_crack_lore_embed_key') || localStorage.getItem('pastel_api_gemini') || '';
+        if (embedModel) embedModel.value = localStorage.getItem('pastel_crack_lore_embed_model') || 'gemini-embedding-001';
+        if (maxChars) maxChars.value = localStorage.getItem(`pastel_crack_lore_merge_maxchars_ep_${chatId}`) || '1200';
+        if (bulkMode) bulkMode.value = localStorage.getItem(`pastel_crack_lore_merge_bulk_mode_ep_${chatId}`) || 'llm-summarize';
+        if (manualTurns) manualTurns.value = localStorage.getItem(`pastel_crack_lore_manual_ext_turns_ep_${chatId}`) || '6';
+    }
+
+    async function renderCrackActiveLores() {
+        const activePanel = document.getElementById('ep-lore-panel-active');
+        if (!activePanel || !loreDb) return;
+        const packName = `Ep_Crack_${getChatId()}_Pack`;
+        const entries = await loreDb.entries.where('packName').equals(packName).toArray();
+
+        if (entries.length === 0) {
+            activePanel.innerHTML = `<div style="grid-column:1/3; text-align:center; padding:30px; font-size:13px; color:#999;">활성화된 지식이 존재하지 않습니다.</div>`;
+            return;
+        }
+
+        activePanel.innerHTML = '';
+        entries.forEach(e => {
+            const card = document.createElement('div');
+            card.className = 'decentral-grid-element-long-semi-flat';
+            card.style.cssText = "padding:8px 0; border-bottom:1px dashed var(--decentral-border); display:flex; flex-direction:column; width:100%;";
+            const isEnabled = e.enabled === true;
+
+            card.innerHTML = `
+                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
+                    <div style="display:flex; align-items:center; cursor:pointer; margin-right:8px;" class="sw-wrap">
+                        <div style="width:24px; height:12px; border-radius:6px; background:${isEnabled ? '#88b9c8' : '#ddd'}; position:relative;">
+                            <div style="width:8px; height:8px; border-radius:50%; background:#fff; position:absolute; top:2px; left:${isEnabled ? '14px' : '2px'};"></div>
+                        </div>
+                    </div>
+                    <div style="flex:1; text-align:left; cursor:pointer; font-weight:bold; font-size:13px;" class="card-trigger">
+                        [${e.type}] ${e.name} ${e.anchor ? '<span style="color:#88b9c8; font-size:11px;">[⚓︎]</span>' : ''}
+                    </div>
+                    <div style="display:flex; gap:6px;">
+                        <button type="button" class="btn-anchor" style="padding:2px 6px; font-size:11px; cursor:pointer; background:${e.anchor ? '#88b9c8':'transparent'}; color:${e.anchor ? '#fff':'#888'}; border:1px solid #ccc; border-radius:4px;">⚓︎</button>
+                        <button type="button" class="btn-del" style="padding:2px 6px; font-size:11px; cursor:pointer; background:transparent; color:#eb6666; border:1px solid #eb6666; border-radius:4px;">✕</button>
+                    </div>
+                </div>
+                <div class="card-body" style="display:none; margin-top:8px; width:100%;">
+                    <textarea class="decentral-text-area" style="height:160px; font-size:11px;">${JSON.stringify(reorderLoreKeys(e), null, 2)}</textarea>
+                </div>
+            `;
+
+            const body = card.querySelector('.card-body');
+            const ta = card.querySelector('textarea');
+            card.querySelector('.card-trigger').onclick = () => { body.style.display = body.style.display === 'block' ? 'none' : 'block'; };
+            card.querySelector('.sw-wrap').onclick = async () => {
+                e.enabled = !e.enabled;
+                await loreDb.entries.update(e.id, { enabled: e.enabled });
+                renderCrackActiveLores();
+            };
+            card.querySelector('.btn-anchor').onclick = async () => {
+                e.anchor = !e.anchor;
+                await loreDb.entries.update(e.id, { anchor: e.anchor });
+                renderCrackActiveLores();
+            };
+            card.querySelector('.btn-del').onclick = async () => {
+                if (confirm(`[${e.name}] 로어를 삭제하시겠습니까?`)) {
+                    await loreDb.entries.delete(e.id);
+                    renderCrackActiveLores();
+                }
+            };
+            ta.onchange = async () => {
+                try {
+                    const parsed = JSON.parse(ta.value);
+                    await loreDb.entries.put({ ...e, ...parsed });
+                } catch (_) {}
+            };
+            activePanel.appendChild(card);
+        });
+    }
+
+    function renderCrackLoreLogs() {
+        const epId = getChatId();
+        const injEl = document.getElementById('ep-lore-modal-inject-log-container');
+        const extEl = document.getElementById('ep-lore-modal-extract-log-container');
+        if (!injEl || !extEl) return;
+
+        const injLogs = JSON.parse(localStorage.getItem(`pastel_crack_inject_logs_${epId}`) || '[]');
+        injEl.innerHTML = injLogs.length === 0 ? '<div style="text-align:center; color:#888; padding:15px;">이 대화방에서 기록된 주입 로그가 없습니다.</div>' : injLogs.map(l => `
+            <div class="ep-costs-log-item">
+                <div style="display:flex; justify-content:space-between; font-weight:bold; color:#88b9c8;">
+                    <span>t${l.turn}턴 주입 (${l.count}개)</span>
+                    <span style="font-size:10px; color:#888;">${new Date(l.ts).toLocaleTimeString()}</span>
+                </div>
+                <div style="font-size:11px; margin-top:4px;">${l.matched.map(m => m.status === 'success' ? `<span style="color:#8cc09c; font-weight:bold;">✔ ${m.name}</span>` : `<span style="color:#888;">⚠ ${m.name} ${m.reason || ''}</span>`).join('<br>')}</div>
+            </div>
+        `).join('');
+
+        const extLogs = JSON.parse(localStorage.getItem(`pastel_crack_extract_logs_${epId}`) || '[]');
+        extEl.innerHTML = extLogs.length === 0 ? '<div style="text-align:center; color:#888; padding:15px;">이 대화방에서 기록된 로어 생성 로그가 없습니다.</div>' : extLogs.map(l => `
+            <div class="ep-costs-log-item">
+                <div style="display:flex; justify-content:space-between; font-weight:bold; color:#88b9c8;">
+                    <span>t${l.turn}턴 생성 ${l.status === 'success' ? '<span style="color:#8cc09c;">(성공)</span>' : '<span style="color:#b4a1bd;">(실패)</span>'}</span>
+                    <span style="font-size:10px; color:#888;">${new Date(l.ts).toLocaleTimeString()}</span>
+                </div>
+                <div style="font-size:11px; margin-top:2px;">발굴: ${l.count}개 | 모델: ${l.model}</div>
+            </div>
+        `).join('');
+    }
+
+    async function renderCrackLoreSnapshots() {
+        const container = document.getElementById('ep-lore-snapshot-list-container');
+        if (!container || !loreDb) return;
+        container.innerHTML = '';
+        const packName = `Ep_Crack_${getChatId()}_Pack`;
+        const snapshots = await loreDb.snapshots.where('packName').equals(packName).reverse().sortBy('timestamp');
+
+        if (!snapshots || snapshots.length === 0) {
+            container.innerHTML = `<div style="text-align:center; padding:30px; color:#888; font-size:12px;">저장된 백업 포인트가 없습니다.</div>`;
+            return;
+        }
+
+        snapshots.forEach(s => {
+            const card = document.createElement('div');
+            card.style.cssText = "padding: 10px; display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; background: var(--decentral-background); border: 1px solid var(--decentral-inner-border); border-radius: 8px; margin-bottom: 8px;";
+            card.innerHTML = `
+                <div style="text-align: left;">
+                    <span style="font-size: 13px; font-weight: bold; color: var(--decentral-text); display: block;">${s.type}</span>
+                    <span style="font-size: 10px; color: var(--decentral-text-formal);">${new Date(s.timestamp).toLocaleString()}</span>
+                </div>
+                <button type="button" class="btn-restore-snap" style="background: transparent; border: 1px solid #88b9c8; color: #88b9c8; font-size: 11px; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">복원</button>
+            `;
+            card.querySelector('.btn-restore-snap').onclick = async () => {
+                if (!confirm("이 시점으로 로어 데이터를 복원하시겠습니까?")) return;
+                await restoreLoreSnapshot(s.id);
+                showToast("✨ 로어 복원 완료!");
+                renderCrackActiveLores();
+                renderCrackLoreSnapshots();
+            };
+            container.appendChild(card);
+        });
+    }
+
+    function switchCrackLoreTab(tabId, panelId) {
+        document.querySelectorAll('.decentral-menu-element').forEach(t => t.removeAttribute('active'));
+        document.getElementById(tabId)?.setAttribute('active', 'true');
+        document.querySelectorAll('.ep-lore-panel').forEach(p => p.classList.remove('active-panel'));
+        document.getElementById(panelId)?.classList.add('active-panel');
+
+        if (panelId === 'ep-lore-panel-active') renderCrackActiveLores();
+        else if (panelId === 'ep-lore-panel-log') renderCrackLoreLogs();
+        else if (panelId === 'ep-lore-panel-manage') {
+            renderCrackManageTab();
+            const tBtn = document.getElementById('ep-lore-text-btn');
+            if (tBtn) tBtn.onclick = executeTextConversion;
+            const mBtn = document.getElementById('ep-lore-manual-ext-btn');
+            if (mBtn) {
+                mBtn.onclick = async () => {
+                    const turns = parseInt(document.getElementById('ep-lore-manual-ext-turns')?.value, 10) || 6;
+                    const st = document.getElementById('ep-lore-manual-ext-status');
+                    mBtn.disabled = true; mBtn.textContent = "수동 추출 중...";
+                    if (st) { st.textContent = "최근 대화 분석 중..."; st.style.color = "#74a1c0"; }
+                    try {
+                        await executeManualLoreExtraction(getChatId(), turns);
+                        if (st) { st.textContent = `✅ 성공: ${turns}턴 로어가 병합되었습니다.`; st.style.color = "#88b9c8"; }
+                        showToast("✨ 수동 로어 생성 완료!");
+                    } catch (err) {
+                        if (st) { st.textContent = "❌ 실패: " + err.message; st.style.color = "#da8"; }
+                    } finally {
+                        mBtn.disabled = false; mBtn.textContent = "지정 턴수만큼 수동 로어 생성";
+                    }
+                };
+            }
+            const rBtn = document.getElementById('ep-lore-regenerate-btn');
+            if (rBtn) rBtn.onclick = () => executeLoreRegeneration(getChatId());
+        }
+        else if (panelId === 'ep-lore-panel-restore') {
+            renderCrackLoreSnapshots();
+            const snapBtn = document.getElementById('ep-lore-btn-create-snapshot');
+            if (snapBtn) {
+                snapBtn.onclick = async () => {
+                    snapBtn.disabled = true; snapBtn.textContent = "백업 중...";
+                    try {
+                        await createLoreSnapshot(getChatId(), "수동 로어 백업");
+                        showToast("✨ 로어 백업 세이브 생성 완료!");
+                        renderCrackLoreSnapshots();
+                    } catch (_) {}
+                    finally { snapBtn.disabled = false; snapBtn.textContent = "현재 로어 백업"; }
+                };
+            }
+        }
+        else if (panelId === 'ep-lore-panel-settings') loadCrackLoreSettingsTab();
+    }
+
+    function stripLoreOnlyFromView() {
+        const bubbles = document.querySelectorAll('.break-words, .whitespace-pre-wrap, .prose');
+        bubbles.forEach(b => {
+            if (b.innerText && b.innerText.includes('[LORE') && !b.getAttribute('data-lore-hidden')) {
+                b.innerHTML = b.innerHTML.replace(/\[LORE[\s\S]*?(?=(?:\n\s*\n)|$)/i, '').trim();
+                b.setAttribute('data-lore-hidden', 'true');
+            }
+        });
+    }
+
+    /* ==========================================================================
+     * 6. SPA 라우팅 대응 상시 주입 감시 (무거운 감시 없음 / 가벼운 확인 루프)
+     * ========================================================================== */
+    function checkAndInject() {
         injectBaseDOM();
-        attachCrackChatObserver();
-        scheduleScan();
+        stripLoreOnlyFromView();
     }
 
     if (document.readyState === 'loading') {
