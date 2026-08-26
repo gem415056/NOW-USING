@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.2.7
+// @version      1.2.8
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -56,13 +56,45 @@
             --icon_primary: #F0EFEB;
         }
 
-        /* 대화방 상단 헤더가 스크롤/로딩 시 위로 사라지지 않도록 상시 고정 */
+        /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (스크롤 시 사라짐 원천 방지) */
         .absolute.z-docked.left-0.w-full.h-12,
         .h-12.px-5.flex.justify-between.items-center {
+            position: fixed !important;
+            top: 56px !important;
+            left: 0 !important;
+            right: 0 !important;
             transform: none !important;
             opacity: 1 !important;
             visibility: visible !important;
-            z-index: 1000 !important;
+            z-index: 10000 !important;
+            background-color: var(--bg_screen, #ffffff) !important;
+        }
+        body[data-theme="dark"] .absolute.z-docked.left-0.w-full.h-12 {
+            background-color: #141413 !important;
+        }
+
+        /* 2. 대화창 바닥에 200px 여유 공간 확보 (마지막 대화 가림 및 붕 뜸 완벽 해결) */
+        .flex.flex-col-reverse.w-full.gap-10,
+        main, .flex.flex-col.w-full.max-w-\\[768px\\] {
+            padding-bottom: 200px !important;
+        }
+
+        /* 3. 크랙 순정 스크롤 버튼을 입력창 바로 위 15px 우측에 예쁘게 고정 */
+        button[class*="size-[34px]"],
+        button:has(svg path[d^="m12 6.87"]),
+        button:has(svg path[d^="M20.09 8.3"]) {
+            position: fixed !important;
+            bottom: 185px !important;
+            right: calc(50% - 380px + 10px) !important;
+            z-index: 10005 !important;
+            box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
+        }
+        @media (max-width: 768px) {
+            button[class*="size-[34px]"],
+            button:has(svg path[d^="m12 6.87"]),
+            button:has(svg path[d^="M20.09 8.3"]) {
+                right: 20px !important;
+            }
         }
 
         /* 크랙 순정 메뉴 버튼과 완벽히 동일한 인라인 버튼 스타일 */
@@ -433,7 +465,7 @@
             border: none !important;
         }
 
-        /* 하단 입력창을 화면 최하단 바닥에 완전 고정 (모바일 출렁임 100% 방지) */
+        /* 크랙 하단 부모 컨테이너 가로폭 및 최하단 고정 */
         .bg-bg_screen.pointer-events-auto,
         .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
             position: fixed !important;
@@ -446,6 +478,9 @@
             background-color: var(--bg_screen, #ffffff) !important;
             z-index: 10000 !important;
             overflow: visible !important;
+        }
+        body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
+            background-color: #141413 !important;
         }
         body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
             background-color: #141413 !important;
