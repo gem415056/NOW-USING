@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.5.0
+// @version      1.5.1
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -3384,15 +3384,41 @@ Conversation Log:
                 safetySettings: getSafetySettingsPayload()
             };
 
-            const appCheckToken = await getAppCheckToken();
-            const headers = { "Content-Type": "application/json" };
-            if (appCheckToken && url.includes("firebasevertexai")) {
-                headers["X-Firebase-AppCheck"] = appCheckToken;
-            }
+        showLoreExtPersistentToast("🔑 App Check 보안 토큰 확인 중...");
+        const appCheckToken = await getAppCheckToken();
+        const headers = { "Content-Type": "application/json" };
+        if (appCheckToken) {
+            headers["X-Firebase-AppCheck"] = appCheckToken;
+        }
 
-            const res = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
-            if (!res.ok) throw new Error(`API 통신 실패 (HTTP ${res.status})`);
-            const resData = await res.json();
+        showLoreExtPersistentToast(`🔮 AI 대화 분석 및 로어 생성 중... (${selectedModel})`);
+
+        // 60초 강제 타임아웃 제어기 적용 (무한 멈춤 원천 방지)
+        const abortCtrl = new AbortController();
+        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
+
+        let res;
+        try {
+            res = await fetch(url, { 
+                method: "POST", 
+                headers: headers, 
+                body: JSON.stringify(body),
+                signal: abortCtrl.signal
+            });
+        } catch (fetchErr) {
+            if (fetchErr.name === 'AbortError') {
+                throw new Error("AI 응답 시간 초과(60초). 다시 시도해 주십시오.");
+            }
+            throw fetchErr;
+        } finally {
+            clearTimeout(fetchTimeout);
+        }
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            throw new Error(`API 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
+        }
+        const resData = await res.json();
 
             const rawJsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
             if (!rawJsonText.trim()) throw new Error("AI가 로어 데이터를 반환하지 않았습니다.");
@@ -3498,12 +3524,26 @@ Conversation Log:
 
         const appCheckToken = await getAppCheckToken();
         const headers = { "Content-Type": "application/json" };
-        if (appCheckToken && url.includes("firebasevertexai")) {
+        if (appCheckToken) {
             headers["X-Firebase-AppCheck"] = appCheckToken;
         }
 
-        const res = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
-        if (!res.ok) throw new Error(`API 통신 에러 (HTTP ${res.status})`);
+        const abortCtrl = new AbortController();
+        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
+
+        let res;
+        try {
+            res = await fetch(url, { 
+                method: "POST", 
+                headers: headers, 
+                body: JSON.stringify(body),
+                signal: abortCtrl.signal 
+            });
+        } finally {
+            clearTimeout(fetchTimeout);
+        }
+
+        if (!res.ok) throw new Error(`API 통신 실패 (HTTP ${res.status})`);
         const resData = await res.json();
 
         const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -4520,26 +4560,58 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         else if (panelId === 'ep-lore-panel-settings') loadCrackLoreSettingsTab();
     }
 
-    // Firebase SDK 및 App Check 초기화 엔진 (crack.html 순정 100% 일치)
+    // Firebase SDK 및 App Check 초기화 엔진 (reCAPTCHA v3 DOM 자동 주입 및 8초 타임아웃 완비)
     let geminiAppCheckApp = null;
+    let cachedAppCheckToken = null;
+    let cachedAppCheckExpiry = 0;
     const RECAPTCHA_SITE_KEY = "6Lc_imwtAAAAADr3ojpxWjAb5ofGvBzD4rgEnfr4";
 
+    // 1. reCAPTCHA v3 런타임 스크립트를 브라우저 DOM에 즉각 주입
+    function injectRecaptchaScript() {
+        if (!document.getElementById('recaptcha-v3-runtime-script')) {
+            const script = document.createElement('script');
+            script.id = 'recaptcha-v3-runtime-script';
+            script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
+            script.async = true;
+            (document.head || document.documentElement).appendChild(script);
+        }
+    }
+    injectRecaptchaScript();
+
+    // 2. 메모리 캐시 & 8초 안전 타임아웃 탑재 토큰 발급기
     async function getAppCheckToken() {
+        // 이미 유효한 캐시 토큰이 있으면 즉시 반환 (지연 시간 0초)
+        const now = Date.now();
+        if (cachedAppCheckToken && now < cachedAppCheckExpiry) {
+            return cachedAppCheckToken;
+        }
+
         try {
+            injectRecaptchaScript();
             if (!geminiAppCheckApp) {
                 initializeFirebaseDynamically();
             }
+
             const targetApp = geminiAppCheckApp || (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0 ? firebase.app() : null);
             if (targetApp && typeof firebase !== 'undefined' && firebase.appCheck) {
-                const tokenResult = await firebase.appCheck(targetApp).getToken(false);
+                // 8초 타임아웃 Promise와 경쟁시켜 무한 멈춤(Hang)을 100% 차단
+                const tokenPromise = firebase.appCheck(targetApp).getToken(false);
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("AppCheck 토큰 발급 시간 초과(8초)")), 8000)
+                );
+
+                const tokenResult = await Promise.race([tokenPromise, timeoutPromise]);
                 if (tokenResult && tokenResult.token) {
-                    return tokenResult.token;
+                    cachedAppCheckToken = tokenResult.token;
+                    // 30분간 토큰 재사용 캐싱
+                    cachedAppCheckExpiry = now + (30 * 60 * 1000);
+                    return cachedAppCheckToken;
                 }
             }
         } catch (e) {
             console.warn("[AppCheck 알림]:", e ? e.message : e);
         }
-        return null;
+        return cachedAppCheckToken || null;
     }
 
     function initializeFirebaseDynamically() {
