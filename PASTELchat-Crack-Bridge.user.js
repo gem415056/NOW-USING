@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.3.2
+// @version      1.3.3
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1077,10 +1077,10 @@
         if (!text) return "";
         const isUser = (msgType === 'user');
 
-        // 1. 주입된 로어 블록 은닉 (사용자의 줄바꿈은 100% 보존)
+        // 1. 주입된 로어 블록 은닉
         let cleanedText = stripLoreInjectionBlock(text).trim();
 
-        // 2. 크랙 에디터가 대사카드/문자 사이에 강제로 끼워넣은 빈 줄만 스마트 결합
+        // 2. 크랙 에디터가 대사카드/문자 사이에 강제로 끼워넣은 빈 줄만 결합
         cleanedText = cleanedText
             .replace(/([—―][^\n]+)\n+(?=▎)/g, '$1\n')
             .replace(/(▎[^\n]*)\n+(?=▎)/g, '$1\n')
@@ -1092,13 +1092,13 @@
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;");
 
-        // 0. HUD 전용 ❴ ❵ 파싱 (뒤쪽 엔터/빈줄 절대 삼키지 않음)
-        html = html.replace(/❴\n?([\s\S]*?)\n?❵/g, function(match, hudContent) {
+        // 0. HUD 전용 ❴ ❵ 파싱 (블록 요소 뒤의 첫 개행만 흡수하여 정확한 1줄 간격 유지)
+        html = html.replace(/❴\n?([\s\S]*?)\n?❵(?:\r?\n)?/g, function(match, hudContent) {
             return `<div class="ep-hud-box">${hudContent.trim()}</div>`;
         });
 
-        // 0.2 대사 카드 파싱 (뒤쪽 엔터/빈줄 절대 삼키지 않음)
-        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*▎[^\n\r]*)+)/g, function(match, leadNL, name, lines) {
+        // 0.2 대사 카드 파싱
+        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*▎[^\n\r]*)+)(?:\r?\n)?/g, function(match, leadNL, name, lines) {
             const cleanName = name.trim();
             const contentList = lines.split('\n')
                 .map(l => l.trim())
@@ -1108,8 +1108,8 @@
             return `${leadNL}<div class="ep-dialogue-card-wrapper ${isUser ? 'user-side' : ''}"><div class="ep-dialogue-badge-row"><div class="ep-dialogue-badge">${cleanName}</div></div><div class="ep-dialogue-card-box">${cleanContent}</div></div>`;
         });
 
-        // 0.3 메신저 문자 말풍선 파싱 (뒤쪽 엔터/빈줄 절대 삼키지 않음)
-        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*`[^`\n\r]+`)+)/g, function(match, leadNL, name, lines) {
+        // 0.3 메신저 문자 말풍선 파싱
+        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*`[^`\n\r]+`)+)(?:\r?\n)?/g, function(match, leadNL, name, lines) {
             const cleanName = name.trim();
             const bubbleList = lines.split('\n')
                 .map(l => l.trim())
@@ -1122,8 +1122,8 @@
             return `${leadNL}<div class="ep-sms-container ${isUser ? 'user-side' : ''}"><div class="ep-sms-avatar-icon">${userSvg}</div><div class="ep-sms-content-col"><span class="ep-sms-name">${cleanName}</span>${bubblesHtml}</div></div>`;
         });
 
-        // 1. 코드블록 치환 (뒤쪽 엔터/빈줄 절대 삼키지 않음)
-        html = html.replace(/`{3}([^\n]*?)(?:\r?\n([\s\S]*?))?`{3}/g, function(match, title, content) {
+        // 1. 코드블록 치환
+        html = html.replace(/`{3}([^\n]*?)(?:\r?\n([\s\S]*?))?`{3}(?:\r?\n)?/g, function(match, title, content) {
             const trimmedTitle = title.trim();
             if (content === undefined) return `<div class="ep-code-block-wrapper"><div class="ep-code-block-body no-header">${trimmedTitle}</div></div>`;
             const cleanedContent = content.trim();
@@ -1135,11 +1135,11 @@
         // 2. 인라인 백틱
         html = html.replace(/`([^`\n]+)`/g, '<span class="ep-inline-code">$1</span>');
 
-        // 2.5 단축어 전송 토큰 치환 (!단축어 뱃지)
+        // 2.5 단축어 전송 토큰 치환
         html = html.replace(/(![a-zA-Z0-9가-힣/]+)/g, '<span class="ep-chat-shortcut-token">$1</span>');
 
         // 2.8 점선 구분선
-        html = html.replace(/(^\s*([\*_=~+─━═┈┉┄┅―—–‒·•-]\s*){3,}\s*$|\*{3,}|={3,}|─{2,}|━{2,}|═{2,})(\r?\n)?/gm, '<hr class="ep-chat-hr">');
+        html = html.replace(/(^\s*([\*_=~+─━═┈┉┄┅―—–‒·•-]\s*){3,}\s*$|\*{3,}|={3,}|─{2,}|━{2,}|═{2,})(?:\r?\n)?/gm, '<hr class="ep-chat-hr">');
 
         // 3. 볼드
         html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="ep-chat-bold">$1</strong>');
@@ -1147,7 +1147,7 @@
         // 4. 행동 지문
         html = html.replace(/\*([^*\n]+)\*/g, '<span class="ep-chat-action">$1</span>');
 
-        // 5. 연속 인용구 그룹핑 알고리즘 (> 로 시작하는 줄 연속 묶음)
+        // 5. 연속 인용구 그룹핑 알고리즘
         const lines = html.split('\n');
         const processedLines = [];
         let inQuoteBlock = false;
@@ -2394,34 +2394,38 @@
             return;
         }
 
-        // 유저 메시지 판별 (크랙의 우측 배치 또는 유저 스타일 클래스 확인)
-        const isUser = !!container.closest('.justify-end') || 
-                       !!container.closest('[class*="items-end"]') || 
-                       !!container.closest('.bg-accent_translucent') ||
-                       container.classList.contains('bg-accent_translucent');
-
-        // 원본 텍스트 추출 (숨겨진 파스텔 렌더러를 제외한 React 순수 원본 텍스트 추출)
+        // [중요] 크랙 순정 '메시지 수정 모드' 감지 (textarea나 에디터 활성화 여부)
+        const activeEditor = container.querySelector('textarea, [contenteditable="true"], input[type="text"]');
         let customBox = container.querySelector('.pastel-custom-rendered');
         let targetTextEl = container;
 
-        // 자식 중 이미 파스텔 박스가 있다면 텍스트 요소 분리
         if (container.children.length > 0) {
             const candidate = Array.from(container.children).find(c => !c.classList.contains('pastel-custom-rendered'));
             if (candidate) targetTextEl = candidate;
         }
 
-        const rawText = targetTextEl.getAttribute('data-pastel-raw') || targetTextEl.innerText || targetTextEl.textContent || '';
-        if (!rawText.trim()) return;
-
-        // 원본 텍스트 캐싱
-        if (!targetTextEl.getAttribute('data-pastel-raw')) {
-            targetTextEl.setAttribute('data-pastel-raw', rawText);
+        // 수정 모드일 때는 파스텔 렌더 박스를 완전히 숨기고 크랙 순정 에디터를 100% 정상 노출
+        if (activeEditor) {
+            targetTextEl.classList.remove('pastel-origin-hidden');
+            if (customBox) customBox.style.display = 'none';
+            return;
+        } else {
+            if (customBox) customBox.style.display = 'block';
         }
+
+        // 유저 메시지 판별
+        const isUser = !!container.closest('.justify-end') || 
+                       !!container.closest('[class*="items-end"]') || 
+                       !!container.closest('.bg-accent_translucent') ||
+                       container.classList.contains('bg-accent_translucent');
+
+        // 수정 후 갱신된 텍스트 실시간 반영 (숨김 상태에서도 textContent로 최신 텍스트 취득)
+        const rawText = targetTextEl.textContent || targetTextEl.innerText || '';
+        if (!rawText.trim()) return;
 
         const role = isUser ? 'user' : 'model';
         const parsedHtml = parseChatMarkdown(rawText, role);
 
-        // React 원본 노드는 숨기고, 옆에 파스텔 전용 노드를 유지/주입
         targetTextEl.classList.add('pastel-origin-hidden');
 
         if (!customBox) {
