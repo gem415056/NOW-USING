@@ -1,141 +1,809 @@
 // ==UserScript==
-// @name         PASTELchat × CRACK (Module 1: Pinpoint Shell)
-// @namespace    https://github.com/PASTELchat/crack
-// @version      1.3.0
-// @description  Module 1 Pinpoint: Guaranteed Mount on crack.wrtn.ai
+// @name         PASTELchat × CRACK Module 1 (Base & Menu)
+// @namespace    https://pastelchat.com/
+// @version      1.0.0
+// @description  PASTELchat Native UI Engine for crack.wrtn.ai - Module 1: Base & Right Drawer Menu
+// @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
-// @match        http://crack.wrtn.ai/*
-// @grant        none
+// @grant        GM_setValue
+// @grant        GM_getValue
+// @grant        GM_addStyle
 // @run-at       document-idle
 // ==/UserScript==
 
 (function() {
     'use strict';
 
-    // 1. 동작 여부 확인용 시각 배지 (2초 후 자동 소멸)
-    const toast = document.createElement('div');
-    toast.style.cssText = 'position:fixed;top:10px;left:10px;z-index:999999;background:#FF4432;color:#fff;padding:6px 12px;border-radius:20px;font-size:12px;font-weight:bold;box-shadow:0 2px 10px rgba(0,0,0,0.2);';
-    toast.textContent = 'PASTELchat 로드 완료';
-    document.documentElement.appendChild(toast);
-    setTimeout(() => toast.remove(), 2500);
+    /* ==========================================================================
+     * 1. crack.html 순정 CSS 스타일시트 (100% 원본 완전 일치)
+     * ========================================================================== */
+    const PASTEL_CSS = `
+        :root {
+            --bg_primary: #ffffff;
+            --text_primary: #222222;
+            --icon_primary: #222222;
+            --pastel_gradient: linear-gradient(135deg, #FFB5E8, #FF9CEE, #B28DFF, #85E3FF, #BFFCC6);
+        }
 
-    // 2. 파스텔챗 CSS 주입
-    const styleEl = document.createElement('style');
-    styleEl.textContent = `
-        #ep-pastel-injected-container {
-            display: flex !important; flex-direction: column !important; width: 100% !important; height: 100% !important;
-            position: absolute !important; inset: 0 !important; z-index: 50 !important;
-            background: #ffffff !important; color: #222222 !important; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif !important;
+        body[data-theme="dark"] {
+            --bg_primary: #141413;
+            --text_primary: #F0EFEB;
+            --icon_primary: #F0EFEB;
         }
-        body[data-theme="dark"] #ep-pastel-injected-container, html.dark #ep-pastel-injected-container {
-            background: #141413 !important; color: #F0EFEB !important;
+
+        /* 우측 상단 플로팅 파스텔 메뉴 트리거 버튼 */
+        #ep-native-menu-btn {
+            position: fixed;
+            top: 14px;
+            right: 20px;
+            z-index: 99999;
+            background: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            border: 1px solid #E6E6E6;
+            border-radius: 50%;
+            width: 36px;
+            height: 36px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #222222;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            transition: transform 0.2s, background-color 0.2s, border-color 0.2s;
+            padding: 0;
+            outline: none;
         }
-        .chat-info-header { height: 42px; border-bottom: 1px solid #E6E6E6; display: flex; align-items: center; justify-content: space-between; padding: 0 20px; font-size: 12px; }
-        .chat-content-box { flex: 1; overflow-y: auto; padding: 20px; }
-        .chat-footer-control { padding: 16px 20px; background: inherit; }
-        .input-area { height: 150px; border: 1px solid #E6E6E6; border-radius: 12px; padding: 12px; display: flex; flex-direction: column; background: #fafafa; }
-        body[data-theme="dark"] .input-area, html.dark .input-area { background: #1a1918; border-color: #333; }
-        .chat-textarea { width: 100%; height: 100%; border: none; background: transparent; color: inherit; resize: none; outline: none; font-size: 15px; }
-        .input-toolbar { display: flex; align-items: center; gap: 8px; margin-top: 6px; }
-        .tool-btn { width: 26px; height: 26px; border-radius: 50%; border: 1px solid #B0B0B0; background: #fff; color: inherit; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; font-size: 14px; }
-        .right-drawer-container { position: absolute; top: 0; right: 0; width: 250px; height: 100%; background: inherit; border-left: 1px solid #E6E6E6; z-index: 60; display: none; flex-direction: column; padding: 16px; box-shadow: -4px 0 16px rgba(0,0,0,0.1); }
-        .ep-chat-drawer-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.4); z-index: 55; display: none; }
+        #ep-native-menu-btn:hover {
+            transform: scale(1.05);
+            background: #ffffff;
+            border-color: #F5E19A;
+        }
+        body[data-theme="dark"] #ep-native-menu-btn {
+            background: rgba(20, 20, 19, 0.85);
+            border-color: #42413D;
+            color: #F0EFEB;
+        }
+
+        /* 우측 서랍 컨테이너 */
+        .right-drawer-container {
+            position: fixed;
+            top: 0;
+            right: 0;
+            width: 255px;
+            height: 100%;
+            background-color: var(--bg_primary);
+            border-left: 1px solid #E6E6E6;
+            box-sizing: border-box;
+            z-index: 100000;
+            display: none;
+            flex-direction: column;
+            user-select: none;
+            box-shadow: -4px 0 24px rgba(0, 0, 0, 0.12);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+        }
+        body[data-theme="dark"] .right-drawer-container {
+            background-color: #141413 !important;
+            border-color: #42413D;
+        }
+
+        .right-drawer-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            box-sizing: border-box;
+        }
+
+        .drawer-section-title {
+            font-size: 13px;
+            color: #888888;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 16px 0 8px 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .api-boxed-card {
+            background-color: #F9F9F9;
+            border: 1px solid #E6E6E6;
+            border-radius: 8px;
+            padding: 9px;
+            display: none;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        .api-tabs-row {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+        .api-tab-btn {
+            border: 1px solid #E6E6E6;
+            border-radius: 4px;
+            font-size: 12px;
+            background-color: transparent;
+            color: var(--text_primary);
+            padding: 4px 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .api-tab-btn.active {
+            border-color: #E6E6E6;
+            background-color: #F5E19A;
+            color: #333333;
+        }
+        .api-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: left;
+        }
+        .api-input-group label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #888888;
+        }
+        .api-textbox {
+            border: 1px solid #E6E6E6;
+            border-radius: 8px;
+            background: var(--bg_primary);
+            color: var(--text_primary);
+            font-size: 13px;
+            padding: 7px;
+            box-sizing: border-box;
+            outline: none;
+            width: 100%;
+            font-family: inherit;
+        }
+
+        .model-boxed-card {
+            background-color: #F9F9F9;
+            border: 1px solid #E6E6E6;
+            border-radius: 8px;
+            padding: 9px;
+            display: none;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        .model-tabs-row {
+            display: flex;
+            gap: 4px;
+            margin-bottom: 6px;
+        }
+        .model-tab-btn {
+            border: 1px solid #E6E6E6;
+            border-radius: 4px;
+            font-size: 12px;
+            background-color: transparent;
+            color: var(--text_primary);
+            padding: 4px 8px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+        .model-tab-btn.active {
+            border-color: #E6E6E6;
+            background-color: #F5E19A;
+            color: #333333;
+        }
+        .model-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: left;
+        }
+        .model-input-group label {
+            font-size: 11px;
+            font-weight: bold;
+            color: #888888;
+            margin-top: 6px;
+            user-select: none;
+        }
+        .model-input-group label:first-child {
+            margin-top: 0;
+        }
+        .model-select-dropdown {
+            border: 1px solid #E6E6E6;
+            border-radius: 8px;
+            background: var(--bg_primary);
+            color: var(--text_primary);
+            font-size: 13px;
+            padding: 7px;
+            height: 38px;
+            cursor: pointer;
+            width: 100%;
+            box-sizing: border-box;
+            outline: none;
+        }
+        .ep-model-custom-input {
+            margin-top: 4px !important;
+            height: 38px !important;
+            font-size: 13px !important;
+            padding: 10px 12px !important;
+            border-radius: 8px !important;
+            box-sizing: border-box !important;
+        }
+
+        .menu-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--text_primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+            transition: background-color 0.15s;
+        }
+        .menu-item:hover {
+            background-color: #F9F9F9;
+        }
+        body[data-theme="dark"] .menu-item:hover {
+            background-color: #1f1e1d;
+        }
+
+        .ep-chat-drawer-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 99998;
+            display: none;
+        }
+
+        /* 에피소드 노트 및 공용 팝업 모달 */
+        .ep-prompt-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 100050;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+        }
+        .ep-prompt-overlay.visible {
+            display: flex;
+        }
+        .ep-prompt-modal {
+            background: #fff !important;
+            border-radius: 12px;
+            padding: 24px;
+            width: 480px;
+            max-width: 90vw;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            box-sizing: border-box;
+        }
+        .ep-epnote-modal {
+            width: 600px !important;
+            height: 690px !important;
+            max-height: 690px !important;
+        }
+        .ep-profile-textarea {
+            width: 100%;
+            flex: 1;
+            padding: 10px 12px;
+            font-size: 14px;
+            background-color: #fafafa;
+            border: 1px solid #E6E6E6;
+            border-radius: 8px;
+            color: #222;
+            box-sizing: border-box;
+            resize: none;
+            outline: none;
+            margin: 0;
+            font-family: inherit;
+            line-height: 1.6;
+        }
+        body[data-theme="dark"] .ep-prompt-modal {
+            background: #242321 !important;
+            color: #F0EFEB !important;
+        }
+        body[data-theme="dark"] .ep-profile-textarea {
+            background-color: #141413 !important;
+            border-color: #42413D !important;
+            color: #F0EFEB !important;
+        }
+
+        .ep-header2 {
+            margin: 0 0 8px 0;
+            font-size: 19px;
+            font-weight: 700;
+            color: #222 !important;
+        }
+        body[data-theme="dark"] .ep-header2 {
+            color: #F0EFEB !important;
+        }
+
+        .ep-menu-toggle {
+            background: none;
+            border: none;
+            cursor: pointer;
+            padding: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--icon_primary);
+        }
+
+        /* 토스트 알림창 */
+        #pastel-toast-container {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 2147483647;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            pointer-events: none;
+        }
+        .ep-toast-item {
+            opacity: 0;
+            transform: scale(0.9);
+            transition: transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.2), opacity 0.15s ease;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .ep-toast-item.visible {
+            opacity: 1;
+            transform: scale(1);
+        }
+        .ep-toast-container {
+            background-color: #23343A !important;
+            border: 1.5px solid #88B9C8 !important;
+            padding: 9px 14px !important;
+            border-radius: 9999px !important;
+            display: inline-flex !important;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.3) !important;
+        }
+        .ep-toast-text {
+            color: #EFFCFF !important;
+            font-size: 12px !important;
+            margin: 0 !important;
+            white-space: nowrap !important;
+            font-weight: bold !important;
+        }
     `;
-    document.head.appendChild(styleEl);
 
-    // 3. 파스텔챗 UI HTML
-    const pastelHTML = `
-        <div id="ep-pastel-injected-container">
-            <div class="chat-info-header">
-                <div style="display:flex; gap:10px;">
-                    <span>로어 비용: <b id="ep-lore-cost-val">0</b>원</span>
-                    <span>잔여 크래커: <b id="ep-crack-total-cash">0</b>개</span>
+    // CSS 주입
+    const styleEl = document.createElement('style');
+    styleEl.type = 'text/css';
+    styleEl.innerHTML = PASTEL_CSS;
+    (document.head || document.documentElement).appendChild(styleEl);
+
+    /* ==========================================================================
+     * 2. 토스트 헬퍼 함수 (index.html 순정)
+     * ========================================================================== */
+    function showToast(msg) {
+        let container = document.getElementById('pastel-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'pastel-toast-container';
+            document.body.appendChild(container);
+        }
+        const item = document.createElement('div');
+        item.className = 'ep-toast-item';
+        item.innerHTML = `<div class="ep-toast-container"><p class="ep-toast-text">${msg}</p></div>`;
+        container.appendChild(item);
+        setTimeout(() => item.classList.add('visible'), 20);
+        setTimeout(() => {
+            item.classList.remove('visible');
+            setTimeout(() => {
+                if (container && container.contains(item)) item.remove();
+            }, 200);
+        }, 2500);
+    }
+
+    /* ==========================================================================
+     * 3. UI 뼈대 DOM 마크업 주입 (우측 서랍 & 에피소드 노트 모달)
+     * ========================================================================== */
+    function injectBaseDOM() {
+        if (document.getElementById('ep-chat-right-drawer')) return;
+
+        // 1. 우측 상단 플로팅 파스텔 메뉴 버튼 (crack.html 순정 3-Dot 원형 아이콘)
+        const menuBtn = document.createElement('button');
+        menuBtn.id = 'ep-native-menu-btn';
+        menuBtn.title = 'PASTELchat 메뉴 열기';
+        menuBtn.innerHTML = `
+            <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="22px" height="22px">
+                <path d="M11 11h2v2h-2zm-2.5 0h-2v2h2zm7 0h2v2h-2z"></path>
+                <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
+            </svg>
+        `;
+        document.body.appendChild(menuBtn);
+
+        // 2. 딤 배경 오버레이
+        const overlay = document.createElement('div');
+        overlay.id = 'ep-chat-drawer-overlay';
+        overlay.className = 'ep-chat-drawer-overlay';
+        document.body.appendChild(overlay);
+
+        // 3. 우측 서랍 메뉴 컨테이너
+        const drawer = document.createElement('div');
+        drawer.id = 'ep-chat-right-drawer';
+        drawer.className = 'right-drawer-container';
+        drawer.innerHTML = `
+            <div class="right-drawer-body">
+                <!-- 1) API 설정 아코디언 -->
+                <div class="drawer-section-title" id="ep-api-accordion-title">
+                    <span>API 설정</span>
+                    <span class="accordion-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg></span>
                 </div>
-            </div>
-            <div class="ep-chat-drawer-overlay" id="ep-chat-drawer-overlay"></div>
-            <div class="chat-content-box" id="ep-chat-content-box">
-                <div style="text-align:center; padding:40px; color:#888;">✨ <b>PASTELchat 모듈 1</b> 정상 마운트 성공!</div>
-            </div>
-            <div class="chat-footer-control">
-                <div class="input-area">
-                    <textarea class="chat-textarea" id="ep-chat-input-textarea" placeholder="메시지를 입력하세요..."></textarea>
-                    <div class="input-toolbar">
-                        <button class="tool-btn ep-symbol-btn" data-open="*">*</button>
-                        <button class="tool-btn ep-symbol-btn" data-open='"' data-close='"' >"</button>
-                        <button class="tool-btn ep-symbol-btn" data-open="'" data-close="'" >'</button>
-                        <button class="tool-btn ep-symbol-btn" data-open="(" data-close=")" >()</button>
-                        <button class="tool-btn ep-symbol-btn" data-open="[" data-close="]" >[]</button>
-                        <button class="tool-btn" id="ep-chat-send-btn" style="margin-left:auto; width:30px; height:30px; border-radius:50%; background:#F5E19A; border:none; cursor:pointer;">▶</button>
+                <div class="api-boxed-card" id="api-collapsible-card">
+                    <div class="api-tabs-row">
+                        <button class="api-tab-btn active" id="ep-api-tab-gemini">Gemini</button>
+                        <button class="api-tab-btn" id="ep-api-tab-firebase">Firebase</button>
+                    </div>
+                    <div class="api-tab-content" id="ep-api-gemini-view">
+                        <div class="api-input-group">
+                            <label id="ep-api-label-text">Google Gemini API Key</label>
+                            <input type="text" class="api-textbox" id="ep-api-key-input">
+                            <textarea class="api-textbox" id="ep-api-firebase-textarea" style="display: none; height: 160px; resize: none;"></textarea>
+                        </div>
                     </div>
                 </div>
-            </div>
-            <div class="right-drawer-container" id="ep-chat-right-drawer">
-                <div style="display:flex; justify-content:space-between; font-weight:bold; margin-bottom:16px;">
-                    <span>설정 및 메뉴</span>
-                    <button id="ep-drawer-close" style="background:none; border:none; cursor:pointer;">✕</button>
+
+                <!-- 2) 모델 선택 아코디언 -->
+                <div class="drawer-section-title" id="ep-model-accordion-title">
+                    <span>모델 선택</span>
+                    <span class="accordion-arrow"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg></span>
                 </div>
-                <div style="color:#888; font-size:13px;">PASTELchat 서랍 메뉴</div>
+                <div class="model-boxed-card" id="model-collapsible-card">
+                    <div class="model-tabs-row">
+                        <button class="model-tab-btn active" id="ep-model-tab-lore">로어</button>
+                        <button class="model-tab-btn" id="ep-model-tab-safety">안전 필터</button>
+                    </div>
+
+                    <!-- 탭 1: 로어 -->
+                    <div class="api-tab-content" id="ep-model-lore-view">
+                        <div class="model-input-group">
+                            <label>로어 생성 모델</label>
+                            <select class="model-select-dropdown" id="ep-lore-extract-model-select">
+                                <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+                                <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                                <option value="gemini-3.6-flash" selected>Gemini 3.6 Flash</option>
+                                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                                <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash Lite</option>
+                                <option value="_custom">직접 입력 (Custom)</option>
+                            </select>
+                            <input type="text" class="api-textbox ep-model-custom-input" id="ep-lore-extract-custom-input" placeholder="모델명 직접 입력" style="display: none;">
+
+                            <label>중요 장면 판단 모델</label>
+                            <select class="model-select-dropdown" id="ep-lore-judge-model-select">
+                                <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro Preview</option>
+                                <option value="gemini-3.7-flash">Gemini 3.7 Flash</option>
+                                <option value="gemini-3.6-flash">Gemini 3.6 Flash</option>
+                                <option value="gemini-3.5-flash">Gemini 3.5 Flash</option>
+                                <option value="gemini-3.5-flash-lite" selected>Gemini 3.5 Flash Lite</option>
+                                <option value="_custom">직접 입력 (Custom)</option>
+                            </select>
+                            <input type="text" class="api-textbox ep-model-custom-input" id="ep-lore-judge-custom-input" placeholder="모델명 직접 입력" style="display: none;">
+
+                            <label>로어 생성 생각 깊이 (Reasoning)</label>
+                            <select class="model-select-dropdown" id="ep-lore-reasoning-select">
+                                <option value="off">Off (비활성)</option>
+                                <option value="minimal">Minimal (기본 256)</option>
+                                <option value="low">Low (1024)</option>
+                                <option value="medium" selected>Medium (2048)</option>
+                                <option value="high">High (4096)</option>
+                                <option value="budget">Budget (직접 예산 입력)</option>
+                            </select>
+                            <input type="number" class="api-textbox ep-model-custom-input" id="ep-lore-reasoning-budget-input" placeholder="토큰 예산 직접 입력" style="display: none;" min="1" max="1000000">
+
+                            <label>중요 장면 판단 생각 깊이</label>
+                            <select class="model-select-dropdown" id="ep-lore-judge-reasoning-select">
+                                <option value="minimal" selected>Minimal (권장)</option>
+                                <option value="low">Low</option>
+                                <option value="medium">Medium</option>
+                                <option value="high">High</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- 탭 2: 안전 필터 -->
+                    <div class="api-tab-content" id="ep-model-safety-view" style="display: none;">
+                        <div class="model-input-group">
+                            <label>괴롭힘 필터 (Harassment)</label>
+                            <select class="model-select-dropdown" id="ep-safety-harassment-select">
+                                <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
+                                <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
+                                <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
+                                <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
+                            </select>
+
+                            <label>증오 발언 필터 (Hate Speech)</label>
+                            <select class="model-select-dropdown" id="ep-safety-hate-select">
+                                <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
+                                <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
+                                <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
+                                <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
+                            </select>
+
+                            <label>선정성 필터 (Sexually Explicit)</label>
+                            <select class="model-select-dropdown" id="ep-safety-explicit-select">
+                                <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
+                                <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
+                                <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
+                                <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
+                            </select>
+
+                            <label>위험 콘텐츠 필터 (Dangerous)</label>
+                            <select class="model-select-dropdown" id="ep-safety-dangerous-select">
+                                <option value="BLOCK_NONE" selected>필터 끄기 (BLOCK_NONE)</option>
+                                <option value="BLOCK_ONLY_HIGH">느슨함 (BLOCK_ONLY_HIGH)</option>
+                                <option value="BLOCK_MEDIUM_AND_ABOVE">보통 (BLOCK_MEDIUM_AND_ABOVE)</option>
+                                <option value="BLOCK_LOW_AND_ABOVE">엄격함 (BLOCK_LOW_AND_ABOVE)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 3) 어시스턴트 -->
+                <div class="drawer-section-title">어시스턴트</div>
+                <div class="menu-item" id="ep-menu-epnote-btn">
+                    <span>에피소드 노트</span>
+                </div>
+                <div class="menu-item" id="ep-menu-lore-btn">
+                    <span>로어 저장소</span>
+                </div>
+
+                <!-- 4) 데이터 관리 -->
+                <div class="drawer-section-title">데이터 관리</div>
+                <div class="menu-item" id="ep-menu-html-save-btn">
+                    <span>대화 저장</span>
+                </div>
+                <div class="menu-item" id="ep-menu-crack-clear-btn">
+                    <span>크랙 데이터 전체 정리</span>
+                </div>
             </div>
-        </div>
-    `;
+        `;
+        document.body.appendChild(drawer);
 
-    // 4. 화면 직결 마운트 루프
-    function mount() {
-        const nativeInput = document.querySelector('.ProseMirror');
-        const mainView = document.querySelector('main') || document.querySelector('div[class*="flex-1"][class*="flex-col"]');
+        // 4. 에피소드 노트 모달 (미전송 메모 전용)
+        const epNoteModal = document.createElement('div');
+        epNoteModal.id = 'ep-epnote-modal-overlay';
+        epNoteModal.className = 'ep-prompt-overlay';
+        epNoteModal.innerHTML = `
+            <div class="ep-prompt-modal ep-epnote-modal">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                    <h2 class="ep-header2" style="margin:0;">에피소드 노트 (미전송 메모)</h2>
+                    <button class="ep-menu-toggle" id="ep-epnote-close-btn" style="padding:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+                </div>
+                <textarea class="ep-profile-textarea" id="ep-epnote-unsent-textarea" placeholder="AI에게 전송되지 않는 자유 비공개 메모나 설정을 입력하세요..."></textarea>
+            </div>
+        `;
+        document.body.appendChild(epNoteModal);
 
-        if ((nativeInput || mainView) && !document.getElementById('ep-pastel-injected-container')) {
-            const mountTarget = mainView || document.body;
-            mountTarget.style.position = 'relative';
-            
-            const wrapper = document.createElement('div');
-            wrapper.innerHTML = pastelHTML;
-            mountTarget.appendChild(wrapper.firstElementChild);
+        // 이벤트 리스너 바인딩 호출
+        bindDrawerEvents();
+    }
 
-            // 이벤트 연결
-            const drawer = document.getElementById('ep-chat-right-drawer');
-            const overlay = document.getElementById('ep-chat-drawer-overlay');
-            document.getElementById('ep-drawer-close').onclick = () => { drawer.style.display = 'none'; overlay.style.display = 'none'; };
-            overlay.onclick = () => { drawer.style.display = 'none'; overlay.style.display = 'none'; };
+    /* ==========================================================================
+     * 4. 서랍 / 아코디언 / 모달 이벤트 바인딩 로직
+     * ========================================================================== */
+    function bindDrawerEvents() {
+        const menuBtn = document.getElementById('ep-native-menu-btn');
+        const drawer = document.getElementById('ep-chat-right-drawer');
+        const overlay = document.getElementById('ep-chat-drawer-overlay');
 
-            // 구슬 버튼 기호 입력
-            const ta = document.getElementById('ep-chat-input-textarea');
-            document.querySelectorAll('.ep-symbol-btn').forEach(btn => {
-                btn.onclick = () => {
-                    const op = btn.dataset.open || '', cl = btn.dataset.close || '';
-                    const s = ta.selectionStart, e = ta.selectionEnd;
-                    ta.value = ta.value.slice(0, s) + op + cl + ta.value.slice(e);
-                    ta.focus();
-                    ta.setSelectionRange(s + op.length, s + op.length);
-                };
-            });
+        // 서랍 열기/닫기
+        const toggleDrawer = (open) => {
+            const isOpen = (open !== undefined) ? open : (drawer.style.display !== 'flex');
+            drawer.style.display = isOpen ? 'flex' : 'none';
+            overlay.style.display = isOpen ? 'block' : 'none';
+        };
+
+        if (menuBtn) menuBtn.onclick = () => toggleDrawer();
+        if (overlay) overlay.onclick = () => toggleDrawer(false);
+
+        // 1. API 설정 아코디언
+        const apiTitle = document.getElementById('ep-api-accordion-title');
+        const apiCard = document.getElementById('api-collapsible-card');
+        const tabGemini = document.getElementById('ep-api-tab-gemini');
+        const tabFb = document.getElementById('ep-api-tab-firebase');
+        const apiKeyInp = document.getElementById('ep-api-key-input');
+        const apiFbTextarea = document.getElementById('ep-api-firebase-textarea');
+        const apiLabel = document.getElementById('ep-api-label-text');
+
+        if (apiKeyInp) apiKeyInp.value = localStorage.getItem('pastel_api_gemini') || '';
+        if (apiFbTextarea) apiFbTextarea.value = localStorage.getItem('pastel_api_firebase') || '';
+
+        if (apiTitle && apiCard) {
+            apiTitle.onclick = () => {
+                const arrow = apiTitle.querySelector('.accordion-arrow');
+                const isOpen = apiCard.style.display === 'flex';
+                apiCard.style.display = isOpen ? 'none' : 'flex';
+                arrow.innerHTML = isOpen 
+                    ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>`
+                    : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-up" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708z"/></svg>`;
+            };
         }
 
-        // 상단 헤더 점3개 메뉴 버튼 삽입
-        const topHeader = document.querySelector('button[role="combobox"]')?.parentElement || document.querySelector('header') || document.querySelector('div[class*="items-center"][class*="justify-between"]');
-        if (topHeader && !document.getElementById('ep-chat-drawer-trigger')) {
-            const btn = document.createElement('button');
-            btn.id = 'ep-chat-drawer-trigger';
-            btn.style.cssText = 'cursor:pointer; background:none; border:none; font-size:18px; padding:4px 8px; margin-left:6px; color:inherit;';
-            btn.textContent = '⋮';
-            btn.title = 'PASTELchat 메뉴';
-            btn.onclick = () => {
-                const drawer = document.getElementById('ep-chat-right-drawer');
-                const overlay = document.getElementById('ep-chat-drawer-overlay');
-                if (drawer && overlay) {
-                    drawer.style.display = 'flex';
-                    overlay.style.display = 'block';
-                }
+        if (tabGemini && tabFb) {
+            tabGemini.onclick = () => {
+                tabGemini.classList.add('active');
+                tabFb.classList.remove('active');
+                apiLabel.textContent = 'Google Gemini API Key';
+                apiKeyInp.style.display = 'block';
+                apiFbTextarea.style.display = 'none';
             };
-            topHeader.appendChild(btn);
+            tabFb.onclick = () => {
+                tabFb.classList.add('active');
+                tabGemini.classList.remove('active');
+                apiLabel.textContent = 'firebase script';
+                apiKeyInp.style.display = 'none';
+                apiFbTextarea.style.display = 'block';
+            };
+        }
 
-            // 추천답변 버튼(SVG) 상단으로 이동
-            const recBtn = document.querySelector('path[d*="m13.8 2.58"]')?.closest('button');
-            if (recBtn && !topHeader.contains(recBtn)) {
-                topHeader.insertBefore(recBtn, btn);
+        if (apiKeyInp) apiKeyInp.onchange = (e) => localStorage.setItem('pastel_api_gemini', e.target.value.trim());
+        if (apiFbTextarea) apiFbTextarea.onchange = (e) => localStorage.setItem('pastel_api_firebase', e.target.value.trim());
+
+        // 2. 모델 선택 아코디언
+        const modelTitle = document.getElementById('ep-model-accordion-title');
+        const modelCard = document.getElementById('model-collapsible-card');
+        const tabModelLore = document.getElementById('ep-model-tab-lore');
+        const tabModelSafety = document.getElementById('ep-model-tab-safety');
+        const modelLoreView = document.getElementById('ep-model-lore-view');
+        const modelSafetyView = document.getElementById('ep-model-safety-view');
+
+        if (modelTitle && modelCard) {
+            modelTitle.onclick = () => {
+                const arrow = modelTitle.querySelector('.accordion-arrow');
+                const isOpen = modelCard.style.display === 'flex';
+                modelCard.style.display = isOpen ? 'none' : 'flex';
+                arrow.innerHTML = isOpen 
+                    ? `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-down" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708"/></svg>`
+                    : `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-chevron-up" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M7.646 4.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1-.708.708L8 5.707l-5.646 5.647a.5.5 0 0 1-.708-.708z"/></svg>`;
+            };
+        }
+
+        if (tabModelLore && tabModelSafety) {
+            tabModelLore.onclick = () => {
+                tabModelLore.classList.add('active');
+                tabModelSafety.classList.remove('active');
+                modelLoreView.style.display = 'block';
+                modelSafetyView.style.display = 'none';
+            };
+            tabModelSafety.onclick = () => {
+                tabModelSafety.classList.add('active');
+                tabModelLore.classList.remove('active');
+                modelSafetyView.style.display = 'block';
+                modelLoreView.style.display = 'none';
+            };
+        }
+
+        // 모델 세부 설정 로드/저장
+        const modelSettingsMap = [
+            ['pastel_crack_lore_extract_model', 'ep-lore-extract-model-select', 'gemini-3.6-flash'],
+            ['pastel_crack_lore_extract_custom', 'ep-lore-extract-custom-input', ''],
+            ['pastel_crack_lore_judge_model', 'ep-lore-judge-model-select', 'gemini-3.5-flash-lite'],
+            ['pastel_crack_lore_judge_custom', 'ep-lore-judge-custom-input', ''],
+            ['pastel_crack_lore_reasoning', 'ep-lore-reasoning-select', 'medium'],
+            ['pastel_crack_lore_reasoning_budget', 'ep-lore-reasoning-budget-input', '2048'],
+            ['pastel_crack_lore_judge_reasoning', 'ep-lore-judge-reasoning-select', 'minimal'],
+            ['pastel_crack_safety_harassment', 'ep-safety-harassment-select', 'BLOCK_NONE'],
+            ['pastel_crack_safety_hate', 'ep-safety-hate-select', 'BLOCK_NONE'],
+            ['pastel_crack_safety_explicit', 'ep-safety-explicit-select', 'BLOCK_NONE'],
+            ['pastel_crack_safety_dangerous', 'ep-safety-dangerous-select', 'BLOCK_NONE']
+        ];
+
+        const syncModelInputs = () => {
+            modelSettingsMap.forEach(([k, id, def]) => {
+                const el = document.getElementById(id);
+                if (el) el.value = localStorage.getItem(k) || def;
+            });
+            const extSel = document.getElementById('ep-lore-extract-model-select');
+            const extInp = document.getElementById('ep-lore-extract-custom-input');
+            if (extSel && extInp) extInp.style.display = extSel.value === '_custom' ? 'block' : 'none';
+
+            const jdgSel = document.getElementById('ep-lore-judge-model-select');
+            const jdgInp = document.getElementById('ep-lore-judge-custom-input');
+            if (jdgSel && jdgInp) jdgInp.style.display = jdgSel.value === '_custom' ? 'block' : 'none';
+
+            const rsnSel = document.getElementById('ep-lore-reasoning-select');
+            const rsnInp = document.getElementById('ep-lore-reasoning-budget-input');
+            if (rsnSel && rsnInp) rsnInp.style.display = rsnSel.value === 'budget' ? 'block' : 'none';
+        };
+
+        syncModelInputs();
+
+        modelSettingsMap.forEach(([k, id]) => {
+            const el = document.getElementById(id);
+            if (el) {
+                el.onchange = () => {
+                    localStorage.setItem(k, el.value);
+                    syncModelInputs();
+                };
+                el.oninput = () => localStorage.setItem(k, el.value);
             }
+        });
+
+        // 3. 에피소드 노트 모달 개폐
+        const epNoteBtn = document.getElementById('ep-menu-epnote-btn');
+        const epNoteModal = document.getElementById('ep-epnote-modal-overlay');
+        const epNoteClose = document.getElementById('ep-epnote-close-btn');
+        const epNoteTextarea = document.getElementById('ep-epnote-unsent-textarea');
+
+        const getChatId = () => {
+            const match = location.pathname.match(/chats\/([a-zA-Z0-9_-]+)/);
+            return match ? match[1] : 'global';
+        };
+
+        if (epNoteBtn && epNoteModal && epNoteTextarea) {
+            epNoteBtn.onclick = () => {
+                toggleDrawer(false);
+                const chatId = getChatId();
+                epNoteTextarea.value = localStorage.getItem(`pastel_crack_unsent_note_${chatId}`) || '';
+                epNoteModal.classList.add('visible');
+            };
+        }
+
+        const closeEpNote = () => {
+            if (epNoteTextarea) {
+                const chatId = getChatId();
+                localStorage.setItem(`pastel_crack_unsent_note_${chatId}`, epNoteTextarea.value);
+            }
+            if (epNoteModal) epNoteModal.classList.remove('visible');
+        };
+
+        if (epNoteClose) epNoteClose.onclick = closeEpNote;
+        if (epNoteModal) {
+            epNoteModal.onclick = (e) => {
+                if (e.target === epNoteModal) closeEpNote();
+            };
+        }
+
+        // 4. 로어 저장소 (모듈 5에서 로어 모달 탑재 시 연결 예정)
+        const loreBtn = document.getElementById('ep-menu-lore-btn');
+        if (loreBtn) {
+            loreBtn.onclick = () => {
+                showToast("🔮 로어 저장소는 모듈 5에서 연결됩니다.");
+            };
+        }
+
+        // 5. 크랙 데이터 전체 정리
+        const clearBtn = document.getElementById('ep-menu-crack-clear-btn');
+        if (clearBtn) {
+            clearBtn.onclick = () => {
+                if (!confirm("⚠️ 크랙 전용 로컬 데이터(메모, 로어 저장소, 설정값 등)를 전부 삭제하시겠습니까?")) return;
+                const keysToRemove = [];
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i);
+                    if (k && k.startsWith('pastel_crack_')) keysToRemove.push(k);
+                }
+                keysToRemove.forEach(k => localStorage.removeItem(k));
+                showToast("✨ 크랙 전용 데이터가 완전히 정리되었습니다.");
+                setTimeout(() => location.reload(), 800);
+            };
         }
     }
 
-    setInterval(mount, 300);
+    /* ==========================================================================
+     * 5. SPA 라우팅 대응 상시 주입 감시 (무거운 감시 없음 / 가벼운 확인 루프)
+     * ========================================================================== */
+    function checkAndInject() {
+        injectBaseDOM();
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', checkAndInject);
+    } else {
+        checkAndInject();
+    }
+
+    // SPA 페이지 이동 시에도 메뉴 버튼이 사라지지 않도록 가볍게 체크 (2초 주기)
+    setInterval(checkAndInject, 2000);
+
 })();
