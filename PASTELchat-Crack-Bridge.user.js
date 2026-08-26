@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.2.2
+// @version      1.2.3
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -88,10 +88,10 @@
         /* 우측 서랍 컨테이너 (헤더 아래에서 시작) */
         .right-drawer-container {
             position: fixed;
-            top: 104px; /* 메인 상단 헤더(56px) + 대화창 서브 헤더(48px) 바로 아래 */
+            top: 104px;
             right: 0;
             width: 255px;
-            height: calc(100% - 104px); /* 헤더 영역을 제외한 높이 */
+            height: calc(100% - 104px);
             background-color: var(--bg_primary);
             border-left: 1px solid #E6E6E6;
             box-sizing: border-box;
@@ -428,12 +428,14 @@
         .bg-bg_screen.pointer-events-auto,
         .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
             max-width: 760px !important;
-            width: calc(100% - 48px) !important; /* 마진 1.5배 추가 확보 */
+            width: calc(100% - 64px) !important; /* 마진 확실하게 1.5배 넓힘 */
             padding-top: 6px !important;
-            overflow: visible !important; /* 팝업 잘림 방지 */
+            overflow: visible !important;
+            position: relative !important;
+            z-index: 1000 !important; /* 대화창보다 위로 레이어 승격 */
         }
 
-        /* 하단 입력바 & 특수문자 구슬 툴바 (crack.html 순정 패딩 완벽 복원) */
+        /* 하단 입력바 & 특수문자 구슬 툴바 (crack.html 순정 100% 복원) */
         .chat-footer-control {
             width: 100%;
             display: flex;
@@ -443,7 +445,98 @@
             background: transparent;
             position: relative;
             user-select: none;
-            overflow: visible !important; /* 팝업 잘림 방지 */
+            overflow: visible !important;
+        }
+        .input-area {
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            height: 160px;
+            border: 1px solid #E6E6E6;
+            border-radius: 12px;
+            background-color: #fafafa;
+            padding: 15px 20px 10px 20px !important;
+            box-sizing: border-box;
+            transition: border-color 0.2s, background-color 0.2s;
+        }
+        .input-area:focus-within {
+            border: 2px solid #888888 !important;
+            background-color: #ffffff !important;
+            padding: 14px 19px 9px 19px !important;
+        }
+        body[data-theme="dark"] .input-area {
+            background-color: #1a1918;
+            border-color: #42413D;
+        }
+        body[data-theme="dark"] .input-area:focus-within {
+            background-color: #141413 !important;
+            border-color: #b0b0b0 !important;
+        }
+        .chat-textarea {
+            width: 100%;
+            height: 100%;
+            border: none !important;
+            background: transparent !important;
+            color: var(--text_primary);
+            padding: 0 !important;
+            resize: none;
+            font-size: 16px;
+            outline: none;
+            line-height: 20px;
+            font-family: inherit;
+            box-sizing: border-box;
+        }
+        .input-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            user-select: none;
+            margin-top: 5px;
+        }
+        .tool-btn {
+            position: relative;
+            background-color: #fcfcfc;
+            border: 1px solid #B0B0B0;
+            color: var(--text_primary);
+            cursor: pointer;
+            width: 26px !important;
+            height: 26px !important;
+            min-width: 26px !important;
+            min-height: 26px !important;
+            border-radius: 50% !important;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0 !important;
+            box-sizing: border-box;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            flex-shrink: 0;
+        }
+        .tool-btn::after {
+            content: "";
+            position: absolute;
+            top: -8px;
+            bottom: -8px;
+            left: -3px;
+            right: -3px;
+            border-radius: 50%;
+        }
+        .tool-btn.active {
+            border-color: #888888 !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+        }
+        body[data-theme="dark"] .tool-btn {
+            background-color: #242321;
+            border-color: #555;
+            color: #F0EFEB;
+        }
+        .vertical-divider {
+            width: 1px;
+            height: 14px;
+            border-left: 1px dashed #888888;
+            flex-shrink: 0;
         }
 
         /* 단축어 팝업 순정 스타일 (z-index 최상위화) */
@@ -451,13 +544,13 @@
             display: none;
             position: absolute;
             left: 20px;
-            bottom: calc(100% + 6px);
-            z-index: 2147483640 !important;
+            bottom: calc(100% + 10px);
+            z-index: 2147483647 !important;
             border-radius: 12px;
             padding: 10px !important;
             width: 130px !important;
             height: auto !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
             flex-direction: column;
             gap: 8px;
             border: 1px solid #E6E6E6;
@@ -517,16 +610,16 @@
             position: absolute;
             left: 0;
             right: 0;
-            bottom: calc(100% + 6px);
+            bottom: calc(100% + 10px);
             background: #ffffff;
             border: 1px solid #E6E6E6;
             border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
             padding: 14px 16px;
             display: none;
             flex-direction: column;
             gap: 10px;
-            z-index: 2147483640 !important;
+            z-index: 2147483647 !important;
             max-height: 360px;
             box-sizing: border-box;
         }
