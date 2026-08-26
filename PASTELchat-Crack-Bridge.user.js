@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Module 1 (Base & Menu)
 // @namespace    https://pastelchat.com/
-// @version      1.0.2
+// @version      1.0.3
 // @description  PASTELchat Native UI Engine for crack.wrtn.ai - Module 1: Base & Right Drawer Menu
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -244,10 +244,15 @@
             background-color: #1f1e1d;
         }
 
+        /* 상단 헤더 아래 영역만 어둡게 만드는 서랍 전용 오버레이 */
         .ep-chat-drawer-overlay {
             position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.4);
+            top: 104px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: calc(100% - 104px);
+            background: rgba(0, 0, 0, 0.35);
             z-index: 99998;
             display: none;
         }
@@ -590,7 +595,7 @@
                     <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
                 </svg>
             `;
-            // 버튼 클릭 이벤트 직접 연결
+            // 버튼 클릭 이벤트 직접 연결 (서랍과 암전 오버레이 모두 헤더 아래로 위치 동기화)
             menuBtn.onclick = (e) => {
                 e.stopPropagation();
                 const drawer = document.getElementById('ep-chat-right-drawer');
@@ -603,6 +608,8 @@
                             const rect = subHeader.getBoundingClientRect();
                             drawer.style.top = `${rect.bottom}px`;
                             drawer.style.height = `calc(100% - ${rect.bottom}px)`;
+                            overlay.style.top = `${rect.bottom}px`;
+                            overlay.style.height = `calc(100% - ${rect.bottom}px)`;
                         }
                     }
                     drawer.style.display = isOpen ? 'flex' : 'none';
@@ -783,11 +790,11 @@
         };
 
         if (epNoteBtn && epNoteModal && epNoteTextarea) {
-            epNoteBtn.onclick = () => {
-                toggleDrawer(false);
+            epNoteBtn.onclick = (e) => {
+                e.stopPropagation();
                 const chatId = getChatId();
                 epNoteTextarea.value = localStorage.getItem(`pastel_crack_unsent_note_${chatId}`) || '';
-                epNoteModal.classList.add('visible');
+                epNoteModal.classList.add('visible'); // 뒤의 서랍 메뉴를 닫지 않고 그 위에 팝업을 띄움
             };
         }
 
