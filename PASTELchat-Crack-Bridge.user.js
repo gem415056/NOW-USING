@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.4.3
+// @version      1.4.4
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -4275,33 +4275,35 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         return null;
     }
 
-    // [로어 완전 은닉 엔진]: 크랙이 <p>, <div>, 텍스트 어떤 형태로 렌더링하든 [LORE 1]... [LORE n]을 100% 감지하여 화면에서 숨김
+    // [유저 본문 100% 보존 & 로어만 정밀 은닉 엔진]
     function stripLoreOnlyFromView() {
         const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || document.querySelector('main') || document.body;
         if (!chatRoot) return;
 
-        // 1. 단락(<p>, <div>) 단위로 쪼개진 [LORE ...] 요소 전수 숨김
-        const paragraphs = chatRoot.querySelectorAll('p, div, span');
-        paragraphs.forEach(el => {
-            if (el.closest('.chat-footer-control') || el.closest('#ep-chat-right-drawer') || el.closest('.ep-prompt-overlay') || el.closest('#ep-lore-storage-modal-overlay')) return;
-            
-            const raw = (el.innerText || el.textContent || '').trim();
-            if (/^\[LORE\s*\d*\]/i.test(raw)) {
-                el.style.display = 'none';
+        // 1. <p> 태그 단위로 렌더링된 경우: [LORE로 시작하는 개별 <p> 단락만 숨김 (부모 말풍선 div는 절대 건드리지 않음)
+        const pTags = chatRoot.querySelectorAll('p');
+        pTags.forEach(p => {
+            if (p.closest('.chat-footer-control') || p.closest('#ep-chat-right-drawer') || p.closest('.ep-prompt-overlay') || p.closest('#ep-lore-storage-modal-overlay')) return;
+            const txt = (p.textContent || '').trim();
+            if (/^\[LORE\s*\d*\]/i.test(txt)) {
+                p.style.display = 'none';
             }
         });
 
-        // 2. 단일 텍스트 블록 안에 줄바꿈으로 붙어있는 [LORE 1]... [LORE n] 전수 적출
-        const textBlocks = chatRoot.querySelectorAll('.break-words, .whitespace-pre-wrap, .prose');
-        textBlocks.forEach(block => {
-            if (block.closest('.chat-footer-control') || block.closest('#ep-chat-right-drawer') || block.closest('.ep-prompt-overlay') || block.closest('#ep-lore-storage-modal-overlay')) return;
+        // 2. 단일 텍스트 블록(pre-wrap)으로 렌더링된 경우: [LORE 1]... [LORE n] 앞부분만 잘라내고 유저 본문은 유지
+        const textElements = chatRoot.querySelectorAll('.break-words, .whitespace-pre-wrap, .prose');
+        textElements.forEach(el => {
+            if (el.closest('.chat-footer-control') || el.closest('#ep-chat-right-drawer') || el.closest('.ep-prompt-overlay') || el.closest('#ep-lore-storage-modal-overlay')) return;
 
-            if (block.innerHTML && block.innerHTML.includes('[LORE')) {
-                let html = block.innerHTML;
-                html = html.replace(/\[LORE\s*\d*\][\s\S]*?(?=(?:<p\b|<div\b|<br\s*\/?>|\n\s*)(?!\[LORE)|$)/gi, '');
-                html = html.replace(/^(?:<p>\s*<\/p>|<br\s*\/?>|\s*)+/gi, '');
-                if (block.innerHTML !== html) {
-                    block.innerHTML = html;
+            // <p> 태그 자식이 있는 상자는 1번에서 <p>를 숨겼으므로 패스
+            if (el.querySelector('p')) return;
+
+            if (el.innerHTML && el.innerHTML.includes('[LORE')) {
+                // [LORE ...] 블록만 정밀 제거하고 유저가 작성한 본문 텍스트는 온전히 보존
+                let clean = el.innerHTML.replace(/^\[LORE[\s\S]*?(?=(?:<br\s*\/?>\s*<br\s*\/?>|\n\s*\n)|$)/i, '').trim();
+                clean = clean.replace(/^(?:<br\s*\/?>|\n)+/i, '').trim();
+                if (clean && el.innerHTML !== clean) {
+                    el.innerHTML = clean;
                 }
             }
         });
