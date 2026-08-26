@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK (Module 1: Crash-Proof Shell)
 // @namespace    https://github.com/PASTELchat/crack
-// @version      1.1.0
-// @description  Module 1: Robust & Crash-Proof PASTELchat UI Injection on crack.wrtn.ai
+// @version      1.2.0
+// @description  Module 1: Safe & Crash-Proof PASTELchat UI Injection on crack.wrtn.ai
 // @author       PASTELchat
 // @match        *://crack.wrtn.ai/*
 // @match        *://*.wrtn.ai/*
@@ -14,10 +14,10 @@
 (function() {
     'use strict';
 
-    console.log('%c[PASTELchat] 🚀 유저스크립트 엔진 가동 시작!', 'color: #FF4432; font-weight: bold; font-size: 16px;');
+    console.log('%c[PASTELchat] 🚀 유저스크립트 정상 로딩 시작!', 'color: #FF4432; font-weight: bold; font-size: 16px;');
 
     // =========================================================================
-    // [1. 순정 CSS 스타일 주입 & 크랙 순정 대화창/입력창 자동 은닉]
+    // [1. 안전한 CSS 스타일 주입 (크래시 방지)]
     // =========================================================================
     const pastelCSS = `
         :root {
@@ -31,14 +31,6 @@
             --pastel_bg_primary: #141413;
             --pastel_text_primary: #F0EFEB;
             --pastel_icon_primary: #F0EFEB;
-        }
-
-        /* 크랙 순정 대화창 & 하단 입력창만 완벽 은닉 (파스텔챗 내부 요소는 제외) */
-        div[class*="flex-col-reverse"]:not(#ep-pastel-injected-container *),
-        div[class*="bg-bg_screen"]:has(.ProseMirror),
-        div:has(> .ProseMirror),
-        div:has(> div > .ProseMirror) {
-            display: none !important;
         }
 
         /* 메인 감싸개 */
@@ -55,7 +47,6 @@
             overflow: hidden !important;
             z-index: 10 !important;
             flex: 1 !important;
-            min-height: 0 !important;
         }
 
         /* 3대 지표 헤더 바 */
@@ -390,6 +381,7 @@
         .ep-lore-panel.active-panel { display: flex; flex-direction: column; gap: 12px; }
     `;
 
+    // 스타일 주입
     function injectStylesSafely() {
         if (document.getElementById('pastel-injected-styles')) return;
         const styleEl = document.createElement('style');
@@ -570,92 +562,91 @@
     }
 
     // =========================================================================
-    // [3. 초정밀 안심 마운트 엔진]
+    // [3. 크래시 없는 안전한 DOM 탐색 및 이식 엔진]
     // =========================================================================
     function tryInjectPastelShell() {
         try {
             injectStylesSafely();
 
-            // 1. 이미 마운트되어 있다면 중복 실행 방지
-            if (document.getElementById('ep-pastel-injected-container')) {
-                ensureHeaderButtons();
-                return;
-            }
-
-            // 2. 크랙의 대화 화면 영역 감지 (.ProseMirror 에디터 또는 <main> 태그)
+            // 1. 크랙의 네이티브 에디터(.ProseMirror) 탐색
             const nativeEditor = document.querySelector('.ProseMirror');
-            const mainContainer = document.querySelector('main') || document.querySelector('div[class*="flex-1"][class*="flex-col"]');
+            
+            // 2. 크랙 중앙 채팅 컨테이너 탐색 (특수문자 셀렉터 대신 안전한 속성 검색)
+            const chatReverseBox = document.querySelector('[data-message-group-id]')?.closest('div[class*="flex-col-reverse"]') ||
+                                   document.querySelector('div[class*="flex-col-reverse"]');
 
-            if (nativeEditor || mainContainer) {
-                // 에디터를 감싸는 최상위 뷰 탐색
-                let mountTarget = null;
-                if (nativeEditor) {
-                    mountTarget = nativeEditor.closest('main') || 
-                                  nativeEditor.closest('div[class*="flex-1"][class*="flex-col"]') || 
-                                  nativeEditor.parentElement?.parentElement?.parentElement?.parentElement;
-                }
-                if (!mountTarget) mountTarget = mainContainer;
+            if (chatReverseBox && !document.getElementById('ep-pastel-injected-container')) {
+                // 중앙 대화 영역의 최상위 부모 찾기
+                const chatContainer = chatReverseBox.parentElement?.parentElement || chatReverseBox.parentElement;
+                
+                if (chatContainer) {
+                    chatContainer.style.setProperty('display', 'none', 'important');
 
-                if (mountTarget) {
+                    // 하단 고정 입력창 숨기기
+                    const nativeBottomInput = nativeEditor?.closest('div[class*="absolute"][class*="bottom-0"]') ||
+                                              document.querySelector('div[class*="absolute"][class*="bottom-0"]');
+                    if (nativeBottomInput) {
+                        nativeBottomInput.style.setProperty('display', 'none', 'important');
+                    }
+
+                    // 파스텔챗 마운트
+                    const mountTarget = chatContainer.parentElement || document.querySelector('main') || document.body;
                     const mountPoint = document.createElement('div');
                     mountPoint.id = 'pastel-mount-point';
-                    mountPoint.style.cssText = 'width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; flex: 1; min-height: 0; z-index: 10;';
+                    mountPoint.style.cssText = 'width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; flex: 1; min-height: 0;';
                     mountPoint.innerHTML = getPastelHTMLTemplate();
                     
                     mountTarget.appendChild(mountPoint);
                     initModule1Events();
-                    console.log('%c[PASTELchat] ✅ 중앙 대화창 & 입력창 마운트 성공!', 'color: #2ecc71; font-weight: bold; font-size: 14px;');
+                    console.log('%c[PASTELchat] ✅ 중앙 대화창 & 입력창 교체 성공!', 'color: #2ecc71; font-weight: bold;');
                 }
             }
 
-            ensureHeaderButtons();
+            // 3. 상단 헤더 영역 탐색 및 버튼 텔레포트
+            const comboboxBtn = document.querySelector('button[role="combobox"]');
+            const topActionRow = comboboxBtn?.closest('div[class*="flex"]') || document.querySelector('div[class*="gap-3"][class*="items-center"]');
+
+            if (topActionRow) {
+                // [A] 추천답변 버튼 (SVG 벡터 d*="m13.8 2.58" 또는 텍스트 기반) 상단 이동
+                const recBtn = document.querySelector('path[d*="m13.8 2.58"]')?.closest('button') ||
+                               Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('추천답변'));
+
+                if (recBtn && !topActionRow.contains(recBtn)) {
+                    if (comboboxBtn) {
+                        comboboxBtn.after(recBtn);
+                    } else {
+                        topActionRow.prepend(recBtn);
+                    }
+                }
+
+                // [B] 파스텔챗 점 3개 메뉴 버튼 상단에 삽입
+                if (!document.getElementById('ep-chat-drawer-trigger')) {
+                    const drawerBtn = document.createElement('button');
+                    drawerBtn.id = 'ep-chat-drawer-trigger';
+                    drawerBtn.className = 'relative inline-flex items-center justify-center p-2 rounded-md hover:bg-accent active:bg-accent/80 transition-colors';
+                    drawerBtn.style.cssText = 'cursor: pointer; background: transparent; border: none; color: inherit; margin-left: 4px;';
+                    drawerBtn.title = '파스텔챗 서랍 메뉴';
+                    drawerBtn.innerHTML = `
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="22px" height="22px">
+                            <path d="M11 11h2v2h-2zm-2.5 0h-2v2h2zm7 0h2v2h-2z"></path>
+                            <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
+                        </svg>
+                    `;
+                    topActionRow.appendChild(drawerBtn);
+
+                    const drawer = document.getElementById('ep-chat-right-drawer');
+                    const overlay = document.getElementById('ep-chat-drawer-overlay');
+                    drawerBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        if (!drawer || !overlay) return;
+                        const isOpen = drawer.style.display === 'flex';
+                        drawer.style.display = isOpen ? 'none' : 'flex';
+                        overlay.style.display = isOpen ? 'none' : 'block';
+                    };
+                }
+            }
         } catch (err) {
-            console.warn('[PASTELchat] 대기 중:', err.message);
-        }
-    }
-
-    // 상단 헤더 버튼(추천답변 이동 및 점 3개 메뉴 주입)
-    function ensureHeaderButtons() {
-        const comboboxBtn = document.querySelector('button[role="combobox"]');
-        const topActionRow = comboboxBtn?.closest('div[class*="flex"]') || document.querySelector('div[class*="gap-3"][class*="items-center"]');
-
-        if (topActionRow) {
-            // [A] 추천답변 버튼 상단으로 안전 텔레포트
-            const recBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('추천답변'));
-            if (recBtn && !topActionRow.contains(recBtn)) {
-                if (comboboxBtn) {
-                    comboboxBtn.after(recBtn);
-                } else {
-                    topActionRow.prepend(recBtn);
-                }
-            }
-
-            // [B] 파스텔챗 점 3개 메뉴 버튼 상단에 삽입
-            if (!document.getElementById('ep-chat-drawer-trigger')) {
-                const drawerBtn = document.createElement('button');
-                drawerBtn.id = 'ep-chat-drawer-trigger';
-                drawerBtn.className = 'relative inline-flex items-center justify-center p-2 rounded-md hover:bg-accent active:bg-accent/80 transition-colors';
-                drawerBtn.style.cssText = 'cursor: pointer; background: transparent; border: none; color: inherit; margin-left: 4px;';
-                drawerBtn.title = '파스텔챗 서랍 메뉴';
-                drawerBtn.innerHTML = `
-                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="22px" height="22px">
-                        <path d="M11 11h2v2h-2zm-2.5 0h-2v2h2zm7 0h2v2h-2z"></path>
-                        <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
-                    </svg>
-                `;
-                topActionRow.appendChild(drawerBtn);
-
-                const drawer = document.getElementById('ep-chat-right-drawer');
-                const overlay = document.getElementById('ep-chat-drawer-overlay');
-                drawerBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    if (!drawer || !overlay) return;
-                    const isOpen = drawer.style.display === 'flex';
-                    drawer.style.display = isOpen ? 'none' : 'flex';
-                    overlay.style.display = isOpen ? 'none' : 'block';
-                };
-                console.log('%c[PASTELchat] ✅ 상단 헤더 메뉴 버튼 주입 완료!', 'color: #3498db; font-weight: bold;');
-            }
+            console.warn('[PASTELchat] 주입 대기 중:', err.message);
         }
     }
 
@@ -683,3 +674,42 @@
         const modelCard = document.getElementById('model-collapsible-card');
         if (modelTitle && modelCard) {
             modelTitle.onclick = () => modelCard.style.display = modelCard.style.display === 'flex' ? 'none' : 'flex';
+        }
+
+        // 에피소드 노트
+        const epNoteBtn = document.getElementById('ep-menu-epnote-btn');
+        const epNoteModal = document.getElementById('ep-epnote-modal-overlay');
+        const epNoteClose = document.getElementById('ep-epnote-close-btn');
+        if (epNoteBtn && epNoteModal) {
+            epNoteBtn.onclick = () => epNoteModal.classList.add('visible');
+            epNoteClose.onclick = () => epNoteModal.classList.remove('visible');
+        }
+
+        // 로어 저장소
+        const loreBtn = document.getElementById('ep-menu-lore-btn');
+        const loreModal = document.getElementById('ep-lore-storage-modal-overlay');
+        const loreClose = document.getElementById('ep-lore-close-btn');
+        if (loreBtn && loreModal) {
+            loreBtn.onclick = () => loreModal.style.display = 'flex';
+            loreClose.onclick = () => loreModal.style.display = 'none';
+        }
+
+        // 9개 구슬 버튼 입력창 주입
+        const textarea = document.getElementById('ep-chat-input-textarea');
+        document.querySelectorAll('.ep-symbol-btn').forEach(btn => {
+            btn.onclick = () => {
+                if (!textarea) return;
+                const open = btn.dataset.open || '';
+                const close = btn.dataset.close || '';
+                const start = textarea.selectionStart;
+                const end = textarea.selectionEnd;
+                textarea.value = textarea.value.substring(0, start) + open + close + textarea.value.substring(end);
+                textarea.focus();
+                textarea.setSelectionRange(start + open.length, start + open.length);
+            };
+        });
+    }
+
+    // 상시 감시 루프 (300ms)
+    setInterval(tryInjectPastelShell, 300);
+})();
