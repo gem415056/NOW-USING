@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Module 1 (Base & Menu)
 // @namespace    https://pastelchat.com/
-// @version      1.1.3
+// @version      1.1.4
 // @description  PASTELchat Native UI Engine for crack.wrtn.ai - Module 1: Base & Right Drawer Menu
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -386,9 +386,17 @@
             font-weight: bold !important;
         }
 
-        /* 크랙 순정 입력창 숨김 (파스텔 입력창으로 대체) */
+        /* 크랙 순정 에디터 박스를 백그라운드에 보이지 않게 안전 격리 */
         .flex.w-full.flex-col.rounded-lg.border.bg-background.transition-colors {
-            display: none !important;
+            position: absolute !important;
+            height: 0 !important;
+            min-height: 0 !important;
+            overflow: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
         }
 
         /* 크랙 하단 부모 컨테이너 가로폭을 좌우로 시원하게 확장 */
@@ -899,7 +907,7 @@
                         <button class="tool-btn" id="ep-chat-tpl-popup-btn" type="button" title="페더 템플릿"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M14.086 18.412A2 2 0 0 1 12.67 19H5v-7.672a2 2 0 0 1 .586-1.414L11.75 3.75a6 6 0 1 1 8.49 8.49z"/><path d="M16 8 2 22"/><path d="M17.488 15H9"/></svg></button>
                     </div>
                     <span class="vertical-divider"></span>
-                    <!-- 순정 구슬 단축 버튼 9종 (백틱 충돌 방지 &#96; 처리) -->
+                    <!-- 순정 구슬 단축 버튼 9종 -->
                     <div style="display: flex; gap: 6px; align-items: center;">
                         <button class="tool-btn ep-symbol-btn" data-open="*" type="button" title="행동 지문"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:15px;height:15px;"><path d="M12 6v12"/><path d="M17.196 9 6.804 15"/><path d="m6.804 9 10.392 6"/></svg></button>
                         <button class="tool-btn ep-symbol-btn" data-open='"' type="button" title="쌍따옴표 대사"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" style="width:15px;height:15px;fill:#888888;"><path d="M96 280C96 213.7 149.7 160 216 160L224 160C241.7 160 256 174.3 256 192C256 209.7 241.7 224 224 224L216 224C185.1 224 160 249.1 160 280L160 288L224 288C259.3 288 288 316.7 288 352L288 416C288 451.3 259.3 480 224 480L160 480C124.7 480 96 451.3 96 416L96 280zM352 280C352 213.7 405.7 160 472 160L480 160C497.7 160 512 174.3 512 192C512 209.7 497.7 224 480 224L472 224C441.1 224 416 249.1 416 280L416 288L480 288C515.3 288 544 316.7 544 352L544 416C544 451.3 515.3 480 480 480L416 480C380.7 480 352 451.3 352 416L352 280z"/></svg></button>
@@ -913,15 +921,36 @@
                         <button class="tool-btn" id="ep-cmd-symbol-btn" data-open="/*" data-close="*/" type="button" title="커스텀 기호 설정" style="color: #888;"><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#888888" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px; display: block;"><path d="M15 6v12a3 3 0 1 0 3-3H6a3 3 0 1 0 3 3V6a3 3 0 1 0-3 3h12a3 3 0 1 0-3-3"/></svg></button>
                     </div>
 
-                    <!-- 600ms 홀드 전송 버튼 -->
-                    <button class="hold-send-btn" id="ep-chat-send-btn" title="전송">
-                        <svg id="ep-chat-send-icon" xmlns="http://www.w3.org/2000/svg" fill="white" viewBox="0 0 24 24" width="22" height="22"><path d="M18.77 11.13 8.5 5.2a1 1 0 0 0-1.5 .87v11.86a1 1 0 0 0 1.5 .87l10.27-5.93a1 1 0 0 0 0-1.73z"></path></svg>
-                    </button>
+                    <!-- 순정 전송 버튼을 담아둘 우측 슬롯 -->
+                    <div id="ep-native-send-slot" style="margin-left: auto; display: flex; align-items: center; justify-content: center; width: 32px; height: 32px;"></div>
                 </div>
             </div>
         `;
         crackInputWrapper.appendChild(footerControl);
+
+        moveNativeSendButtonToSlot();
         bindInputEvents();
+    }
+
+    // 크랙 순정 전송 버튼을 파스텔 툴바 슬롯으로 이동
+    function moveNativeSendButtonToSlot() {
+        const slot = document.getElementById('ep-native-send-slot');
+        if (!slot) return;
+
+        const pathList = document.querySelectorAll('svg path');
+        for (const p of pathList) {
+            const d = p.getAttribute('d') || '';
+            if (d.startsWith('M18.77 11.13')) {
+                const nativeBtn = p.closest('button');
+                if (nativeBtn && !slot.contains(nativeBtn)) {
+                    nativeBtn.style.position = 'relative';
+                    nativeBtn.style.zIndex = '10';
+                    nativeBtn.style.cursor = 'pointer';
+                    slot.appendChild(nativeBtn);
+                    break;
+                }
+            }
+        }
     }
 
     function insertSymbolsToTextarea(openSymbol, closeSymbol) {
@@ -1148,9 +1177,29 @@
         }
     }
 
+    // [무지연 동기화 함수]: 바깥 터치 시(blur) 또는 전송 버튼을 누르는 순간(mousedown)에만 딱 1회 작동
+    function syncTextToNativeEditor() {
+        const textarea = document.getElementById('ep-chat-input-textarea');
+        if (!textarea) return;
+        const text = textarea.value;
+
+        const editor = document.querySelector('.ProseMirror') || document.querySelector('[contenteditable="true"]');
+        if (editor) {
+            if (!text.trim()) {
+                editor.innerHTML = '<p class="is-empty is-editor-empty"><br class="ProseMirror-trailingBreak"></p>';
+            } else {
+                const paragraphs = text.split('\n').map(line => `<p>${line || '<br class="ProseMirror-trailingBreak">'}</p>`).join('');
+                editor.innerHTML = paragraphs;
+            }
+            editor.dispatchEvent(new Event('input', { bubbles: true }));
+            editor.dispatchEvent(new Event('change', { bubbles: true }));
+        }
+
+        moveNativeSendButtonToSlot();
+    }
+
     function bindInputEvents() {
         const textarea = document.getElementById('ep-chat-input-textarea');
-        const sendBtn = document.getElementById('ep-chat-send-btn');
         const cmdBtn = document.getElementById('ep-cmd-symbol-btn');
         const cmdModal = document.getElementById('ep-comment-custom-modal-overlay');
         const toggleSet = document.getElementById('ep-cmd-toggle-set');
@@ -1158,17 +1207,17 @@
         const cancelBtn = document.getElementById('ep-cmd-cancel-btn');
 
         if (textarea) {
-            textarea.addEventListener('input', updateSendButtonColor);
-            // 엔터 입력 시 순수 줄바꿈을 허용하고 크랙의 다른 단축키가 가로채지 못하도록 격리
-            textarea.addEventListener('keydown', (e) => {
-                e.stopPropagation();
-            });
-            textarea.addEventListener('keyup', (e) => {
-                e.stopPropagation();
+            // [렉 방지 핵심]: 타이핑 중에는 아무것도 하지 않고 순수한 텍스트에리어 성능 유지!
+            textarea.addEventListener('keydown', (e) => e.stopPropagation());
+            textarea.addEventListener('keyup', (e) => e.stopPropagation());
+
+            // 1. 입력창 바깥 아무 영역이나 터치/클릭하여 포커스가 빠질 때(blur) 단 1회 안전 동기화
+            textarea.addEventListener('blur', () => {
+                syncTextToNativeEditor();
             });
         }
 
-        // 9종 구슬 버튼 클릭 이벤트
+        // 9종 구슬 버튼 클릭 시 기호 삽입
         document.querySelectorAll('.ep-symbol-btn').forEach(btn => {
             btn.onclick = (e) => {
                 e.preventDefault();
@@ -1237,24 +1286,22 @@
             };
         }
 
-        // 600ms 홀드 전송 버튼
-        if (sendBtn) {
-            sendBtn.addEventListener('mousedown', startSendHold);
-            sendBtn.addEventListener('mouseup', cancelSendHold);
-            sendBtn.addEventListener('mouseleave', cancelSendHold);
-            sendBtn.addEventListener('touchstart', startSendHold, { passive: false });
-            sendBtn.addEventListener('touchend', cancelSendHold);
-            sendBtn.addEventListener('touchcancel', cancelSendHold);
+        // 2. 전송 버튼을 누르는 찰나(mousedown/touchstart)에 즉시 텍스트를 크랙으로 꽂아 넣음
+        const slot = document.getElementById('ep-native-send-slot');
+        if (slot) {
+            const triggerSyncBeforeSend = () => {
+                syncTextToNativeEditor();
+            };
 
-            sendBtn.addEventListener('click', (e) => {
-                if (!isSendConfirmed) {
-                    e.preventDefault();
-                    e.stopImmediatePropagation();
-                    return;
-                }
-                isSendConfirmed = false;
-                executeSendMessage();
-            }, true);
+            slot.addEventListener('mousedown', triggerSyncBeforeSend);
+            slot.addEventListener('touchstart', triggerSyncBeforeSend, { passive: true });
+
+            // 전송 완료 후 파스텔 입력창 비우기
+            slot.addEventListener('click', () => {
+                setTimeout(() => {
+                    if (textarea) textarea.value = '';
+                }, 100);
+            });
         }
     }
 
