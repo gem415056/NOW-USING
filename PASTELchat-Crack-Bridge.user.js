@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         PASTELchat Crack API & Socket.IO Direct Bridge
 // @namespace    https://github.com/
-// @version      3.6.0
-// @description  Direct WebSocket streaming and REST API bridge with visual diagnostics for PASTELchat crack.html
+// @version      3.7.0
+// @description  Full Packet Interception and Direct Socket.IO Bridge for PASTELchat
 // @author       PASTELchat
 // @match        *://*/*crack.html*
 // @match        *://*/*
@@ -56,7 +56,7 @@
     }
 
     // =========================================================================
-    // [2. crack.html 통신 브릿지 (Socket.IO 웹소켓 직통 & 실시간 화면 진단)]
+    // [2. crack.html 통신 브릿지: 무누락 소켓 엔진]
     // =========================================================================
     window.addEventListener('message', function(event) {
         if (!event.data) return;
@@ -76,9 +76,8 @@
             const cachedToken = GM_getValue('crack_access_token', '');
             const cleanToken = cachedToken ? cachedToken.replace(/^Bearer\s+/i, '').trim() : '';
 
-            sendStatus('🔄 [1/4] 크랙 웹소켓 서버 접속 시도 중...');
+            sendStatus('🔄 [1/4] 크랙 소켓 서버 접속 중...');
 
-            // URL 쿼리에 토큰 파라미터 직접 추가 (CORS 및 인증 통과율 극대화)
             let wsUrl = 'wss://crack-api.wrtn.ai:443/character-chat/socket.io/?EIO=4&transport=websocket';
             if (cleanToken) {
                 wsUrl += `&token=Bearer%20${encodeURIComponent(cleanToken)}`;
@@ -86,6 +85,7 @@
 
             let ws = null;
             let timeoutTimer = null;
+            let receivedChunk = false;
 
             try {
                 ws = new WebSocket(wsUrl);
@@ -93,92 +93,114 @@
                 window.postMessage({
                     source: 'PASTEL_CRACK_SOCKET_ERROR',
                     reqId: reqId,
-                    error: `웹소켓 생성 실패: ${e.message}`
+                    error: `소켓 생성 실패: ${e.message}`
                 }, '*');
                 return;
             }
 
-            // 15초 타임아웃 감시
+            // 20초 타임아웃 감시
             timeoutTimer = setTimeout(() => {
-                if (ws) ws.close();
-                window.postMessage({
-                    source: 'PASTEL_CRACK_SOCKET_ERROR',
-                    reqId: reqId,
-                    error: '서버 응답 시간 초과 (15초간 반응 없음)'
-                }, '*');
-            }, 15000);
+                if (ws && !receivedChunk) {
+                    ws.close();
+                    window.postMessage({
+                        source: 'PASTEL_CRACK_SOCKET_ERROR',
+                        reqId: reqId,
+                        error: '서버 응답 시간 초과 (메시지 전송 후 AI 답변 반응 없음)'
+                    }, '*');
+                }
+            }, 20000);
 
             ws.onopen = () => {
-                sendStatus('🔄 [2/4] 소켓 연결 성공, 핸드셰이크 대기 중...');
+                sendStatus('🔄 [2/4] 소켓 연결됨, 핸드셰이크 수신 대기...');
             };
 
             ws.onmessage = (e) => {
                 const raw = e.data;
                 if (typeof raw !== 'string') return;
 
-                // Ping/Pong
+                // 1. Engine.IO Ping/Pong
                 if (raw === '2') {
                     ws.send('3');
                     return;
                 }
 
-                // 1. 초기 연결 수신 (0으로 시작)
+                // 2. 초기 접속 핸드셰이크 (0)
                 if (raw.startsWith('0')) {
-                    sendStatus('🔄 [3/4] /v3/chats 네임스페이스 인증 요청 중...');
+                    sendStatus('🔄 [3/4] /v3/chats 네임스페이스 인증 요청...');
                     const authPacket = cleanToken ? `40/v3/chats,{"token":"Bearer ${cleanToken}"}` : '40/v3/chats,';
                     ws.send(authPacket);
                     return;
                 }
 
-                // 2. /v3/chats 네임스페이스 승인 완료 (40/v3/chats 수신)
+                // 3. /v3/chats 네임스페이스 진입 승인 (40/v3/chats)
                 if (raw.startsWith('40/v3/chats')) {
-                    sendStatus('🚀 [4/4] 인증 완료! 메시지 전송 중...');
-                    // 실제 전송 패킷 발송 (시퀀스 번호 1 명시)
+                    sendStatus('🚀 [4/4] 인증 성공! 메시지 발송 중...');
+                    
+                    // 1) 대화방 룸 가입 신호 발송
+                    ws.send(`42/v3/chats,["join",{"chatId":"${chatId}"}]`);
+                    
+                    // 2) 실제 메시지 전송 패킷 발송 (로그에서 추출한 순정 규격)
                     const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
                     ws.send(sendPayload);
                     return;
                 }
 
-                // 3. 서버 거부/에러 발생 (44/v3/chats 수신)
+                // 4. 에러 패킷 감지 (44)
                 if (raw.startsWith('44/v3/chats')) {
                     clearTimeout(timeoutTimer);
                     window.postMessage({
                         source: 'PASTEL_CRACK_SOCKET_ERROR',
                         reqId: reqId,
-                        error: `서버 인증 거부 (44): ${raw}`
+                        error: `서버 인증/요청 거부: ${raw}`
                     }, '*');
                     ws.close();
                     return;
                 }
 
-                // 4. 실시간 이벤트 수신 (42/v3/chats,...)
-                if (raw.startsWith('42/v3/chats,')) {
-                    clearTimeout(timeoutTimer); // 응답 오기 시작하면 타임아웃 해제
-                    try {
-                        const jsonStr = raw.replace(/^42\/v3\/chats,\d*/, '');
-                        const [eventName, payload] = JSON.parse(jsonStr);
+                // 5. 서버 확인 응답(Ack: 43) 수신 시 화면에 실시간 표시
+                if (raw.startsWith('43/v3/chats')) {
+                    sendStatus('📡 [서버 접수 완료] AI 답변 생성 대기 중...');
+                    return;
+                }
 
-                        if (eventName === 'characterMessageGenerating') {
-                            const chunk = payload?.data?.chunk || '';
-                            window.postMessage({
-                                source: 'PASTEL_CRACK_SOCKET_CHUNK',
-                                reqId: reqId,
-                                text: chunk
-                            }, '*');
-                        } else if (eventName === 'characterMessageGenerated') {
-                            const finalContent = payload?.data?.content || '';
-                            const cashUsed = payload?.data?.cashUsage?.total || 0;
-                            window.postMessage({
-                                source: 'PASTEL_CRACK_SOCKET_DONE',
-                                reqId: reqId,
-                                text: finalContent,
-                                cashUsed: cashUsed
-                            }, '*');
-                            ws.close(); // 완료 후 소켓 정리
+                // 6. 실시간 이벤트 수신 (42/v3/chats 또는 42로 시작하는 모든 이벤트)
+                if (raw.includes('characterMessageGenerating') || raw.includes('characterMessageGenerated')) {
+                    receivedChunk = true;
+                    clearTimeout(timeoutTimer);
+
+                    try {
+                        const jsonStartIndex = raw.indexOf('[');
+                        if (jsonStartIndex !== -1) {
+                            const [eventName, payload] = JSON.parse(raw.slice(jsonStartIndex));
+
+                            if (eventName === 'characterMessageGenerating') {
+                                const chunk = payload?.data?.chunk || '';
+                                window.postMessage({
+                                    source: 'PASTEL_CRACK_SOCKET_CHUNK',
+                                    reqId: reqId,
+                                    text: chunk
+                                }, '*');
+                            } else if (eventName === 'characterMessageGenerated') {
+                                const finalContent = payload?.data?.content || '';
+                                const cashUsed = payload?.data?.cashUsage?.total || 0;
+                                window.postMessage({
+                                    source: 'PASTEL_CRACK_SOCKET_DONE',
+                                    reqId: reqId,
+                                    text: finalContent,
+                                    cashUsed: cashUsed
+                                }, '*');
+                                ws.close();
+                            }
                         }
                     } catch (err) {
-                        console.warn('[PASTEL-WS] JSON 파싱 에러:', err, raw);
+                        console.warn('[PASTEL-WS] 파싱 오류:', err, raw);
                     }
+                    return;
+                }
+
+                // 기타 서버 수신 패킷이 있을 경우 화면에 상태 표시
+                if (!receivedChunk && raw.length > 3) {
+                    sendStatus(`📨 서버 응답 수신: ${raw.slice(0, 45)}...`);
                 }
             };
 
@@ -187,11 +209,11 @@
                 window.postMessage({
                     source: 'PASTEL_CRACK_SOCKET_ERROR',
                     reqId: reqId,
-                    error: '웹소켓 네트워크 연결 실패 (Origin 차단 또는 서버 다운)'
+                    error: '웹소켓 네트워크 오류'
                 }, '*');
             };
 
-            ws.onclose = (ev) => {
+            ws.onclose = () => {
                 clearTimeout(timeoutTimer);
             };
 
