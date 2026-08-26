@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.3.0
+// @version      1.3.1
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -997,6 +997,24 @@
         }
         body[data-theme="dark"] .ep-chat-action { color: #aaaaaa !important; }
         body[data-theme="dark"] .quote-block { border-color: #555555; }
+
+        /* React 가상 DOM 충돌 방지용 순정 숨김 & 파스텔 전용 렌더 박스 */
+        .pastel-origin-hidden {
+            display: none !important;
+        }
+        .pastel-custom-rendered {
+            width: 100%;
+            line-height: 1.6;
+            font-size: 16px;
+            text-align: left;
+            word-break: break-all;
+            user-select: text;
+            display: block;
+            color: var(--text_primary, #222222);
+        }
+        body[data-theme="dark"] .pastel-custom-rendered {
+            color: var(--text_primary, #F0EFEB);
+        }
     `;
 
     // CSS 주입
@@ -2344,99 +2362,138 @@
     }
 
     /* ==========================================================================
-     * 4.5 크랙 대화창 실시간 감시 및 순정 마크다운 자동 리렌더러
+     * 4.5 [무충돌/무지연] 크랙 대화창 정밀 탐색 및 파스텔 마크다운 렌더러
      * ========================================================================== */
     let chatObserverInstance = null;
+    let scanScheduled = false;
 
-    function renderSingleMessageElement(msgEl) {
-        if (!msgEl || msgEl.getAttribute('data-pastel-rendering') === 'true') return;
+    function processMessageContainer(container) {
+        if (!container) return;
 
-        // 원본 텍스트를 최초 1회만 캐싱하여 보존
-        let rawText = msgEl.getAttribute('data-pastel-raw');
-        if (!rawText) {
-            rawText = msgEl.innerText || msgEl.textContent || '';
-            if (!rawText.trim()) return;
-            msgEl.setAttribute('data-pastel-raw', rawText);
+        // 에디터, 서랍, 모달 등 내부 요소는 절대 변환하지 않음
+        if (container.closest('.chat-footer-control') ||
+            container.closest('#ep-chat-right-drawer') ||
+            container.closest('.ProseMirror') ||
+            container.closest('.ep-prompt-overlay') ||
+            container.closest('#ep-tpl-quick-panel') ||
+            container.closest('#ep-shortcut-select-popup')) {
+            return;
         }
 
-        // 유저 메시지/AI 메시지 구분 (크랙 고유 클래스 탐색)
-        const isUser = !!msgEl.closest('.bg-accent_translucent') || 
-                       !!msgEl.closest('[class*="justify-end"]') || 
-                       !!msgEl.closest('[data-role="user"]') ||
-                       msgEl.parentElement?.classList?.contains('items-end');
+        // 유저 메시지 판별 (크랙의 우측 배치 또는 유저 스타일 클래스 확인)
+        const isUser = !!container.closest('.justify-end') || 
+                       !!container.closest('[class*="items-end"]') || 
+                       !!container.closest('.bg-accent_translucent') ||
+                       container.classList.contains('bg-accent_translucent');
+
+        // 원본 텍스트 추출 (숨겨진 파스텔 렌더러를 제외한 React 순수 원본 텍스트 추출)
+        let customBox = container.querySelector('.pastel-custom-rendered');
+        let targetTextEl = container;
+
+        // 자식 중 이미 파스텔 박스가 있다면 텍스트 요소 분리
+        if (container.children.length > 0) {
+            const candidate = Array.from(container.children).find(c => !c.classList.contains('pastel-custom-rendered'));
+            if (candidate) targetTextEl = candidate;
+        }
+
+        const rawText = targetTextEl.getAttribute('data-pastel-raw') || targetTextEl.innerText || targetTextEl.textContent || '';
+        if (!rawText.trim()) return;
+
+        // 원본 텍스트 캐싱
+        if (!targetTextEl.getAttribute('data-pastel-raw')) {
+            targetTextEl.setAttribute('data-pastel-raw', rawText);
+        }
 
         const role = isUser ? 'user' : 'model';
         const parsedHtml = parseChatMarkdown(rawText, role);
 
-        if (parsedHtml) {
-            msgEl.setAttribute('data-pastel-rendering', 'true');
-            msgEl.innerHTML = parsedHtml;
-            msgEl.setAttribute('data-pastel-parsed', 'true');
-            msgEl.removeAttribute('data-pastel-rendering');
+        // React 원본 노드는 숨기고, 옆에 파스텔 전용 노드를 유지/주입
+        targetTextEl.classList.add('pastel-origin-hidden');
+
+        if (!customBox) {
+            customBox = document.createElement('div');
+            customBox.className = 'pastel-custom-rendered';
+            container.appendChild(customBox);
+        }
+
+        if (customBox.innerHTML !== parsedHtml) {
+            customBox.innerHTML = parsedHtml;
         }
     }
 
     function scanAndRenderAllMessages() {
-        // 크랙 대화방 메시지 본문 컨테이너 선택자들 전수 탐색
-        const messageNodes = document.querySelectorAll(
-            '.break-words:not([data-pastel-parsed="true"]), ' +
-            '.prose:not([data-pastel-parsed="true"]), ' +
-            '.whitespace-pre-wrap:not([data-pastel-parsed="true"]), ' +
-            '[class*="bubble"]:not([data-pastel-parsed="true"])'
+        scanScheduled = false;
+
+        // 크랙의 대화 메시지 버블이 들어있는 모든 영역을 안전하게 다중 탐색
+        const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || 
+                         document.querySelector('main') || 
+                         document.body;
+
+        if (!chatRoot) return;
+
+        // 크랙의 유저/AI 텍스트 컨테이너 탐색 (단락, 프리랩, prose, 버블)
+        const candidates = chatRoot.querySelectorAll(
+            '.whitespace-pre-wrap, .break-words, .prose, div[class*="bubble"], div[class*="message"], p'
         );
 
-        messageNodes.forEach(node => {
-            // 입력창 내부나 서랍 내부 텍스트는 제외
-            if (node.closest('#ep-chat-right-drawer') || 
-                node.closest('.chat-footer-control') || 
-                node.closest('.ProseMirror') ||
-                node.closest('.ep-prompt-overlay') ||
-                node.closest('#ep-tpl-quick-panel') ||
-                node.closest('#ep-shortcut-select-popup')) {
-                return;
+        candidates.forEach(el => {
+            // 상위 턴 래퍼 찾기
+            const messageWrapper = el.closest('.flex.flex-col') || el.parentElement;
+            if (messageWrapper && !messageWrapper.classList.contains('pastel-custom-rendered')) {
+                processMessageContainer(messageWrapper);
             }
-            renderSingleMessageElement(node);
         });
+    }
+
+    function scheduleScan() {
+        if (scanScheduled) return;
+        scanScheduled = true;
+        // 1프레임(16ms) 디바운싱: 브라우저 렉 0% 보장
+        requestAnimationFrame(scanAndRenderAllMessages);
     }
 
     function attachCrackChatObserver() {
         if (chatObserverInstance) return;
 
-        const chatContainer = document.querySelector('.flex.flex-col-reverse.w-full') || 
-                              document.querySelector('main') || 
-                              document.body;
+        const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || 
+                         document.querySelector('main') || 
+                         document.body;
 
-        if (!chatContainer) return;
+        if (!chatRoot) return;
 
         chatObserverInstance = new MutationObserver((mutations) => {
-            let hasNewNodes = false;
+            let needsScan = false;
             for (const m of mutations) {
-                if (m.addedNodes.length > 0) {
-                    hasNewNodes = true;
+                // 파스텔 자체 렌더링에 의한 변화는 무시하여 무한 루프 차단
+                if (m.target && (m.target.classList?.contains('pastel-custom-rendered') || m.target.classList?.contains('pastel-origin-hidden'))) {
+                    continue;
+                }
+                if (m.addedNodes.length > 0 || m.type === 'characterData') {
+                    needsScan = true;
                     break;
                 }
             }
-            if (hasNewNodes) {
-                scanAndRenderAllMessages();
+            if (needsScan) {
+                scheduleScan();
             }
         });
 
-        chatObserverInstance.observe(chatContainer, {
+        chatObserverInstance.observe(chatRoot, {
             childList: true,
-            subtree: true
+            subtree: true,
+            characterData: true
         });
 
-        // 초기 로드 시 1회 즉각 스캔
-        scanAndRenderAllMessages();
+        scheduleScan();
     }
 
     /* ==========================================================================
      * 5. SPA 라우팅 대응 상시 주입 감시 (무거운 감시 없음 / 가벼운 확인 루프)
      * ========================================================================== */
-    function checkAndInject() {
+   function checkAndInject() {
         injectBaseDOM();
         attachCrackChatObserver();
-        scanAndRenderAllMessages();
+        scheduleScan();
     }
 
     if (document.readyState === 'loading') {
