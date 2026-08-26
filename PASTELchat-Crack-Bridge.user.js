@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.3.1
+// @version      1.3.2
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -964,7 +964,18 @@
         .ep-code-block-body { background-color: #F8F2F4; color: #6E5960 !important; padding: 14px 16px !important; white-space: pre-wrap; font-size: 14.5px !important; line-height: 1.6; }
         .ep-code-block-body.no-header { border-radius: 8px; }
         
-        .ep-hud-box { position: relative; margin: 0 0 0 auto; width: fit-content; padding: 2px 0 0 0; text-align: right; font-size: 14px !important; font-weight: 300; letter-spacing: 1.4px; line-height: 1.6; }
+        .ep-hud-box { 
+            position: relative; 
+            margin: 0 0 0 auto; 
+            width: fit-content; 
+            padding: 2px 0 0 0; 
+            text-align: right; 
+            font-size: 14px !important; 
+            font-weight: 300; 
+            letter-spacing: 1.4px; 
+            line-height: 1.6; 
+            white-space: pre-wrap !important; /* HUD 멀티라인 줄바꿈 100% 보존 */
+        }
         .ep-hud-box::after { content: ""; display: block; width: 100%; margin-top: 6px; border-bottom: 6px double #D2C0C0; }
 
         .ep-dialogue-card-wrapper { position: relative; display: flex; flex-direction: column; width: fit-content; max-width: 100%; margin: 12px 0; box-sizing: border-box; }
@@ -1010,6 +1021,7 @@
             word-break: break-all;
             user-select: text;
             display: block;
+            white-space: pre-wrap !important; /* 일반 문단 및 빈 줄 공백 100% 보존 */
             color: var(--text_primary, #222222);
         }
         body[data-theme="dark"] .pastel-custom-rendered {
@@ -1065,8 +1077,10 @@
         if (!text) return "";
         const isUser = (msgType === 'user');
 
-        let cleanedText = stripLoreInjectionBlock(text).replace(/\n{3,}/g, '\n\n').trim();
+        // 1. 주입된 로어 블록 은닉 (사용자의 줄바꿈은 100% 보존)
+        let cleanedText = stripLoreInjectionBlock(text).trim();
 
+        // 2. 크랙 에디터가 대사카드/문자 사이에 강제로 끼워넣은 빈 줄만 스마트 결합
         cleanedText = cleanedText
             .replace(/([—―][^\n]+)\n+(?=▎)/g, '$1\n')
             .replace(/(▎[^\n]*)\n+(?=▎)/g, '$1\n')
@@ -1078,13 +1092,13 @@
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;");
 
-        // 0. HUD 전용 ❴ ❵ 파싱
-        html = html.replace(/❴\n?([\s\S]*?)\n?❵(\r?\n)?/g, function(match, hudContent) {
+        // 0. HUD 전용 ❴ ❵ 파싱 (뒤쪽 엔터/빈줄 절대 삼키지 않음)
+        html = html.replace(/❴\n?([\s\S]*?)\n?❵/g, function(match, hudContent) {
             return `<div class="ep-hud-box">${hudContent.trim()}</div>`;
         });
 
-        // 0.2 대사 카드 파싱
-        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*▎[^\n\r]*)+)(\r?\n)?/g, function(match, leadNL, name, lines) {
+        // 0.2 대사 카드 파싱 (뒤쪽 엔터/빈줄 절대 삼키지 않음)
+        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*▎[^\n\r]*)+)/g, function(match, leadNL, name, lines) {
             const cleanName = name.trim();
             const contentList = lines.split('\n')
                 .map(l => l.trim())
@@ -1094,8 +1108,8 @@
             return `${leadNL}<div class="ep-dialogue-card-wrapper ${isUser ? 'user-side' : ''}"><div class="ep-dialogue-badge-row"><div class="ep-dialogue-badge">${cleanName}</div></div><div class="ep-dialogue-card-box">${cleanContent}</div></div>`;
         });
 
-        // 0.3 메신저 문자 말풍선 파싱
-        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*`[^`\n\r]+`)+)(\r?\n)?/g, function(match, leadNL, name, lines) {
+        // 0.3 메신저 문자 말풍선 파싱 (뒤쪽 엔터/빈줄 절대 삼키지 않음)
+        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*`[^`\n\r]+`)+)/g, function(match, leadNL, name, lines) {
             const cleanName = name.trim();
             const bubbleList = lines.split('\n')
                 .map(l => l.trim())
@@ -1108,8 +1122,8 @@
             return `${leadNL}<div class="ep-sms-container ${isUser ? 'user-side' : ''}"><div class="ep-sms-avatar-icon">${userSvg}</div><div class="ep-sms-content-col"><span class="ep-sms-name">${cleanName}</span>${bubblesHtml}</div></div>`;
         });
 
-        // 1. 코드블록 치환
-        html = html.replace(/`{3}([^\n]*?)(?:\r?\n([\s\S]*?))?`{3}(\r?\n)?/g, function(match, title, content) {
+        // 1. 코드블록 치환 (뒤쪽 엔터/빈줄 절대 삼키지 않음)
+        html = html.replace(/`{3}([^\n]*?)(?:\r?\n([\s\S]*?))?`{3}/g, function(match, title, content) {
             const trimmedTitle = title.trim();
             if (content === undefined) return `<div class="ep-code-block-wrapper"><div class="ep-code-block-body no-header">${trimmedTitle}</div></div>`;
             const cleanedContent = content.trim();
