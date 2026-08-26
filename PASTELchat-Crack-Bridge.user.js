@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.2.6
+// @version      1.2.7
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -54,6 +54,15 @@
             --bg_primary: #141413;
             --text_primary: #F0EFEB;
             --icon_primary: #F0EFEB;
+        }
+
+        /* 대화방 상단 헤더가 스크롤/로딩 시 위로 사라지지 않도록 상시 고정 */
+        .absolute.z-docked.left-0.w-full.h-12,
+        .h-12.px-5.flex.justify-between.items-center {
+            transform: none !important;
+            opacity: 1 !important;
+            visibility: visible !important;
+            z-index: 1000 !important;
         }
 
         /* 크랙 순정 메뉴 버튼과 완벽히 동일한 인라인 버튼 스타일 */
