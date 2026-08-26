@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.4.4
+// @version      1.4.5
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -3350,7 +3350,13 @@ Conversation Log:
             safetySettings: getSafetySettingsPayload()
         };
 
-        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const appCheckToken = await getAppCheckToken();
+        const headers = { "Content-Type": "application/json" };
+        if (appCheckToken && url.includes("firebasevertexai")) {
+            headers["X-Firebase-AppCheck"] = appCheckToken;
+        }
+
+        const res = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
         if (!res.ok) throw new Error(`API 통신 에러 (HTTP ${res.status})`);
         const resData = await res.json();
 
@@ -3446,7 +3452,13 @@ Conversation Log:
         };
 
         try {
-            const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+            const appCheckToken = await getAppCheckToken();
+            const headers = { "Content-Type": "application/json" };
+            if (appCheckToken && url.includes("firebasevertexai")) {
+                headers["X-Firebase-AppCheck"] = appCheckToken;
+            }
+
+            const res = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
             if (!res.ok) return;
             const resData = await res.json();
 
@@ -3532,7 +3544,13 @@ Conversation Log:
             safetySettings: getSafetySettingsPayload()
         };
 
-        const res = await fetch(url, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+        const appCheckToken = await getAppCheckToken();
+        const headers = { "Content-Type": "application/json" };
+        if (appCheckToken && url.includes("firebasevertexai")) {
+            headers["X-Firebase-AppCheck"] = appCheckToken;
+        }
+
+        const res = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
         if (!res.ok) throw new Error(`API 통신 실패 (HTTP ${res.status})`);
         const resData = await res.json();
 
@@ -3733,8 +3751,14 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
                 if (!url) throw new Error("우측 서랍의 [API 설정]에 Gemini API Key 또는 Firebase Script를 입력해 주십시오.");
 
+                const appCheckToken = await getAppCheckToken();
+                const headers = { "Content-Type": "application/json" };
+                if (appCheckToken && url.includes("firebasevertexai")) {
+                    headers["X-Firebase-AppCheck"] = appCheckToken;
+                }
+
                 const res = await fetch(url, {
-                    method: "POST", headers: { "Content-Type": "application/json" },
+                    method: "POST", headers: headers,
                     body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
                 });
 
@@ -4243,28 +4267,18 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         else if (panelId === 'ep-lore-panel-settings') loadCrackLoreSettingsTab();
     }
 
-    // Firebase App Check 토큰 발급기 (crack.html 순정 100%)
+    // Firebase SDK 및 App Check 초기화 엔진 (crack.html 순정 100% 일치)
     let geminiAppCheckApp = null;
     const RECAPTCHA_SITE_KEY = "6Lc_imwtAAAAADr3ojpxWjAb5ofGvBzD4rgEnfr4";
 
     async function getAppCheckToken() {
         try {
-            const firebaseScript = localStorage.getItem('pastel_api_firebase') || '';
-            if (!firebaseScript.trim()) return null;
-
-            if (!geminiAppCheckApp && typeof firebase !== 'undefined') {
-                const config = parseFirebaseConfig(firebaseScript);
-                if (config && config.projectId && config.apiKey) {
-                    geminiAppCheckApp = firebase.initializeApp(config, 'pastel_crack_app');
-                    if (firebase.appCheck) {
-                        const appCheck = firebase.appCheck(geminiAppCheckApp);
-                        appCheck.activate(new firebase.appCheck.ReCaptchaV3Provider(RECAPTCHA_SITE_KEY), true);
-                    }
-                }
+            if (!geminiAppCheckApp) {
+                initializeFirebaseDynamically();
             }
-
-            if (geminiAppCheckApp && typeof firebase !== 'undefined' && firebase.appCheck) {
-                const tokenResult = await firebase.appCheck(geminiAppCheckApp).getToken(false);
+            const targetApp = geminiAppCheckApp || (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0 ? firebase.app() : null);
+            if (targetApp && typeof firebase !== 'undefined' && firebase.appCheck) {
+                const tokenResult = await firebase.appCheck(targetApp).getToken(false);
                 if (tokenResult && tokenResult.token) {
                     return tokenResult.token;
                 }
@@ -4273,6 +4287,34 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
             console.warn("[AppCheck 알림]:", e ? e.message : e);
         }
         return null;
+    }
+
+    function initializeFirebaseDynamically() {
+        const firebaseScript = localStorage.getItem('pastel_api_firebase') || '';
+        if (!firebaseScript.trim()) return;
+
+        try {
+            const config = parseFirebaseConfig(firebaseScript);
+            if (config && config.projectId && config.apiKey) {
+                let defaultApp = typeof firebase !== 'undefined' && firebase.apps ? firebase.apps.find(a => a.name === '[DEFAULT]') : null;
+                if (!defaultApp && typeof firebase !== 'undefined') {
+                    defaultApp = firebase.initializeApp(config);
+                }
+                geminiAppCheckApp = defaultApp;
+
+                if (geminiAppCheckApp && typeof firebase !== 'undefined' && typeof firebase.appCheck === 'function') {
+                    try {
+                        const appCheck = firebase.appCheck(geminiAppCheckApp);
+                        appCheck.activate(
+                            new firebase.appCheck.ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+                            true
+                        );
+                    } catch (acErr) {}
+                }
+            }
+        } catch (e) {
+            console.warn("[Firebase 초기화 에러]:", e);
+        }
     }
 
     // [유저 본문 100% 보존 & 로어만 정밀 은닉 엔진]
@@ -4312,6 +4354,8 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
     /* ==========================================================================
      * 6. SPA 라우팅 대응 상시 주입 감시 (무거운 감시 없음 / 가벼운 확인 루프)
      * ========================================================================== */
+    initializeFirebaseDynamically();
+
     function checkAndInject() {
         injectBaseDOM();
         stripLoreOnlyFromView();
