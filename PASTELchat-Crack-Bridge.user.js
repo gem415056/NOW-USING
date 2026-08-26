@@ -1,8 +1,8 @@
 // ==UserScript==
 // @name         PASTELchat Crack API & Socket.IO Direct Bridge
 // @namespace    https://github.com/
-// @version      4.1.0
-// @description  Bulletproof Message Sending & Strict Count-Locked Polling for PASTELchat
+// @version      4.2.0
+// @description  Pure WebSocket Event-Driven Engine (Zero Old Turn Echo) for PASTELchat
 // @author       PASTELchat
 // @match        *://*/*crack.html*
 // @match        *://*/*
@@ -56,7 +56,7 @@
     }
 
     // =========================================================================
-    // [2. crack.html 통신 브릿지 (v4.1.0 무결점 전송 & 개수 잠금 감시)]
+    // [2. crack.html 통신 브릿지 (v4.2.0 순수 소켓 이벤트 감지)]
     // =========================================================================
     window.addEventListener('message', function(event) {
         if (!event.data) return;
@@ -74,177 +74,150 @@
 
             const cachedToken = GM_getValue('crack_access_token', '');
             const cleanToken = cachedToken ? cachedToken.replace(/^Bearer\s+/i, '').trim() : '';
-            const cachedWId = GM_getValue('crack_w_id', 'W2.2.ba1dca25.315c.4cf1.acd3.28b9c450e340');
 
-            sendStatus('🔄 [1/4] 전송 전 기존 메시지 개수 카운팅 중...');
+            sendStatus('🔄 [1/3] 소켓 연결 및 인증 핸드셰이크...');
 
-            let baseMessageCount = 0;
-            let lastMessageId = null;
+            let wsUrl = 'wss://crack-api.wrtn.ai:443/character-chat/socket.io/?EIO=4&transport=websocket';
+            if (cleanToken) wsUrl += `&token=Bearer%20${encodeURIComponent(cleanToken)}`;
 
-            // 1단계: 현재 방의 메시지 총 개수와 마지막 메시지 ID를 완벽히 확보
-            GM_xmlhttpRequest({
-                method: 'GET',
-                url: `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=20`,
-                headers: {
-                    'Origin': 'https://crack.wrtn.ai',
-                    'Referer': 'https://crack.wrtn.ai/',
-                    'platform': 'web',
-                    'wrtn-locale': 'ko-KR',
-                    'x-wrtn-id': cachedWId,
-                    'authorization': `Bearer ${cleanToken}`
-                },
-                onload: (res) => {
-                    try {
-                        const parsed = JSON.parse(res.responseText);
-                        let msgs = parsed?.data || parsed?.messages || [];
-                        if (Array.isArray(msgs)) {
-                            baseMessageCount = msgs.length;
-                            if (msgs.length > 0) lastMessageId = msgs[0]._id || msgs[0].id;
-                        }
-                    } catch (_) {}
+            let ws = null;
+            let timeoutTimer = null;
+            let sendTime = 0;
+            let hasReceivedResponsePacket = false;
 
-                    executeDualSend();
-                },
-                onerror: () => {
-                    executeDualSend();
-                }
-            });
-
-            // 2단계: 이중 전송 (REST API + WebSocket 동시 트리거로 누락 방지)
-            function executeDualSend() {
-                sendStatus('🚀 [2/4] 크랙 정식 권한으로 메시지 발송 중...');
-
-                // [방법 A] REST API 포워딩 (CORS/쿠키 완벽 우회)
-                GM_xmlhttpRequest({
-                    method: 'POST',
-                    url: `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages`,
-                    headers: {
-                        'Origin': 'https://crack.wrtn.ai',
-                        'Referer': 'https://crack.wrtn.ai/',
-                        'Content-Type': 'application/json',
-                        'platform': 'web',
-                        'wrtn-locale': 'ko-KR',
-                        'x-wrtn-id': cachedWId,
-                        'authorization': `Bearer ${cleanToken}`
-                    },
-                    data: JSON.stringify({
-                        chatId: chatId,
-                        message: message,
-                        content: message
-                    }),
-                    onload: (res) => {
-                        console.log('[PASTEL] REST 전송 결과:', res.status, res.responseText);
-                    }
-                });
-
-                // [방법 B] 소켓 전송 (EIO=4 규격)
-                let wsUrl = 'wss://crack-api.wrtn.ai:443/character-chat/socket.io/?EIO=4&transport=websocket';
-                if (cleanToken) wsUrl += `&token=Bearer%20${encodeURIComponent(cleanToken)}`;
-
-                let ws = null;
-                try {
-                    ws = new WebSocket(wsUrl);
-                    ws.onopen = () => {};
-                    ws.onmessage = (e) => {
-                        const raw = e.data;
-                        if (typeof raw !== 'string') return;
-                        if (raw === '2') { ws.send('3'); return; }
-                        if (raw.startsWith('0')) {
-                            ws.send(cleanToken ? `40/v3/chats,{"token":"Bearer ${cleanToken}"}` : '40/v3/chats,');
-                            return;
-                        }
-                        if (raw.startsWith('40/v3/chats')) {
-                            ws.send(`42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`);
-                            return;
-                        }
-                    };
-                } catch (_) {}
-
-                // 3단계: 절대 오작동 없는 카운트 잠금 감시기 가동
-                startStrictPolling(ws);
+            try {
+                ws = new WebSocket(wsUrl);
+            } catch (e) {
+                window.postMessage({
+                    source: 'PASTEL_CRACK_SOCKET_ERROR',
+                    reqId: reqId,
+                    error: `소켓 접속 실패: ${e.message}`
+                }, '*');
+                return;
             }
 
-            function startStrictPolling(activeWs) {
-                let pollAttempts = 0;
-                const maxAttempts = 200; // 최대 5분
-                let isFinished = false;
+            // 60초 타임아웃
+            timeoutTimer = setTimeout(() => {
+                if (ws && !hasReceivedResponsePacket) {
+                    ws.close();
+                    window.postMessage({
+                        source: 'PASTEL_CRACK_SOCKET_ERROR',
+                        reqId: reqId,
+                        error: '메시지 발송 후 60초 동안 서버로부터 수신 패킷이 도착하지 않았습니다.'
+                    }, '*');
+                }
+            }, 60000);
 
-                const timer = setInterval(() => {
-                    if (isFinished) {
-                        clearInterval(timer);
+            ws.onopen = () => {};
+
+            ws.onmessage = (e) => {
+                const raw = e.data;
+                if (typeof raw !== 'string') return;
+
+                // Ping/Pong
+                if (raw === '2') {
+                    ws.send('3');
+                    return;
+                }
+
+                // [단계 1] 핸드셰이크 수신 (0) -> 네임스페이스 접속 요청
+                if (raw.startsWith('0')) {
+                    sendStatus('🔄 [2/3] /v3/chats 네임스페이스 진입 중...');
+                    const authPacket = cleanToken ? `40/v3/chats,{"token":"Bearer ${cleanToken}"}` : '40/v3/chats,';
+                    ws.send(authPacket);
+                    return;
+                }
+
+                // [단계 2] 네임스페이스 승인 (40/v3/chats) -> 송신(SEND) 발사!
+                if (raw.startsWith('40/v3/chats')) {
+                    sendTime = Date.now();
+                    sendStatus('🚀 [3/3] 메시지 송신 완료! 서버 수신 대기 중...');
+
+                    // 송신 패킷 발사
+                    const sendPayload = `42/v3/chats,1["send",{"chatId":"${chatId}","message":${JSON.stringify(message)}}]`;
+                    ws.send(sendPayload);
+                    return;
+                }
+
+                // [단계 3] 송신 이후, 서버에서 수신(RECV)되는 패킷 감지!
+                if (sendTime > 0) {
+                    // 1. 실시간 텍스트 생성 패킷 수신
+                    if (raw.includes('characterMessageGenerating')) {
+                        hasReceivedResponsePacket = true;
+                        clearTimeout(timeoutTimer);
+
+                        try {
+                            const jsonStartIndex = raw.indexOf('[');
+                            if (jsonStartIndex !== -1) {
+                                const [eventName, payload] = JSON.parse(raw.slice(jsonStartIndex));
+                                const chunk = payload?.data?.chunk || '';
+                                window.postMessage({
+                                    source: 'PASTEL_CRACK_SOCKET_CHUNK',
+                                    reqId: reqId,
+                                    text: chunk
+                                }, '*');
+                            }
+                        } catch (_) {}
                         return;
                     }
 
-                    pollAttempts++;
-                    const elapsedSec = (pollAttempts * 1.5).toFixed(1);
-                    sendStatus(`✨ AI가 새 답변을 작성하는 중... (${elapsedSec}초)`);
+                    // 2. 최종 완료 패킷 수신
+                    if (raw.includes('characterMessageGenerated')) {
+                        hasReceivedResponsePacket = true;
+                        clearTimeout(timeoutTimer);
 
-                    GM_xmlhttpRequest({
-                        method: 'GET',
-                        url: `https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=5`,
-                        headers: {
-                            'Origin': 'https://crack.wrtn.ai',
-                            'Referer': 'https://crack.wrtn.ai/',
-                            'platform': 'web',
-                            'wrtn-locale': 'ko-KR',
-                            'x-wrtn-id': cachedWId,
-                            'authorization': `Bearer ${cleanToken}`
-                        },
-                        onload: (res) => {
-                            try {
-                                const parsed = JSON.parse(res.responseText);
-                                let msgs = [];
-                                if (Array.isArray(parsed?.data)) msgs = parsed.data;
-                                else if (Array.isArray(parsed?.data?.messages)) msgs = parsed.data.messages;
-                                else if (Array.isArray(parsed?.messages)) msgs = parsed.messages;
+                        try {
+                            const jsonStartIndex = raw.indexOf('[');
+                            if (jsonStartIndex !== -1) {
+                                const [eventName, payload] = JSON.parse(raw.slice(jsonStartIndex));
+                                const finalContent = payload?.data?.content || '';
+                                const cashUsed = payload?.data?.cashUsage?.total || 0;
 
-                                if (msgs.length > 0) {
-                                    const latest = msgs[0];
-                                    const currentId = latest._id || latest.id;
-                                    const role = latest.role || latest.type;
-                                    const status = latest.status;
-
-                                    // [철통 검증]: 마지막 ID와 완전히 다르고, AI의 답변이어야만 수령!
-                                    if (currentId && currentId !== lastMessageId && (role === 'assistant' || role === 'model')) {
-                                        if (status === 'end' || !status || pollAttempts > 3) {
-                                            isFinished = true;
-                                            clearInterval(timer);
-                                            if (activeWs) activeWs.close();
-
-                                            const content = latest.content || latest.message || '';
-                                            const cashUsed = latest.cashUsage?.total || 0;
-
-                                            window.postMessage({
-                                                source: 'PASTEL_CRACK_SOCKET_DONE',
-                                                reqId: reqId,
-                                                text: content,
-                                                cashUsed: cashUsed
-                                            }, '*');
-                                        }
-                                    }
-                                }
-                            } catch (_) {}
-                        }
-                    });
-
-                    if (pollAttempts >= maxAttempts) {
-                        clearInterval(timer);
-                        if (!isFinished) {
-                            if (activeWs) activeWs.close();
-                            window.postMessage({
-                                source: 'PASTEL_CRACK_SOCKET_ERROR',
-                                reqId: reqId,
-                                error: 'AI 답변 생성 대기 시간 초과 (5분 경과)'
-                            }, '*');
-                        }
+                                window.postMessage({
+                                    source: 'PASTEL_CRACK_SOCKET_DONE',
+                                    reqId: reqId,
+                                    text: finalContent,
+                                    cashUsed: cashUsed
+                                }, '*');
+                                ws.close();
+                            }
+                        } catch (_) {}
+                        return;
                     }
-                }, 1500);
-            }
+
+                    // 3. 서버 거부 또는 에러 응답 수신
+                    if (raw.startsWith('44/v3/chats') || raw.includes('"result":"error"')) {
+                        clearTimeout(timeoutTimer);
+                        window.postMessage({
+                            source: 'PASTEL_CRACK_SOCKET_ERROR',
+                            reqId: reqId,
+                            error: `서버 거부 응답: ${raw.slice(0, 80)}`
+                        }, '*');
+                        ws.close();
+                        return;
+                    }
+
+                    // 4. 기타 서버 수신 패킷 실시간 출력
+                    if (!hasReceivedResponsePacket && raw !== '3') {
+                        const elapsed = ((Date.now() - sendTime) / 1000).toFixed(1);
+                        sendStatus(`📨 [수신 감지 ${elapsed}s] ${raw.slice(0, 40)}...`);
+                    }
+                }
+            };
+
+            ws.onerror = (err) => {
+                clearTimeout(timeoutTimer);
+                window.postMessage({
+                    source: 'PASTEL_CRACK_SOCKET_ERROR',
+                    reqId: reqId,
+                    error: '웹소켓 통신 오류'
+                }, '*');
+            };
 
             return;
         }
 
-        // [B] 기존 REST API 요청
+        // [B] 기존 REST API 요청 (대화 목록 / 캐시 조회)
         if (event.data.source === 'PASTEL_CRACK_REQUEST') {
             const { reqId, method, url, headers, data, responseType } = event.data;
             const cachedToken = GM_getValue('crack_access_token', '');
