@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.4.5
+// @version      1.4.7
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1072,7 +1072,7 @@
     (document.head || document.documentElement).appendChild(styleEl);
 
     /* ==========================================================================
-     * 2. 토스트 헬퍼 함수 (index.html 순정)
+     * 2. 토스트 헬퍼 함수 (crack.html 순정 100% 완전 일치)
      * ========================================================================== */
     function showToast(msg) {
         let container = document.getElementById('pastel-toast-container');
@@ -1092,6 +1092,45 @@
                 if (container && container.contains(item)) item.remove();
             }, 200);
         }, 2500);
+    }
+
+    let loreExtPersistentToast = null;
+
+    function showLoreExtPersistentToast(message) {
+        if (loreExtPersistentToast) {
+            loreExtPersistentToast.remove();
+            loreExtPersistentToast = null;
+        }
+        let container = document.getElementById('pastel-toast-container');
+        if (!container) {
+            container = document.createElement('div');
+            container.id = 'pastel-toast-container';
+            document.body.appendChild(container);
+        }
+
+        loreExtPersistentToast = document.createElement("div");
+        loreExtPersistentToast.className = "ep-toast-item";
+        loreExtPersistentToast.innerHTML = `
+            <div class="ep-toast-container">
+                <p class="ep-toast-text">${message}</p>
+            </div>
+        `;
+        container.appendChild(loreExtPersistentToast);
+        setTimeout(() => {
+            if (loreExtPersistentToast) loreExtPersistentToast.classList.add('visible');
+        }, 20);
+    }
+
+    function hideLoreExtPersistentToast() {
+        if (loreExtPersistentToast) {
+            const target = loreExtPersistentToast;
+            loreExtPersistentToast = null;
+            target.classList.remove('visible');
+            setTimeout(() => {
+                let container = document.getElementById('pastel-toast-container');
+                if (container && container.contains(target)) target.remove();
+            }, 200);
+        }
     }
 
     /* ==========================================================================
@@ -2232,36 +2271,82 @@
             };
         }
 
-        // 전송 버튼 누를 때 동기화 및 전송 후 비우기 + N턴 주기 자동 로어 추출 트리거
+        // [비동기 완벽 보장] 전송 가로채기 -> 2000자 RAG 로어 조립 주입 -> 실제 크랙 전송 실행
         const slot = document.getElementById('ep-native-send-slot');
+        let isInternalSending = false;
+
         if (slot) {
-            const triggerSyncBeforeSend = () => {
-                syncTextToNativeEditor();
-            };
+            slot.addEventListener('click', async (e) => {
+                // 내부에서 RAG 주입 완료 후 진짜 보낼 때는 통과
+                if (isInternalSending) return;
 
-            slot.addEventListener('mousedown', triggerSyncBeforeSend);
-            slot.addEventListener('touchstart', triggerSyncBeforeSend, { passive: true });
+                // 1. 브라우저의 조급한 0초 즉시 전송을 강제로 가로채어 멈춤
+                e.preventDefault();
+                e.stopPropagation();
+                e.stopImmediatePropagation();
 
-            slot.addEventListener('click', () => {
+                const textarea = document.getElementById('ep-chat-input-textarea');
+                if (!textarea) return;
+                const rawInput = textarea.value.trim();
+                if (!rawInput) return;
+
+                // 2. 단축어 확장 (!단축어 -> additional note)
+                let userExpandedText = rawInput;
+                const shortcuts = GM_getValue('pastel_mockShortcuts', null) || JSON.parse(localStorage.getItem('pastel_mockShortcuts') || '[]');
+                if (Array.isArray(shortcuts)) {
+                    shortcuts.forEach(sh => {
+                        const token = `!${sh.title}`;
+                        if (userExpandedText.includes(token)) {
+                            userExpandedText += `\n\n---\n\`\`\`additional note: !${sh.title}\n${sh.text}\n\`\`\``;
+                        }
+                    });
+                }
+
+                // 3. 2,000자 로어 RAG 블록 비동기 조립 (3턴 쿨타임 완벽 적용)
                 const chatId = getChatId();
+                const loreBlock = await buildCrackRAGLoreBlock(userExpandedText, chatId);
+                const finalPayloadMessage = loreBlock ? `${loreBlock}\n\n${userExpandedText}` : userExpandedText;
+
+                // 4. 조립된 최종 메시지를 크랙의 ProseMirror 에디터에 주입
+                const editor = document.querySelector('.ProseMirror') || document.querySelector('[contenteditable="true"]');
+                if (editor) {
+                    const paragraphs = finalPayloadMessage.split('\n').map(line => `<p>${line || '<br class="ProseMirror-trailingBreak">'}</p>`).join('');
+                    editor.innerHTML = paragraphs;
+                    editor.dispatchEvent(new Event('input', { bubbles: true }));
+                    editor.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+
+                // 5. 파스텔 입력창 비우기
+                textarea.value = '';
+
+                // 6. 에디터 주입 완료 후, 크랙의 순정 전송 버튼을 진짜로 클릭
+                isInternalSending = true;
+                const nativeBtn = slot.querySelector('button');
+                if (nativeBtn) {
+                    nativeBtn.click();
+                }
+                isInternalSending = false;
+
+                // 7. N턴 주기 백그라운드 자동 로어 추출 검사 및 실행
                 setTimeout(() => {
-                    if (textarea) textarea.value = '';
-                    
-                    // N턴 주기 백그라운드 자동 로어 추출 검사 및 실행
                     const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${chatId}`), 10) || 6;
                     const currentTurns = getCrackChatTurns();
                     if (currentTurns > 0 && currentTurns % extTurns === 0) {
                         (async () => {
                             try {
-                                showToast("🔮 백그라운드 로어 자동 생성 중...");
+                                showLoreExtPersistentToast("🔮 로어 생성 중...");
                                 await executeBackgroundAutoExtraction(chatId);
-                                showToast("✨ 로어 자동 생성 완료!");
+                                showToast("✨ 로어 생성 완료!");
                                 renderCrackActiveLores();
-                            } catch (_) {}
+                            } catch (_) {
+                                showToast("❌ 로어 자동 생성 실패");
+                            } finally {
+                                hideLoreExtPersistentToast();
+                            }
                         })();
                     }
-                }, 100);
-            });
+                }, 500);
+            }, true); // Capture phase로 이벤트 최우선 가로채기
         }
     }
 
@@ -3013,9 +3098,34 @@ Conversation Log:
     // ==========================================
     // 로깅, 턴수 및 스냅샷 복원 엔진
     // ==========================================
+    // [대화 이력 추출기]: 크랙 화면의 대화 말풍선을 순서대로 100% 수급
+    function getCrackConversationHistory() {
+        const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || document.querySelector('main') || document.body;
+        if (!chatRoot) return [];
+
+        const history = [];
+        const bubbles = chatRoot.querySelectorAll('.break-words, .whitespace-pre-wrap, .prose');
+
+        bubbles.forEach(b => {
+            if (b.closest('.chat-footer-control') || b.closest('#ep-chat-right-drawer') || b.closest('.ep-prompt-overlay') || b.closest('#ep-lore-storage-modal-overlay')) return;
+
+            let raw = b.innerText || b.textContent || '';
+            raw = stripLoreInjectionBlock(raw).trim();
+            if (!raw) return;
+
+            const isUser = !!b.closest('.justify-end') || !!b.closest('[class*="items-end"]') || !!b.closest('.bg-accent_translucent') || b.classList.contains('bg-accent_translucent');
+            const role = isUser ? 'user' : 'assistant';
+
+            if (history.length > 0 && history[history.length - 1].content === raw) return;
+            history.push({ role, content: raw });
+        });
+
+        return history;
+    }
+
     function getCrackChatTurns() {
-        const msgs = document.querySelectorAll('.flex.flex-col-reverse.w-full > div') || [];
-        return Math.max(1, Math.floor(msgs.length / 2));
+        const history = getCrackConversationHistory();
+        return history.filter(m => m.role === 'user').length;
     }
 
     function recordInjectLog(epId, turn, matched, count, usedChars, budget) {
@@ -3315,15 +3425,11 @@ Conversation Log:
         const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
         if (!url) throw new Error("우측 서랍의 [API 설정]에 Gemini API Key 또는 Firebase Script를 입력해 주십시오.");
 
-        const msgElements = Array.from(document.querySelectorAll('.flex.flex-col-reverse.w-full > div') || []).reverse();
-        if (msgElements.length === 0) throw new Error("분석할 대화 이력이 없습니다.");
+        const history = getCrackConversationHistory();
+        if (history.length === 0) throw new Error("분석할 대화 이력이 없습니다.");
 
-        const targetList = msgElements.slice(-(turns * 2));
-        const context = targetList.map(el => {
-            const isUser = !!el.querySelector('.justify-end') || !!el.querySelector('.bg-accent_translucent');
-            const cleanText = stripLoreInjectionBlock(el.innerText || '');
-            return `${isUser ? 'user' : 'assistant'}: ${cleanText}`;
-        }).join("\n");
+        const targetList = history.slice(-(turns * 2));
+        const context = targetList.map(m => `${m.role}: ${m.content}`).join("\n");
 
         const packName = `Ep_Crack_${episodeId}_Pack`;
         let entriesText = "[]";
@@ -3359,11 +3465,6 @@ Conversation Log:
         const res = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
         if (!res.ok) throw new Error(`API 통신 에러 (HTTP ${res.status})`);
         const resData = await res.json();
-
-        const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
-        const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
-        const cost = (inTok * (0.00075 / 1000)) + (outTok * (0.00375 / 1000));
-        accumulateCrackLoreCost(cost);
 
         const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!rawText.trim()) throw new Error("AI가 로어 데이터를 반환하지 않았습니다.");
@@ -3415,16 +3516,12 @@ Conversation Log:
         const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
         if (!url) return;
 
-        const msgElements = Array.from(document.querySelectorAll('.flex.flex-col-reverse.w-full > div') || []).reverse();
-        if (msgElements.length < 2) return;
+        const history = getCrackConversationHistory();
+        if (history.length < 2) return;
 
         const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${episodeId}`), 10) || 6;
-        const targetList = msgElements.slice(-(extTurns * 2));
-        const context = targetList.map(el => {
-            const isUser = !!el.querySelector('.justify-end') || !!el.querySelector('.bg-accent_translucent');
-            const cleanText = stripLoreInjectionBlock(el.innerText || '');
-            return `${isUser ? 'user' : 'assistant'}: ${cleanText}`;
-        }).join("\n");
+        const targetList = history.slice(-(extTurns * 2));
+        const context = targetList.map(m => `${m.role}: ${m.content}`).join("\n");
 
         const packName = `Ep_Crack_${episodeId}_Pack`;
         let entriesText = "[]";
@@ -3461,11 +3558,6 @@ Conversation Log:
             const res = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
             if (!res.ok) return;
             const resData = await res.json();
-
-            const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
-            const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
-            const cost = (inTok * (0.00075 / 1000)) + (outTok * (0.00375 / 1000));
-            accumulateCrackLoreCost(cost);
 
             const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
             if (!rawText.trim()) return;
@@ -3554,11 +3646,6 @@ Conversation Log:
         if (!res.ok) throw new Error(`API 통신 실패 (HTTP ${res.status})`);
         const resData = await res.json();
 
-        const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
-        const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
-        const cost = (inTok * (0.00075 / 1000)) + (outTok * (0.00375 / 1000));
-        accumulateCrackLoreCost(cost);
-
         const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!rawText.trim()) return;
 
@@ -3596,33 +3683,30 @@ Conversation Log:
 
         try {
             try { await createLoreSnapshot(episodeId, "전체 재생성 전 백업"); } catch(_) {}
-            showToast("🔮 전체 로어 재생성 시작...");
+            showLoreExtPersistentToast("🔮 로어 초기화 및 재생성 준비 중...");
             await loreDb.entries.where('packName').equals(packName).delete();
             await loreDb.embeddings.where('packName').equals(packName).delete();
 
-            const msgElements = Array.from(document.querySelectorAll('.flex.flex-col-reverse.w-full > div') || []).reverse();
-            if (msgElements.length === 0) throw new Error("대화 내용이 존재하지 않습니다.");
+            const history = getCrackConversationHistory();
+            if (history.length === 0) throw new Error("대화 내용이 존재하지 않습니다.");
 
             const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${episodeId}`), 10) || 6;
             const step = extTurns * 2;
-            const total = msgElements.length;
+            const total = history.length;
             const totalSteps = Math.ceil(total / step);
             let stepsRun = 0;
 
             for (let i = 0; i < total; i += step) {
-                const slice = msgElements.slice(0, i + step);
+                const slice = history.slice(0, i + step);
                 if (slice.length < 2) continue;
                 const windowSlice = slice.slice(-(step + 4));
-                const contextText = windowSlice.map(el => {
-                    const isUser = !!el.querySelector('.justify-end') || !!el.querySelector('.bg-accent_translucent');
-                    const cleanText = stripLoreInjectionBlock(el.innerText || '');
-                    return `${isUser ? 'user' : 'assistant'}: ${cleanText}`;
-                }).join("\n");
+                const contextText = windowSlice.map(m => `${m.role}: ${m.content}`).join("\n");
 
                 const progressPercent = Math.min(100, Math.round(((stepsRun + 1) / totalSteps) * 100));
+                showLoreExtPersistentToast(`🔮 전체 로어 재생성 중...(${progressPercent}%)`);
                 if (st) st.textContent = `재생성 스캔 중 (${stepsRun + 1}/${totalSteps} 단계)... (${progressPercent}%)`;
 
-                const chunkTurn = Math.max(1, Math.floor(slice.length / 2));
+                const chunkTurn = slice.filter(m => m.role === 'user').length;
                 await executeLoreExtractionAPIOnly(episodeId, contextText, chunkTurn);
                 stepsRun++;
             }
@@ -3635,6 +3719,7 @@ Conversation Log:
             if (st) { st.textContent = "❌ 실패: " + err.message; st.style.color = "#da8"; }
             showToast("❌ 로어 재생성 실패");
         } finally {
+            hideLoreExtPersistentToast();
             if (btn) { btn.disabled = false; btn.textContent = "초기화 및 전체 로어 재생성"; }
         }
     }
