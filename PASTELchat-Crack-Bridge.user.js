@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.6.3
+// @version      1.6.4
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -2443,25 +2443,63 @@
                 const loreBlock = await buildCrackRAGLoreBlock(userExpandedText, chatId);
                 const finalPayloadMessage = loreBlock ? `${loreBlock}\n\n${userExpandedText}` : userExpandedText;
 
-                // 4. 조립된 최종 메시지를 크랙의 ProseMirror 에디터에 주입
+                // 4. [원문 긴급 비상 백업] (어떤 오류가 발생해도 글이 날아가지 않도록 즉시 로컬 백업)
+                localStorage.setItem('pastel_last_sent_backup', rawInput);
+
+                // 5. [ProseMirror 가상 클립보드 트랜잭션 주입]: 내부 State에 2,000자 완벽 안착 (빈 공백 전송 100% 차단)
                 const editor = document.querySelector('.ProseMirror') || document.querySelector('[contenteditable="true"]');
                 if (editor) {
-                    const paragraphs = finalPayloadMessage.split('\n').map(line => `<p>${line || '<br class="ProseMirror-trailingBreak">'}</p>`).join('');
-                    editor.innerHTML = paragraphs;
+                    editor.focus();
+
+                    // 전체 선택
+                    const sel = window.getSelection();
+                    const range = document.createRange();
+                    range.selectNodeContents(editor);
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+
+                    // 1순위: execCommand 가상 붙여넣기 (React/ProseMirror State가 100% 인식)
+                    let success = false;
+                    try {
+                        success = document.execCommand('insertText', false, finalPayloadMessage);
+                    } catch (_) {}
+
+                    // 2순위: DataTransfer 클립보드 붙여넣기 시뮬레이션
+                    if (!success || !editor.textContent.trim()) {
+                        try {
+                            const dt = new DataTransfer();
+                            dt.setData('text/plain', finalPayloadMessage);
+                            const pasteEvt = new ClipboardEvent('paste', { clipboardData: dt, bubbles: true, cancelable: true });
+                            editor.dispatchEvent(pasteEvt);
+                        } catch (_) {}
+                    }
+
+                    // 3순위: DOM 단락 주입 및 트랜잭션 InputEvent 발송
+                    if (!editor.textContent.trim()) {
+                        const paragraphs = finalPayloadMessage.split('\n').map(line => `<p>${line || '<br class="ProseMirror-trailingBreak">'}</p>`).join('');
+                        editor.innerHTML = paragraphs;
+                    }
+
+                    editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertFromPaste', data: finalPayloadMessage }));
                     editor.dispatchEvent(new Event('input', { bubbles: true }));
                     editor.dispatchEvent(new Event('change', { bubbles: true }));
                 }
 
-                // 5. 파스텔 입력창 비우기
-                textarea.value = '';
-
-                // 6. 에디터 주입 완료 후, 크랙의 순정 전송 버튼을 진짜로 클릭
+                // 6. 에디터에 텍스트가 정상 채워졌는지 검증 후 순정 전송 버튼 클릭
                 isInternalSending = true;
-                const nativeBtn = slot.querySelector('button');
-                if (nativeBtn) {
-                    nativeBtn.click();
-                }
-                isInternalSending = false;
+                setTimeout(() => {
+                    const nativeBtn = slot.querySelector('button');
+                    if (nativeBtn) {
+                        nativeBtn.removeAttribute('disabled');
+                        nativeBtn.click();
+                        // 전송 클릭이 확실히 완료된 후에만 파스텔 입력창 비우기
+                        textarea.value = '';
+                        updateSendButtonColor();
+                    } else {
+                        showToast("❌ 크랙 순정 전송 버튼 탐색 실패");
+                    }
+                    isInternalSending = false;
+                }, 80);
 
                 // 7. N턴 주기 백그라운드 자동 로어 추출 검사 및 실행 (중복 실행 방지)
                 setTimeout(() => {
