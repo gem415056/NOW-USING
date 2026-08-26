@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.2.1
+// @version      1.2.2
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1065,15 +1065,14 @@
                 </div>
             `;
             document.body.appendChild(varsModal);
-
-            bindDrawerEvents();
         }
 
-        // [B] 헤더 내 파스텔 메뉴 버튼 상시 주입/유지 로직
+        // 1. 헤더 버튼 및 입력창 DOM을 먼저 확실하게 주입
         injectHeaderButton();
-
-        // [C] 하단 파스텔 입력창 & 구슬 툴바 상시 주입 로직
         injectCustomInputBox();
+
+        // 2. 모든 DOM이 올라간 후 안전하게 이벤트 바인딩
+        bindDrawerEvents();
     }
 
     // 헤더 버튼 정밀 탐색 및 주입 함수
