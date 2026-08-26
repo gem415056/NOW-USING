@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.2.3
+// @version      1.2.5
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -424,15 +424,22 @@
             border: none !important;
         }
 
-        /* 크랙 하단 부모 컨테이너 가로폭 및 마진 1.5배 추가 확대 */
+        /* 하단 입력창을 화면 최하단 바닥에 완전 고정 (모바일 출렁임 100% 방지) */
         .bg-bg_screen.pointer-events-auto,
         .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
+            position: fixed !important;
+            bottom: 0 !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
             max-width: 760px !important;
-            width: calc(100% - 64px) !important; /* 마진 확실하게 1.5배 넓힘 */
-            padding-top: 6px !important;
+            width: calc(100% - 64px) !important;
+            padding: 8px 0 !important;
+            background-color: var(--bg_screen, #ffffff) !important;
+            z-index: 10000 !important;
             overflow: visible !important;
-            position: relative !important;
-            z-index: 1000 !important; /* 대화창보다 위로 레이어 승격 */
+        }
+        body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
+            background-color: #141413 !important;
         }
 
         /* 하단 입력바 & 특수문자 구슬 툴바 (crack.html 순정 100% 복원) */
@@ -539,18 +546,19 @@
             flex-shrink: 0;
         }
 
-        /* 단축어 팝업 순정 스타일 (z-index 최상위화) */
+        /* 단축어 팝업 (어떤 부모의 overflow에도 잘리지 않도록 fixed 최상단 렌더링) */
         #ep-shortcut-select-popup {
             display: none;
-            position: absolute;
-            left: 20px;
-            bottom: calc(100% + 10px);
+            position: fixed !important;
+            bottom: 180px !important;
+            left: 50% !important;
+            transform: translateX(-360px) !important;
             z-index: 2147483647 !important;
             border-radius: 12px;
             padding: 10px !important;
             width: 130px !important;
             height: auto !important;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
             flex-direction: column;
             gap: 8px;
             border: 1px solid #E6E6E6;
@@ -558,6 +566,12 @@
             color: #222222;
             box-sizing: border-box;
             user-select: none;
+        }
+        @media (max-width: 768px) {
+            #ep-shortcut-select-popup {
+                left: 32px !important;
+                transform: none !important;
+            }
         }
         body[data-theme="dark"] #ep-shortcut-select-popup {
             background: #242321;
@@ -605,16 +619,18 @@
             color: #fff;
         }
 
-        /* 템플릿 퀵패널 순정 스타일 (z-index 최상위화) */
+        /* 템플릿 퀵패널 (화면 최상단 독립 렌더링) */
         .ep-tpl-quick-panel {
-            position: absolute;
-            left: 0;
-            right: 0;
-            bottom: calc(100% + 10px);
+            position: fixed !important;
+            bottom: 180px !important;
+            left: 50% !important;
+            transform: translateX(-50%) !important;
+            width: 760px !important;
+            max-width: calc(100% - 64px) !important;
             background: #ffffff;
             border: 1px solid #E6E6E6;
             border-radius: 12px;
-            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3) !important;
             padding: 14px 16px;
             display: none;
             flex-direction: column;
@@ -1158,6 +1174,37 @@
                 </div>
             `;
             document.body.appendChild(varsModal);
+
+            // 7. 단축어 팝업을 body에 직접 독립 추가 (잘림 원천 방지)
+            const shPopup = document.createElement('div');
+            shPopup.id = 'ep-shortcut-select-popup';
+            shPopup.innerHTML = `
+                <div style="font-weight:bold; line-height: 1; margin-bottom:0 !important; font-size:12px; border-bottom:1px solid rgba(128,128,128,0.15); padding-bottom:8px; color: var(--text_primary);">단축어 선택</div>
+                <div id="ep-shortcut-select-list"></div>
+            `;
+            document.body.appendChild(shPopup);
+
+            // 8. 템플릿 퀵패널을 body에 직접 독립 추가 (잘림 원천 방지)
+            const tplPanel = document.createElement('div');
+            tplPanel.id = 'ep-tpl-quick-panel';
+            tplPanel.className = 'ep-tpl-quick-panel';
+            tplPanel.innerHTML = `
+                <div class="ep-tpl-quick-header">
+                    <span class="ep-tpl-quick-title">템플릿</span>
+                </div>
+                <div class="ep-tpl-quick-folders" id="ep-tpl-quick-folder-bar"></div>
+                <div class="ep-tpl-quick-grid" id="ep-tpl-quick-grid"></div>
+                <div class="ep-tpl-quick-search-row">
+                    <button type="button" class="ep-tpl-quick-btn-vars" id="ep-tpl-quick-btn-vars" title="치환자 설정">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15H6a4 4 0 0 0-4 4v2"/><path d="m14.305 16.53.923-.382"/><path d="m15.228 13.852-.923-.383"/><path d="m16.852 12.228-.383-.923"/><path d="m16.852 17.772-.383.924"/><path d="m19.148 12.228.383-.923"/><path d="m19.53 18.696-.382-.924"/><path d="m20.772 13.852.924-.383"/><path d="m20.772 16.148.924.383"/><circle cx="18" cy="15" r="3"/><circle cx="9" cy="7" r="4"/></svg>
+                    </button>
+                    <div class="ep-search-wrapper">
+                        <input type="text" class="ep-search" id="ep-tpl-quick-search-input" placeholder="템플릿 제목 또는 내용 검색..." style="height:36px;">
+                        <button type="button" class="ep-search-clear-btn" id="ep-tpl-quick-search-clear-btn" title="검색어 지우기"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg></button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(tplPanel);
         }
 
         // 1. 헤더 버튼 및 입력창 DOM을 먼저 확실하게 주입
@@ -1239,30 +1286,6 @@
         const footerControl = document.createElement('div');
         footerControl.className = 'chat-footer-control';
         footerControl.innerHTML = `
-            <!-- 🔗 단축어 선택 팝업 (자석 밀착형) -->
-            <div id="ep-shortcut-select-popup">
-                <div style="font-weight:bold; line-height: 1; margin-bottom:0 !important; font-size:12px; border-bottom:1px solid rgba(128,128,128,0.15); padding-bottom:8px; color: var(--text_primary);">단축어 선택</div>
-                <div id="ep-shortcut-select-list"></div>
-            </div>
-
-            <!-- 🌿 템플릿 퀵패널 (순정 1:1 풀 마크업) -->
-            <div id="ep-tpl-quick-panel" class="ep-tpl-quick-panel">
-                <div class="ep-tpl-quick-header">
-                    <span class="ep-tpl-quick-title">템플릿</span>
-                </div>
-                <div class="ep-tpl-quick-folders" id="ep-tpl-quick-folder-bar"></div>
-                <div class="ep-tpl-quick-grid" id="ep-tpl-quick-grid"></div>
-                <div class="ep-tpl-quick-search-row">
-                    <button type="button" class="ep-tpl-quick-btn-vars" id="ep-tpl-quick-btn-vars" title="치환자 설정">
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15H6a4 4 0 0 0-4 4v2"/><path d="m14.305 16.53.923-.382"/><path d="m15.228 13.852-.923-.383"/><path d="m16.852 12.228-.383-.923"/><path d="m16.852 17.772-.383.924"/><path d="m19.148 12.228.383-.923"/><path d="m19.53 18.696-.382-.924"/><path d="m20.772 13.852.924-.383"/><path d="m20.772 16.148.924.383"/><circle cx="18" cy="15" r="3"/><circle cx="9" cy="7" r="4"/></svg>
-                    </button>
-                    <div class="ep-search-wrapper">
-                        <input type="text" class="ep-search" id="ep-tpl-quick-search-input" placeholder="템플릿 제목 또는 내용 검색..." style="height:36px;">
-                        <button type="button" class="ep-search-clear-btn" id="ep-tpl-quick-search-clear-btn" title="검색어 지우기"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg></button>
-                    </div>
-                </div>
-            </div>
-
             <div class="input-area">
                 <textarea class="chat-textarea" id="ep-chat-input-textarea" placeholder="메시지를 입력하세요..."></textarea>
                 <div class="input-toolbar">
