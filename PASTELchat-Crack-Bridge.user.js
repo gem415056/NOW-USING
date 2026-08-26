@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Module 1 (Base & Menu)
 // @namespace    https://pastelchat.com/
-// @version      1.1.4
+// @version      1.2.0
 // @description  PASTELchat Native UI Engine for crack.wrtn.ai - Module 1: Base & Right Drawer Menu
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -399,11 +399,11 @@
             border: none !important;
         }
 
-        /* 크랙 하단 부모 컨테이너 가로폭을 좌우로 시원하게 확장 */
+        /* 크랙 하단 부모 컨테이너 가로폭 및 마진 1.5배 최적화 */
         .bg-bg_screen.pointer-events-auto,
         .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
-            max-width: 900px !important; /* 기존 768px에서 좌우로 넓게 확장 */
-            width: calc(100% - 20px) !important; /* 좌우 바깥 마진 대폭 축소 */
+            max-width: 820px !important;
+            width: calc(100% - 32px) !important; /* 딱 알맞은 1.5배 바깥 마진 확보 */
             padding-top: 6px !important;
         }
 
@@ -506,49 +506,333 @@
             border-left: 1px dashed #888888;
         }
 
-        .hold-send-btn {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            border: none;
-            background-color: #eee;
-            cursor: pointer;
+        /* 단축어 팝업 순정 스타일 */
+        #ep-shortcut-select-popup {
+            display: none;
+            position: absolute;
+            left: 20px;
+            bottom: calc(100% - 10px);
+            z-index: 100010 !important;
+            border-radius: 12px;
+            padding: 10px !important;
+            width: 130px !important;
+            height: auto !important;
+            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+            flex-direction: column;
+            gap: 8px;
+            border: 1px solid #E6E6E6;
+            background: #ffffff;
+            color: #222222;
+            box-sizing: border-box;
+            user-select: none;
+        }
+        body[data-theme="dark"] #ep-shortcut-select-popup {
+            background: #242321;
+            border-color: #42413D;
+            color: #F0EFEB;
+        }
+        #ep-shortcut-select-list {
+            max-height: 164px;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+        .ep-shortcut-popup-item {
+            background-color: #f5f5f5;
+            border: 1px solid #E6E6E6;
+            border-radius: 6px;
+            min-height: 28px;
+            height: auto;
+            flex-shrink: 0;
             display: flex;
             align-items: center;
-            justify-content: center;
-            margin-left: auto;
-            flex-shrink: 0;
-            transition: background-color 0.2s;
-            padding: 0;
-            outline: none;
+            padding: 4px 10px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 11px;
+            font-weight: 700;
+            color: #555555;
+            transition: background-color 0.2s, color 0.2s;
+            white-space: normal;
+            word-break: break-all;
+            box-sizing: border-box;
         }
-        body[data-theme="dark"] .hold-send-btn {
+        .ep-shortcut-popup-item:hover {
+            background-color: #e8e8e8;
+            color: #222222;
+        }
+        body[data-theme="dark"] .ep-shortcut-popup-item {
+            background-color: #1a1918;
+            border-color: #42413D;
+            color: #aaa;
+        }
+        body[data-theme="dark"] .ep-shortcut-popup-item:hover {
             background-color: #333;
+            color: #fff;
         }
 
-        #sh-progress-ring {
-            position: fixed;
-            pointer-events: none;
-            z-index: 999999;
+        /* 템플릿 퀵패널 순정 스타일 */
+        .ep-tpl-quick-panel {
+            position: absolute;
+            left: 10px;
+            right: 10px;
+            bottom: calc(100% - 10px);
+            background: #ffffff;
+            border: 1px solid #E6E6E6;
+            border-radius: 12px;
+            box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.08);
+            padding: 14px 16px;
+            display: none;
+            flex-direction: column;
+            gap: 10px;
+            z-index: 100010 !important;
+            max-height: 360px;
+            box-sizing: border-box;
+        }
+        body[data-theme="dark"] .ep-tpl-quick-panel {
+            background: #242321;
+            border-color: #42413D;
+        }
+        .ep-tpl-quick-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .ep-tpl-quick-title {
+            font-size: 14px;
+            font-weight: 800;
+            color: #333;
+            user-select: none;
+        }
+        body[data-theme="dark"] .ep-tpl-quick-title {
+            color: #F0EFEB;
+        }
+        .ep-tpl-quick-folders {
+            display: flex;
+            gap: 6px;
+            overflow-x: auto;
+            padding-bottom: 2px;
+            scrollbar-width: none;
+        }
+        .ep-tpl-quick-folders::-webkit-scrollbar {
             display: none;
         }
-        #sh-progress-ring.active {
-            display: block;
+        .ep-ftab {
+            height: 28px;
+            background: #f0f0f0;
+            border: 1px solid #ddd;
+            padding: 0 12px;
+            border-radius: 14px;
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            cursor: pointer;
+            white-space: nowrap;
+            display: inline-flex;
+            align-items: center;
+            box-sizing: border-box;
         }
-        #sh-progress-ring circle.track {
-            fill: none;
-            stroke: rgba(0, 0, 0, 0.05);
-            stroke-width: 3;
+        .ep-ftab.active {
+            background: #F5E19A;
+            color: #333;
+            border-color: #ddd;
         }
-        #sh-progress-ring circle.fill {
-            fill: none;
-            stroke: #fb8d76 !important;
-            stroke-width: 3;
-            stroke-linecap: round;
-            transform: rotate(-90deg);
-            transform-origin: center;
-            transform-box: fill-box;
-            transition: stroke-dashoffset linear;
+        body[data-theme="dark"] .ep-ftab {
+            background: #1a1918;
+            border-color: #42413D;
+            color: #888;
+        }
+        body[data-theme="dark"] .ep-ftab.active {
+            background: #F5E19A;
+            color: #222;
+        }
+        .ep-tpl-quick-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            max-height: 160px;
+            overflow-y: auto;
+            padding-right: 2px;
+        }
+        .ep-tpl-quick-card {
+            background: #f9f9f9;
+            border: 1px solid #E6E6E6;
+            border-radius: 8px;
+            padding: 9px 11px;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            text-align: left;
+            user-select: none;
+            transition: border-color 0.15s, background-color 0.15s;
+        }
+        .ep-tpl-quick-card:hover {
+            border-color: #F5E19A;
+            background-color: #fffef9;
+        }
+        body[data-theme="dark"] .ep-tpl-quick-card {
+            background: #1a1918;
+            border-color: #42413D;
+        }
+        body[data-theme="dark"] .ep-tpl-quick-card:hover {
+            border-color: #F5E19A;
+            background-color: #2a2825;
+        }
+        .ep-tpl-quick-card-title {
+            font-size: 13px;
+            font-weight: 700;
+            color: #222;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        body[data-theme="dark"] .ep-tpl-quick-card-title {
+            color: #F0EFEB;
+        }
+        .ep-tpl-quick-card-text {
+            font-size: 11.5px;
+            color: #777;
+            line-height: 1.45;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .ep-tpl-quick-search-row {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .ep-tpl-quick-btn-vars {
+            background: transparent !important;
+            border: 1px solid #E6E6E6 !important;
+            width: 36px;
+            height: 36px;
+            border-radius: 8px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #888;
+            flex-shrink: 0;
+            transition: 0.15s;
+            outline: none;
+        }
+        .ep-tpl-quick-btn-vars:hover {
+            border-color: #b0b0b0 !important;
+            color: #222;
+        }
+        body[data-theme="dark"] .ep-tpl-quick-btn-vars {
+            border-color: #42413D !important;
+            color: #aaa;
+        }
+
+        .ep-search-wrapper {
+            position: relative;
+            flex: 1;
+            min-width: 0;
+            display: flex;
+            align-items: center;
+        }
+        .ep-search {
+            width: 100%;
+            flex: 1;
+            min-width: 0;
+            padding: 8px 34px 8px 12px !important;
+            min-height: 36px;
+            border: 1px solid #ddd !important;
+            border-radius: 8px;
+            font-size: 14px;
+            box-sizing: border-box;
+            background: #fff !important;
+            color: #222 !important;
+            margin: 0 !important;
+            outline: none;
+        }
+        body[data-theme="dark"] .ep-search {
+            background: #141413 !important;
+            border-color: #42413D !important;
+            color: #F0EFEB !important;
+        }
+        .ep-search-clear-btn {
+            position: absolute;
+            right: 8px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: transparent !important;
+            border: none !important;
+            color: #aaa;
+            cursor: pointer;
+            padding: 4px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            outline: none;
+            z-index: 5;
+        }
+
+        /* 치환자 설정 모달 */
+        .ep-tpl-vars-modal {
+            background: #fff !important;
+            border-radius: 12px;
+            padding: 20px;
+            width: 320px;
+            max-width: 90vw;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 14px;
+            box-sizing: border-box;
+        }
+        body[data-theme="dark"] .ep-tpl-vars-modal {
+            background: #242321 !important;
+            color: #F0EFEB;
+        }
+        .ep-tpl-vars-row {
+            display: flex;
+            gap: 12px;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .ep-tpl-vars-col {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            text-align: left;
+        }
+        .ep-tpl-vars-label {
+            font-size: 13px;
+            font-weight: 700;
+            color: #555;
+            user-select: none;
+        }
+        body[data-theme="dark"] .ep-tpl-vars-label {
+            color: #aaa;
+        }
+        .ep-tpl-vars-input {
+            width: 100%;
+            height: 36px;
+            padding: 0 10px;
+            border: 1px solid #E6E6E6 !important;
+            border-radius: 8px;
+            font-size: 13px;
+            box-sizing: border-box;
+            background: #fafafa !important;
+            color: #222 !important;
+            outline: none;
+        }
+        body[data-theme="dark"] .ep-tpl-vars-input {
+            background: #141413 !important;
+            border-color: #42413D !important;
+            color: #F0EFEB !important;
+        }
+        .ep-tpl-vars-input:focus {
+            border-color: #b0b0b0 !important;
+            background: #fff !important;
         }
 
         /* 커스텀 기호 모달 스위치 & 인풋 */
@@ -817,6 +1101,31 @@
             `;
             document.body.appendChild(progressRing);
 
+            // 6. 치환자 설정 모달 (순정 100%)
+            const varsModal = document.createElement('div');
+            varsModal.id = 'ep-tpl-vars-modal-overlay';
+            varsModal.className = 'ep-prompt-overlay';
+            varsModal.style.zIndex = '100070';
+            varsModal.innerHTML = `
+                <div class="ep-tpl-vars-modal">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <div style="font-size:14px; font-weight:700; color:var(--text_primary);">치환자 설정</div>
+                        <button id="ep-tpl-vars-cancel-btn" style="background:transparent; border:none; color:#888; cursor:pointer; padding:4px;"><svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg></button>
+                    </div>
+                    <div class="ep-tpl-vars-row">
+                        <div class="ep-tpl-vars-col">
+                            <label class="ep-tpl-vars-label">Ⓤ</label>
+                            <input type="text" class="ep-tpl-vars-input" id="ep-tpl-var-user-input" placeholder="유저 캐릭터명">
+                        </div>
+                        <div class="ep-tpl-vars-col">
+                            <label class="ep-tpl-vars-label">Ⓒ</label>
+                            <input type="text" class="ep-tpl-vars-input" id="ep-tpl-var-char-input" placeholder="상대 캐릭터명">
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(varsModal);
+
             bindDrawerEvents();
         }
 
@@ -898,6 +1207,30 @@
         const footerControl = document.createElement('div');
         footerControl.className = 'chat-footer-control';
         footerControl.innerHTML = `
+            <!-- 🔗 단축어 선택 팝업 (자석 밀착형) -->
+            <div id="ep-shortcut-select-popup">
+                <div style="font-weight:bold; line-height: 1; margin-bottom:0 !important; font-size:12px; border-bottom:1px solid rgba(128,128,128,0.15); padding-bottom:8px; color: var(--text_primary);">단축어 선택</div>
+                <div id="ep-shortcut-select-list"></div>
+            </div>
+
+            <!-- 🌿 템플릿 퀵패널 (순정 1:1 풀 마크업) -->
+            <div id="ep-tpl-quick-panel" class="ep-tpl-quick-panel">
+                <div class="ep-tpl-quick-header">
+                    <span class="ep-tpl-quick-title">템플릿</span>
+                </div>
+                <div class="ep-tpl-quick-folders" id="ep-tpl-quick-folder-bar"></div>
+                <div class="ep-tpl-quick-grid" id="ep-tpl-quick-grid"></div>
+                <div class="ep-tpl-quick-search-row">
+                    <button type="button" class="ep-tpl-quick-btn-vars" id="ep-tpl-quick-btn-vars" title="치환자 설정">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 15H6a4 4 0 0 0-4 4v2"/><path d="m14.305 16.53.923-.382"/><path d="m15.228 13.852-.923-.383"/><path d="m16.852 12.228-.383-.923"/><path d="m16.852 17.772-.383.924"/><path d="m19.148 12.228.383-.923"/><path d="m19.53 18.696-.382-.924"/><path d="m20.772 13.852.924-.383"/><path d="m20.772 16.148.924.383"/><circle cx="18" cy="15" r="3"/><circle cx="9" cy="7" r="4"/></svg>
+                    </button>
+                    <div class="ep-search-wrapper">
+                        <input type="text" class="ep-search" id="ep-tpl-quick-search-input" placeholder="템플릿 제목 또는 내용 검색..." style="height:36px;">
+                        <button type="button" class="ep-search-clear-btn" id="ep-tpl-quick-search-clear-btn" title="검색어 지우기"><svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 21H8a2 2 0 0 1-1.42-.587l-3.994-3.999a2 2 0 0 1 0-2.828l10-10a2 2 0 0 1 2.829 0l5.999 6a2 2 0 0 1 0 2.828L12.834 21"/><path d="m5.082 11.09 8.828 8.828"/></svg></button>
+                    </div>
+                </div>
+            </div>
+
             <div class="input-area">
                 <textarea class="chat-textarea" id="ep-chat-input-textarea" placeholder="메시지를 입력하세요..."></textarea>
                 <div class="input-toolbar">
@@ -1198,6 +1531,125 @@
         moveNativeSendButtonToSlot();
     }
 
+    /* ==========================================================================
+     * 7. 단축어, 템플릿 퀵패널 및 치환자 계산 엔진 (crack.html 순정 100%)
+     * ========================================================================== */
+    const EP_CHOSUNG_LIST = ['ㄱ', 'ㄲ', 'ㄴ', 'ㄷ', 'ㄸ', 'ㄹ', 'ㅁ', 'ㅂ', 'ㅃ', 'ㅅ', 'ㅆ', 'ㅇ', 'ㅈ', 'ㅉ', 'ㅊ', 'ㅋ', 'ㅌ', 'ㅍ', 'ㅎ'];
+    function getChosungString(str) {
+        let result = "";
+        for (let i = 0; i < str.length; i++) {
+            const code = str.charCodeAt(i);
+            if (code >= 0xAC00 && code <= 0xD7A3) result += EP_CHOSUNG_LIST[Math.floor((code - 0xAC00) / 588)];
+            else result += str[i];
+        }
+        return result;
+    }
+    function isChosungOnly(query) {
+        return query.split('').every(ch => EP_CHOSUNG_LIST.includes(ch) || ch === ' ');
+    }
+    function matchesTemplateSearch(tpl, query) {
+        if (!query) return true;
+        const q = query.trim().toLowerCase();
+        const titleLower = (tpl.title || "").toLowerCase();
+        const textLower = (tpl.text || "").toLowerCase();
+        if (isChosungOnly(q) && getChosungString(titleLower).includes(q)) return true;
+        return titleLower.includes(q) || textLower.includes(q);
+    }
+
+    function hasKoreanJongseong(char) {
+        if (!char) return false;
+        const code = char.charCodeAt(0);
+        return (code >= 0xAC00 && code <= 0xD7A3) ? (code - 0xAC00) % 28 > 0 : false;
+    }
+    function getAutoKoreanJosa(name, josa) {
+        if (!name) return josa;
+        const hasBatchim = hasKoreanJongseong(name[name.length - 1]);
+        if (josa === '으로' || josa === '로') {
+            const jongIndex = (name.charCodeAt(name.length - 1) - 0xAC00) % 28;
+            return (jongIndex === 0 || jongIndex === 8) ? '로' : '으로';
+        }
+        const josaMap = { '이': hasBatchim ? '이' : '가', '가': hasBatchim ? '이' : '가', '은': hasBatchim ? '은' : '는', '는': hasBatchim ? '은' : '는', '을': hasBatchim ? '을' : '를', '를': hasBatchim ? '을' : '를', '과': hasBatchim ? '과' : '와', '와': hasBatchim ? '과' : '와', '아': hasBatchim ? '아' : '야', '야': hasBatchim ? '아' : '야' };
+        return josaMap[josa] || josa;
+    }
+
+    function transformTemplatePlaceholders(text) {
+        if (!text) return "";
+        const raw = localStorage.getItem(`pastel_crack_feather_vars_ep_${getChatId()}`);
+        const vars = raw ? JSON.parse(raw) : { user: '', char: '' };
+        let result = text;
+        result = result.replace(/([ⓊⒸⓤⓒ])(이\(가\)|은\(는\)|을\(를\)|과\(와\)|으로\(로\)|[이가은는을를과와아야]|으로|로)/g, (m, sym, josaRaw) => {
+            const isUser = (sym === 'Ⓤ' || sym === 'ⓤ');
+            const name = isUser ? vars.user : vars.char;
+            if (!name) return m;
+            let baseJosa = josaRaw.replace(/\(.*?\)/g, '');
+            return name + getAutoKoreanJosa(name, baseJosa);
+        });
+        result = result.replace(/[Ⓤⓤ]/g, vars.user || 'Ⓤ').replace(/[Ⓒⓒ]/g, vars.char || 'Ⓒ');
+        return result;
+    }
+
+    let activeQuickTplFolder = '전체';
+    function renderQuickTemplates() {
+        const grid = document.getElementById('ep-tpl-quick-grid');
+        const searchInp = document.getElementById('ep-tpl-quick-search-input');
+        if (!grid) return;
+        grid.innerHTML = '';
+        const query = searchInp ? searchInp.value.trim() : '';
+
+        const tpls = GM_getValue('pastel_mockTemplates', null) || JSON.parse(localStorage.getItem('pastel_mockTemplates') || '[]');
+        const filtered = tpls.filter(tpl => {
+            const matchesFolder = (activeQuickTplFolder === '전체' || tpl.folder === activeQuickTplFolder);
+            return matchesFolder && matchesTemplateSearch(tpl, query);
+        });
+
+        filtered.sort((a, b) => (a.title || '').localeCompare(b.title || '', 'ko-KR'));
+
+        if (filtered.length === 0) {
+            grid.innerHTML = `<div style="grid-column:1/3; text-align:center; padding:20px; font-size:12px; color:#999;">일치하는 템플릿이 없습니다.</div>`;
+            return;
+        }
+
+        filtered.forEach(tpl => {
+            const card = document.createElement('div');
+            card.className = 'ep-tpl-quick-card';
+            card.innerHTML = `<div class="ep-tpl-quick-card-title">${tpl.title || '무제'}</div><div class="ep-tpl-quick-card-text">${tpl.text || ''}</div>`;
+            card.onclick = (e) => {
+                e.stopPropagation();
+                const finalTxt = transformTemplatePlaceholders(tpl.text || '');
+                const ta = document.getElementById('ep-chat-input-textarea');
+                if (ta) {
+                    const start = ta.selectionStart, end = ta.selectionEnd;
+                    ta.value = ta.value.substring(0, start) + finalTxt + ta.value.substring(end);
+                    ta.focus();
+                    ta.setSelectionRange(start + finalTxt.length, start + finalTxt.length);
+                }
+                document.getElementById('ep-tpl-quick-panel').style.display = 'none';
+                document.getElementById('ep-chat-tpl-popup-btn').classList.remove('active');
+            };
+            grid.appendChild(card);
+        });
+    }
+
+    function rebuildQuickTemplateFolders() {
+        const quickBar = document.getElementById('ep-tpl-quick-folder-bar');
+        if (!quickBar) return;
+        quickBar.innerHTML = '';
+        const folders = GM_getValue('pastel_mockTemplateFolders', null) || JSON.parse(localStorage.getItem('pastel_mockTemplateFolders') || '["전체"]');
+        folders.forEach(f => {
+            const btn = document.createElement('button');
+            btn.className = `ep-ftab ${f === activeQuickTplFolder ? 'active' : ''}`;
+            btn.textContent = f;
+            btn.onclick = (e) => {
+                e.stopPropagation();
+                quickBar.querySelectorAll('.ep-ftab').forEach(t => t.classList.remove('active'));
+                btn.classList.add('active');
+                activeQuickTplFolder = f;
+                renderQuickTemplates();
+            };
+            quickBar.appendChild(btn);
+        });
+    }
+
     function bindInputEvents() {
         const textarea = document.getElementById('ep-chat-input-textarea');
         const cmdBtn = document.getElementById('ep-cmd-symbol-btn');
@@ -1206,16 +1658,119 @@
         const closeGroup = document.getElementById('ep-cmd-close-group');
         const cancelBtn = document.getElementById('ep-cmd-cancel-btn');
 
+        const shBtn = document.getElementById('ep-chat-shortcut-popup-btn');
+        const shPopup = document.getElementById('ep-shortcut-select-popup');
+        const shList = document.getElementById('ep-shortcut-select-list');
+        const tplBtn = document.getElementById('ep-chat-tpl-popup-btn');
+        const tplPanel = document.getElementById('ep-tpl-quick-panel');
+
         if (textarea) {
-            // [렉 방지 핵심]: 타이핑 중에는 아무것도 하지 않고 순수한 텍스트에리어 성능 유지!
             textarea.addEventListener('keydown', (e) => e.stopPropagation());
             textarea.addEventListener('keyup', (e) => e.stopPropagation());
-
-            // 1. 입력창 바깥 아무 영역이나 터치/클릭하여 포커스가 빠질 때(blur) 단 1회 안전 동기화
-            textarea.addEventListener('blur', () => {
-                syncTextToNativeEditor();
-            });
+            textarea.addEventListener('blur', () => syncTextToNativeEditor());
         }
+
+        // 1. 단축어 선택 팝업 바인딩
+        if (shBtn && shPopup) {
+            shBtn.onclick = (e) => {
+                e.stopPropagation();
+                const isShowing = shPopup.style.display === 'flex';
+                if (!isShowing) {
+                    if (tplPanel) tplPanel.style.display = 'none';
+                    if (tplBtn) tplBtn.classList.remove('active');
+                    const shortcuts = GM_getValue('pastel_mockShortcuts', null) || JSON.parse(localStorage.getItem('pastel_mockShortcuts') || '[]');
+                    shList.innerHTML = shortcuts.length > 0 
+                        ? shortcuts.map(sh => `<div class="ep-shortcut-popup-item" data-title="${sh.title}">!${sh.title}</div>`).join('')
+                        : '<div style="font-size:11px; color:#888; text-align:center; padding:10px;">단축어 없음</div>';
+                    
+                    shList.querySelectorAll('.ep-shortcut-popup-item').forEach(item => {
+                        item.onclick = (ev) => {
+                            ev.stopPropagation();
+                            insertSymbolsToTextarea(`!${item.dataset.title}`);
+                            shPopup.style.display = 'none';
+                            shBtn.classList.remove('active');
+                        };
+                    });
+                    shPopup.style.display = 'flex';
+                    shBtn.classList.add('active');
+                } else {
+                    shPopup.style.display = 'none';
+                    shBtn.classList.remove('active');
+                }
+            };
+        }
+
+        // 2. 템플릿 퀵패널 바인딩
+        if (tplBtn && tplPanel) {
+            tplBtn.onclick = (e) => {
+                e.stopPropagation();
+                const isShowing = tplPanel.style.display === 'flex';
+                if (!isShowing) {
+                    if (shPopup) shPopup.style.display = 'none';
+                    if (shBtn) shBtn.classList.remove('active');
+                    rebuildQuickTemplateFolders();
+                    renderQuickTemplates();
+                    tplPanel.style.display = 'flex';
+                    tplBtn.classList.add('active');
+                } else {
+                    tplPanel.style.display = 'none';
+                    tplBtn.classList.remove('active');
+                }
+            };
+        }
+
+        // 템플릿 검색 및 지우개
+        const tplSearchInp = document.getElementById('ep-tpl-quick-search-input');
+        if (tplSearchInp) tplSearchInp.addEventListener('input', renderQuickTemplates);
+        const tplClearBtn = document.getElementById('ep-tpl-quick-search-clear-btn');
+        if (tplClearBtn && tplSearchInp) {
+            tplClearBtn.onclick = (e) => {
+                e.stopPropagation();
+                tplSearchInp.value = '';
+                renderQuickTemplates();
+            };
+        }
+
+        // 치환자 모달 개폐
+        const varsModal = document.getElementById('ep-tpl-vars-modal-overlay');
+        const varsBtn = document.getElementById('ep-tpl-quick-btn-vars');
+        const varsCancel = document.getElementById('ep-tpl-vars-cancel-btn');
+        const varUserInp = document.getElementById('ep-tpl-var-user-input');
+        const varCharInp = document.getElementById('ep-tpl-var-char-input');
+
+        if (varsBtn && varsModal) {
+            varsBtn.onclick = (e) => {
+                e.stopPropagation();
+                const raw = localStorage.getItem(`pastel_crack_feather_vars_ep_${getChatId()}`);
+                const vars = raw ? JSON.parse(raw) : { user: '', char: '' };
+                if (varUserInp) varUserInp.value = vars.user || '';
+                if (varCharInp) varCharInp.value = vars.char || '';
+                varsModal.classList.add('visible');
+            };
+        }
+        if (varsCancel && varsModal) {
+            varsCancel.onclick = () => {
+                if (varUserInp && varCharInp) {
+                    localStorage.setItem(`pastel_crack_feather_vars_ep_${getChatId()}`, JSON.stringify({
+                        user: varUserInp.value.trim(),
+                        char: varCharInp.value.trim()
+                    }));
+                }
+                varsModal.classList.remove('visible');
+            };
+        }
+
+        // 바깥 클릭 시 단축어/템플릿 팝업 닫기
+        document.addEventListener('click', (e) => {
+            if (shPopup && !shPopup.contains(e.target) && e.target !== shBtn) {
+                shPopup.style.display = 'none';
+                if (shBtn) shBtn.classList.remove('active');
+            }
+            if (tplPanel && !tplPanel.contains(e.target) && e.target !== tplBtn && (!varsModal || !varsModal.contains(e.target))) {
+                tplPanel.style.display = 'none';
+                if (tplBtn) tplBtn.classList.remove('active');
+            }
+        });
 
         // 9종 구슬 버튼 클릭 시 기호 삽입
         document.querySelectorAll('.ep-symbol-btn').forEach(btn => {
@@ -1286,7 +1841,7 @@
             };
         }
 
-        // 2. 전송 버튼을 누르는 찰나(mousedown/touchstart)에 즉시 텍스트를 크랙으로 꽂아 넣음
+        // 전송 버튼 누를 때 동기화 및 전송 후 비우기
         const slot = document.getElementById('ep-native-send-slot');
         if (slot) {
             const triggerSyncBeforeSend = () => {
@@ -1296,7 +1851,6 @@
             slot.addEventListener('mousedown', triggerSyncBeforeSend);
             slot.addEventListener('touchstart', triggerSyncBeforeSend, { passive: true });
 
-            // 전송 완료 후 파스텔 입력창 비우기
             slot.addEventListener('click', () => {
                 setTimeout(() => {
                     if (textarea) textarea.value = '';
