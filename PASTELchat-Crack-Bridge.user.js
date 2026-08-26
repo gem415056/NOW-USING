@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.6.2
+// @version      1.6.3
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -2095,38 +2095,7 @@
         }
     }
 
-    // [단축어 및 2000자 로어 RAG 자동 확장 동기화 함수]
-    async function syncTextToNativeEditor() {
-        const textarea = document.getElementById('ep-chat-input-textarea');
-        if (!textarea) return;
-        let text = textarea.value;
-        if (!text.trim()) return;
-
-        // 1. 단축어 확장
-        const shortcuts = GM_getValue('pastel_mockShortcuts', null) || JSON.parse(localStorage.getItem('pastel_mockShortcuts') || '[]');
-        if (Array.isArray(shortcuts)) {
-            shortcuts.forEach(sh => {
-                const token = `!${sh.title}`;
-                if (text.includes(token)) {
-                    text += `\n\n---\n\`\`\`additional note: !${sh.title}\n${sh.text}\n\`\`\``;
-                }
-            });
-        }
-
-        // 2. 2,000자 로어 RAG 블록 자동 조합 (3턴 쿨타임 자동 적용)
-        const loreBlock = await buildCrackRAGLoreBlock(text, getChatId());
-        const finalText = loreBlock ? `${loreBlock}\n\n${text}` : text;
-
-        const editor = document.querySelector('.ProseMirror') || document.querySelector('[contenteditable="true"]');
-        if (editor) {
-            const paragraphs = finalText.split('\n').map(line => `<p>${line || '<br class="ProseMirror-trailingBreak">'}</p>`).join('');
-            editor.innerHTML = paragraphs;
-            editor.dispatchEvent(new Event('input', { bubbles: true }));
-            editor.dispatchEvent(new Event('change', { bubbles: true }));
-        }
-
-        moveNativeSendButtonToSlot();
-    }
+    // (중복 무한 루프 방지를 위해 syncTextToNativeEditor를 전송 버튼 클릭 핸들러로 완전 단일화)
 
     /* ==========================================================================
      * 7. 단축어, 템플릿 퀵패널 및 치환자 계산 엔진 (crack.html 순정 100%)
@@ -2264,7 +2233,7 @@
         if (textarea) {
             textarea.addEventListener('keydown', (e) => e.stopPropagation());
             textarea.addEventListener('keyup', (e) => e.stopPropagation());
-            textarea.addEventListener('blur', () => syncTextToNativeEditor());
+            // blur 시 무한 루프를 유발하던 syncTextToNativeEditor 완전 제거
         }
 
         // 1. 단축어 선택 팝업 바인딩
@@ -2457,7 +2426,7 @@
                 const rawInput = textarea.value.trim();
                 if (!rawInput) return;
 
-                // 2. 단축어 확장 (!단축어 -> additional note)
+                // 2. [단축어 100% 최우선 확장] (!단축어 -> additional note)
                 let userExpandedText = rawInput;
                 const shortcuts = GM_getValue('pastel_mockShortcuts', null) || JSON.parse(localStorage.getItem('pastel_mockShortcuts') || '[]');
                 if (Array.isArray(shortcuts)) {
@@ -2469,7 +2438,7 @@
                     });
                 }
 
-                // 3. 2,000자 로어 RAG 블록 비동기 조립 (3턴 쿨타임 완벽 적용)
+                // 3. [단축어 포함 전체 길이 기준 예산 산출]: 유저본문 + 단축어 공간을 먼저 100% 확보하고 남은 공간에만 로어 조립
                 const chatId = getChatId();
                 const loreBlock = await buildCrackRAGLoreBlock(userExpandedText, chatId);
                 const finalPayloadMessage = loreBlock ? `${loreBlock}\n\n${userExpandedText}` : userExpandedText;
@@ -4520,8 +4489,14 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 return "";
             }
 
-            // 6. crack.html 순정 2,000자 역순 압축 (F ➔ C ➔ M ➔ 드롭)
-            const loreBudget = Math.max(0, 2000 - userRawText.length - 4);
+            // 6. [본문 + 단축어 100% 무손실 보존] 2,000자 절대 한도 철벽 계산
+            // userRawText에는 이미 확장된 단축어(additional note)까지 전부 포함되어 있으므로 전체 길이를 차감
+            const loreBudget = Math.max(0, 2000 - userRawText.length - 8);
+            if (loreBudget <= 10) {
+                console.log("ℹ️ [PASTEL:RAG] 유저 본문 및 단축어 전체 길이( " + userRawText.length + "자) 보존을 위해 로어 주입을 안전하게 스킵합니다.");
+                return "";
+            }
+
             const buildCardText = (e, level, rank) => {
                 const prefix = `[LORE ${rank}] [${e.type}] ${e.name}`;
                 const stateText = e.state ? ` (${e.state})` : "";
@@ -4533,12 +4508,20 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
             const levels = selectedLores.map(() => 2);
             const getLen = () => selectedLores.reduce((acc, e, idx) => acc + buildCardText(e, levels[idx], idx + 1).length + 1, 0);
 
+            // 3순위 -> 2순위 -> 1순위 역순으로 F -> C -> M -> 드롭 루프
             while (selectedLores.length > 0 && getLen() > loreBudget) {
                 let changed = false;
                 for (let i = selectedLores.length - 1; i >= 0; i--) {
-                    if (levels[i] > 0) { levels[i]--; changed = true; if (getLen() <= loreBudget) break; }
+                    if (levels[i] > 0) {
+                        levels[i]--;
+                        changed = true;
+                        if (getLen() <= loreBudget) break;
+                    }
                 }
-                if (!changed || getLen() > loreBudget) { selectedLores.pop(); levels.pop(); }
+                if (!changed || getLen() > loreBudget) {
+                    selectedLores.pop();
+                    levels.pop();
+                }
             }
 
             if (selectedLores.length === 0) return "";
