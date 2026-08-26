@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.5.3
+// @version      1.5.4
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1641,9 +1641,50 @@
     let isSendConfirmed = false;
     let sendHoldTimer = null;
 
+    // 크랙 인증 토큰(JWT) 안전 탐색기
+    function getCrackAuthToken() {
+        try {
+            const rawToken = localStorage.getItem('accessToken') || localStorage.getItem('access_token') || '';
+            if (rawToken) return rawToken.replace(/^["']|["']$/g, '');
+
+            const authStorage = localStorage.getItem('auth-storage') || localStorage.getItem('wrtn_auth') || '';
+            if (authStorage) {
+                const parsed = JSON.parse(authStorage);
+                const t = parsed?.state?.accessToken || parsed?.state?.token || parsed?.accessToken || '';
+                if (t) return String(t).replace(/^["']|["']$/g, '');
+            }
+        } catch (_) {}
+        return '';
+    }
+
+    // 방별 고유 ID 정밀 식별기 (URL, DOM, 스토리지 전수 탐색)
     function getChatId() {
-        const match = location.pathname.match(/chats\/([a-zA-Z0-9_-]+)/);
-        return match ? match[1] : 'global';
+        // 1. URL 경로에서 24자리 ObjectId 또는 chats/ID 탐색
+        const path = location.pathname || '';
+        const match = path.match(/chats?\/([a-f0-9]{24}|[a-zA-Z0-9_-]+)/i) || 
+                      path.match(/stories\/[^/]+\/chats?\/([a-f0-9]{24}|[a-zA-Z0-9_-]+)/i) ||
+                      path.match(/([a-f0-9]{24})/i);
+        if (match && match[1] && match[1] !== 'chats' && match[1] !== 'stories') {
+            return match[1];
+        }
+
+        // 2. 크랙 활성 스토리지 탐색
+        try {
+            const savedRoom = localStorage.getItem('pastel_crack_active_room');
+            if (savedRoom) {
+                const parsed = JSON.parse(savedRoom);
+                if (parsed && parsed.chatId) return parsed.chatId;
+            }
+        } catch (_) {}
+
+        // 3. DOM 내의 대화방 링크나 속성 탐색
+        const chatLink = document.querySelector('a[href*="/chats/"]');
+        if (chatLink) {
+            const m = chatLink.getAttribute('href').match(/chats\/([a-f0-9]{24}|[a-zA-Z0-9_-]+)/i);
+            if (m && m[1]) return m[1];
+        }
+
+        return 'global';
     }
 
     function injectCustomInputBox() {
@@ -3111,8 +3152,67 @@ Conversation Log:
     // ==========================================
     // 로깅, 턴수 및 스냅샷 복원 엔진
     // ==========================================
-    // [대화 이력 만능 추출기]: 크랙 화면의 유저/AI 말풍선을 과거->최신 순으로 100% 수급
-    function getCrackConversationHistory() {
+    // [crack.html 순정 100%] 백엔드 API 10,000턴 전수 대화 수급 엔진 (DOM 가상 스크롤 누락 완벽 해결)
+    async function getCrackConversationHistory(targetChatId) {
+        const chatId = targetChatId || getChatId();
+        let loadedMessages = [];
+
+        // 1. 크랙 백엔드 엔드포인트 직접 호출 (과거 1턴부터 최대 10,000턴 수급)
+        if (chatId && chatId !== 'global') {
+            const token = getCrackAuthToken();
+            const headers = { 'accept': 'application/json, text/plain, */*' };
+            if (token) headers['Authorization'] = `Bearer ${token}`;
+
+            try {
+                // 1순위: /messages?limit=10000
+                const res = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=10000`, {
+                    method: 'GET',
+                    headers: headers,
+                    credentials: 'include'
+                });
+
+                if (res.ok) {
+                    const parsed = await res.json();
+                    if (Array.isArray(parsed?.data)) loadedMessages = parsed.data;
+                    else if (Array.isArray(parsed?.data?.messages)) loadedMessages = parsed.data.messages;
+                    else if (Array.isArray(parsed?.messages)) loadedMessages = parsed.messages;
+                    else if (Array.isArray(parsed)) loadedMessages = parsed;
+                }
+            } catch (_) {}
+
+            // 2순위 폴백: /chats/${chatId}?limit=10000
+            if (loadedMessages.length === 0) {
+                try {
+                    const res2 = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}?limit=10000`, {
+                        method: 'GET',
+                        headers: headers,
+                        credentials: 'include'
+                    });
+                    if (res2.ok) {
+                        const parsed2 = await res2.json();
+                        if (Array.isArray(parsed2?.data?.messages)) loadedMessages = parsed2.data.messages;
+                        else if (Array.isArray(parsed2?.messages)) loadedMessages = parsed2.messages;
+                    }
+                } catch (_) {}
+            }
+        }
+
+        // 백엔드 API 수급에 성공한 경우: 정방향(과거 1턴 -> 최신 턴)으로 정렬하여 반환
+        if (loadedMessages.length > 0) {
+            // 크랙 API는 최신순(역순)으로 제공하므로 뒤집어서 과거->최신 순서로 정렬
+            const formatted = loadedMessages.slice().reverse().map(msg => {
+                const isUser = (msg.role === 'user' || msg.type === 'user');
+                const rawTxt = msg.content || msg.message || msg.text || '';
+                return {
+                    role: isUser ? 'user' : 'assistant',
+                    content: stripLoreInjectionBlock(rawTxt).trim()
+                };
+            }).filter(m => m.content.length > 0);
+
+            if (formatted.length > 0) return formatted;
+        }
+
+        // 3. 폴백: DOM 렌더링 텍스트 파싱
         const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') ||
                          document.querySelector('.flex.flex-col-reverse') ||
                          document.querySelector('main') ||
@@ -3121,65 +3221,36 @@ Conversation Log:
         if (!chatRoot) return [];
 
         const turnsList = [];
-        // 크랙의 메시지 행 단위(Row) 요소 탐색
-        const messageRows = chatRoot.querySelectorAll('.flex.w-full.gap-4, .flex.w-full.items-start, div[class*="flex"][class*="w-full"]');
-
         const seenTexts = new Set();
+        const leaves = chatRoot.querySelectorAll('.whitespace-pre-wrap, .break-words, .prose');
 
-        messageRows.forEach(row => {
-            if (row.closest('.chat-footer-control') ||
-                row.closest('#ep-chat-right-drawer') ||
-                row.closest('.ep-prompt-overlay') ||
-                row.closest('#ep-lore-storage-modal-overlay') ||
-                row.closest('.ProseMirror')) {
-                return;
+        leaves.forEach(leaf => {
+            if (leaf.closest('.chat-footer-control') || leaf.closest('#ep-chat-right-drawer') || leaf.closest('.ep-prompt-overlay') || leaf.closest('#ep-lore-storage-modal-overlay') || leaf.closest('.ProseMirror')) return;
+            let txt = (leaf.getAttribute('data-pastel-raw') || leaf.innerText || leaf.textContent || '').trim();
+            let clean = stripLoreInjectionBlock(txt).trim();
+            if (clean && !seenTexts.has(clean)) {
+                seenTexts.add(clean);
+                const isUser = !!leaf.closest('.justify-end, [class*="items-end"], .bg-accent_translucent');
+                turnsList.push({ role: isUser ? 'user' : 'assistant', content: clean });
             }
-
-            // 본문 텍스트 컨테이너 탐색
-            const textEl = row.querySelector('.whitespace-pre-wrap, .break-words, .prose') || row;
-            let rawText = (textEl.getAttribute('data-pastel-raw') || textEl.innerText || textEl.textContent || '').trim();
-            if (!rawText) return;
-
-            let cleanText = stripLoreInjectionBlock(rawText).trim();
-            if (!cleanText || seenTexts.has(cleanText)) return;
-            seenTexts.add(cleanText);
-
-            const isUser = !!row.querySelector('.justify-end, [class*="items-end"], .bg-accent_translucent') ||
-                           !!row.closest('.justify-end, [class*="items-end"]') ||
-                           row.classList.contains('bg-accent_translucent');
-
-            turnsList.push({
-                role: isUser ? 'user' : 'assistant',
-                content: cleanText
-            });
         });
 
-        // 크랙 DOM이 flex-col-reverse(역순) 구조일 경우 정방향(과거 -> 최신)으로 뒤집기
         if (chatRoot.classList.contains('flex-col-reverse') || chatRoot.querySelector('.flex-col-reverse')) {
             turnsList.reverse();
-        }
-
-        // 폴백: 행 탐색이 비어있다면 Leaf 노드 직접 수집
-        if (turnsList.length === 0) {
-            const leaves = chatRoot.querySelectorAll('.whitespace-pre-wrap, .break-words, .prose');
-            leaves.forEach(leaf => {
-                if (leaf.closest('.chat-footer-control') || leaf.closest('#ep-chat-right-drawer') || leaf.closest('.ep-prompt-overlay') || leaf.closest('#ep-lore-storage-modal-overlay') || leaf.closest('.ProseMirror')) return;
-                let txt = (leaf.getAttribute('data-pastel-raw') || leaf.innerText || leaf.textContent || '').trim();
-                let clean = stripLoreInjectionBlock(txt).trim();
-                if (clean && !seenTexts.has(clean)) {
-                    seenTexts.add(clean);
-                    const isUser = !!leaf.closest('.justify-end, [class*="items-end"], .bg-accent_translucent');
-                    turnsList.push({ role: isUser ? 'user' : 'assistant', content: clean });
-                }
-            });
         }
 
         return turnsList;
     }
 
-    function getCrackChatTurns() {
-        const history = getCrackConversationHistory();
-        return history.filter(m => m.role === 'user').length;
+    function getCrackChatTurns(chatId) {
+        const domHistory = [];
+        const leaves = document.querySelectorAll('.whitespace-pre-wrap, .break-words, .prose');
+        leaves.forEach(l => {
+            if (!l.closest('.chat-footer-control') && !l.closest('#ep-chat-right-drawer') && !!l.closest('.justify-end, [class*="items-end"], .bg-accent_translucent')) {
+                domHistory.push(l);
+            }
+        });
+        return domHistory.length || 0;
     }
 
     function recordInjectLog(epId, turn, matched, count, usedChars, budget) {
@@ -3498,7 +3569,7 @@ Conversation Log:
         const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
         if (!url) throw new Error("우측 서랍의 [API 설정]에 Gemini API Key 또는 Firebase Script를 입력해 주십시오.");
 
-        const history = getCrackConversationHistory();
+        const history = await getCrackConversationHistory(episodeId);
         if (history.length === 0) throw new Error("분석할 대화 이력이 없습니다.");
 
         const targetList = history.slice(-(turns * 2));
@@ -3605,7 +3676,7 @@ Conversation Log:
         const url = getGeminiOrFirebaseEndpoint(selectedModel, 'generateContent');
         if (!url) return;
 
-        const history = getCrackConversationHistory();
+        const history = await getCrackConversationHistory(episodeId);
         if (history.length < 2) return;
 
         const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${episodeId}`), 10) || 6;
@@ -3816,8 +3887,10 @@ Conversation Log:
             await loreDb.entries.where('packName').equals(packName).delete();
             await loreDb.embeddings.where('packName').equals(packName).delete();
 
-            const history = getCrackConversationHistory();
+            showLoreExtPersistentToast("📥 1턴부터 전체 대화 내역 수급 중...");
+            const history = await getCrackConversationHistory(episodeId);
             if (history.length === 0) throw new Error("대화 내용이 존재하지 않습니다.");
+            console.log(`[PASTEL:재생성] 총 ${history.length}개의 메시지(턴)를 기반으로 전체 재생성을 시작합니다.`);
 
             const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${episodeId}`), 10) || 6;
             const step = extTurns * 2;
