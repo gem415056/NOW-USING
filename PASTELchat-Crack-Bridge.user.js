@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.4.7
+// @version      1.4.8
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -3098,27 +3098,72 @@ Conversation Log:
     // ==========================================
     // 로깅, 턴수 및 스냅샷 복원 엔진
     // ==========================================
-    // [대화 이력 추출기]: 크랙 화면의 대화 말풍선을 순서대로 100% 수급
+    // [대화 이력 만능 추출기]: 크랙 화면의 유저/AI 말풍선을 다계층으로 100% 전수 탐색
     function getCrackConversationHistory() {
-        const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || document.querySelector('main') || document.body;
-        if (!chatRoot) return [];
+        const chatContainer = document.querySelector('.flex.flex-col-reverse') ||
+                              document.querySelector('main') ||
+                              document.body;
+
+        if (!chatContainer) return [];
 
         const history = [];
-        const bubbles = chatRoot.querySelectorAll('.break-words, .whitespace-pre-wrap, .prose');
 
-        bubbles.forEach(b => {
-            if (b.closest('.chat-footer-control') || b.closest('#ep-chat-right-drawer') || b.closest('.ep-prompt-overlay') || b.closest('#ep-lore-storage-modal-overlay')) return;
+        // 1. 크랙의 유저 및 AI 메시지 턴 요소 다중 탐색
+        const candidateRows = chatContainer.querySelectorAll(
+            '.flex.w-full, [class*="justify-end"], [class*="items-end"], [class*="bubble"], .whitespace-pre-wrap, .whitespace-pre-line, .break-words, .prose, div[data-role]'
+        );
 
-            let raw = b.innerText || b.textContent || '';
-            raw = stripLoreInjectionBlock(raw).trim();
-            if (!raw) return;
+        candidateRows.forEach(row => {
+            // 입력창, 서랍, 모달, 에디터 내부 텍스트는 제외
+            if (row.closest('.chat-footer-control') ||
+                row.closest('#ep-chat-right-drawer') ||
+                row.closest('.ep-prompt-overlay') ||
+                row.closest('#ep-lore-storage-modal-overlay') ||
+                row.closest('.ProseMirror')) {
+                return;
+            }
 
-            const isUser = !!b.closest('.justify-end') || !!b.closest('[class*="items-end"]') || !!b.closest('.bg-accent_translucent') || b.classList.contains('bg-accent_translucent');
+            let text = (row.innerText || row.textContent || '').trim();
+            if (!text) return;
+
+            // 로어 주입 접두사([LORE 1]...) 제거
+            let cleanText = stripLoreInjectionBlock(text).trim();
+            if (!cleanText) return;
+
+            // 유저 / AI 역할 판별
+            const isUser = !!row.closest('.justify-end') ||
+                           !!row.closest('[class*="items-end"]') ||
+                           !!row.closest('.bg-accent_translucent') ||
+                           row.classList.contains('bg-accent_translucent') ||
+                           row.getAttribute('data-role') === 'user';
             const role = isUser ? 'user' : 'assistant';
 
-            if (history.length > 0 && history[history.length - 1].content === raw) return;
-            history.push({ role, content: raw });
+            // 부모/자식 요소 중복 수집 방지 (동일 턴 병합)
+            if (history.length > 0) {
+                const prev = history[history.length - 1];
+                if (prev.content === cleanText || cleanText.includes(prev.content) || prev.content.includes(cleanText)) {
+                    if (cleanText.length > prev.content.length) {
+                        prev.content = cleanText;
+                    }
+                    return;
+                }
+            }
+
+            history.push({ role, content: cleanText });
         });
+
+        // 2. 폴백: 단락(<p>) 태그 기반 수급
+        if (history.length === 0) {
+            const allP = chatContainer.querySelectorAll('p');
+            allP.forEach(p => {
+                if (p.closest('.chat-footer-control') || p.closest('#ep-chat-right-drawer') || p.closest('.ep-prompt-overlay') || p.closest('#ep-lore-storage-modal-overlay')) return;
+                const txt = stripLoreInjectionBlock(p.innerText || p.textContent || '').trim();
+                if (txt) {
+                    const isUser = !!p.closest('.justify-end') || !!p.closest('.bg-accent_translucent');
+                    history.push({ role: isUser ? 'user' : 'assistant', content: txt });
+                }
+            });
+        }
 
         return history;
     }
