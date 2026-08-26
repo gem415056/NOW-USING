@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.6.1
+// @version      1.6.2
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -3559,7 +3559,7 @@ Conversation Log:
             };
 
             const abortCtrl = new AbortController();
-            const fetchTimeout = setTimeout(() => abortCtrl.abort(), 180000); // 3분(180초)
+            const fetchTimeout = setTimeout(() => abortCtrl.abort(), 480000); // 8분(480초) 완벽 무제한급 대기
 
             let res;
             try {
@@ -3570,7 +3570,7 @@ Conversation Log:
                     signal: abortCtrl.signal 
                 });
             } catch (fetchErr) {
-                if (fetchErr.name === 'AbortError') throw new Error("텍스트 변환 응답 시간 초과(180초). 분량이 많아 잠시 후 다시 시도해 주십시오.");
+                if (fetchErr.name === 'AbortError') throw new Error("재생성 구간 응답 시간 초과(8분). AI 연산량이 많아 잠시 후 다시 시도해 주십시오.");
                 throw fetchErr;
             } finally {
                 clearTimeout(fetchTimeout);
@@ -3696,7 +3696,7 @@ Conversation Log:
         }
 
         const abortCtrl = new AbortController();
-        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 180000); // 3분(180초) 넉넉한 대기 시간
+        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 480000); // 8분(480초) 완벽 무제한급 대기
 
         let res;
         try {
@@ -3708,7 +3708,7 @@ Conversation Log:
             });
         } catch (fetchErr) {
             if (fetchErr.name === 'AbortError') {
-                throw new Error("AI 응답 시간 초과(180초). 다시 시도해 주십시오.");
+                throw new Error("AI 응답 시간 초과(8분). 다시 시도해 주십시오.");
             }
             throw fetchErr;
         } finally {
@@ -3816,7 +3816,7 @@ Conversation Log:
             };
 
             const abortCtrl = new AbortController();
-            const fetchTimeout = setTimeout(() => abortCtrl.abort(), 180000); // 3분(180초)
+            const fetchTimeout = setTimeout(() => abortCtrl.abort(), 480000); // 8분(480초) 완벽 무제한급 대기
 
             let res;
             try {
@@ -3921,7 +3921,7 @@ Conversation Log:
         };
 
         const abortCtrl = new AbortController();
-        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 180000); // 3분(180초) 넉넉한 대기 시간
+        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 480000); // 8분(480초) 완벽 무제한급 대기
 
         let res;
         try {
@@ -3932,7 +3932,7 @@ Conversation Log:
                 signal: abortCtrl.signal 
             });
         } catch (fetchErr) {
-            if (fetchErr.name === 'AbortError') throw new Error("재생성 구간 응답 시간 초과(180초). AI 연산량이 많아 잠시 후 다시 시도해 주십시오.");
+            if (fetchErr.name === 'AbortError') throw new Error("재생성 구간 응답 시간 초과(8분). AI 연산량이 많아 잠시 후 다시 시도해 주십시오.");
             throw fetchErr;
         } finally {
             clearTimeout(fetchTimeout);
@@ -4151,7 +4151,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 };
 
                 const abortCtrl = new AbortController();
-                const fetchTimeout = setTimeout(() => abortCtrl.abort(), 180000); // 3분(180초)
+                const fetchTimeout = setTimeout(() => abortCtrl.abort(), 480000); // 8분(480초) 완벽 무제한급 대기
 
                 let res;
                 try {
@@ -4162,7 +4162,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                         signal: abortCtrl.signal
                     });
                 } catch (fetchErr) {
-                    if (fetchErr.name === 'AbortError') throw new Error("병합 요약 응답 시간 초과(180초). AI 연산량이 많아 잠시 후 다시 시도해 주십시오.");
+                    if (fetchErr.name === 'AbortError') throw new Error("병합 요약 응답 시간 초과(8분). AI 연산량이 많아 잠시 후 다시 시도해 주십시오.");
                     throw fetchErr;
                 } finally {
                     clearTimeout(fetchTimeout);
@@ -4359,19 +4359,25 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
     }
 
     // ==========================================
-    // 2,000자 3순위 로어 RAG 검색 & [3턴 쿨타임 제도] 주입기
+    // [crack.html 순정 100%] 2,000자 임베딩 코사인 유사도 + 오버라이드 + 최소 빈도 슬롯 충원 엔진
     // ==========================================
     async function buildCrackRAGLoreBlock(userRawText, chatId) {
         try {
             if (!loreDb || !chatId) return "";
             const packName = `Ep_Crack_${chatId}_Pack`;
-            const allEntries = await loreDb.entries.where('packName').equals(packName).toArray();
+            let allEntries = [];
+            try {
+                allEntries = await loreDb.entries.where('packName').equals(packName).toArray();
+            } catch (_) {}
+
             if (!allEntries || allEntries.length === 0) return "";
 
-            const currentTurn = getCrackChatTurns();
-            const query = userRawText.toLowerCase();
+            // 1. 컨텍스트 수집 (최근 4턴 + 유저 입력문)
+            const history = (typeof fetchCrackMessagesPure === 'function') ? await fetchCrackMessagesPure(chatId, 6) : [];
+            const lastContext = history.slice(-4).map(m => m.content || m.message || m.text || '').join(' ');
+            const query = (lastContext + " " + userRawText).toLowerCase();
 
-            // 1. 트리거 매칭 (단일 키워드 및 && 복합 조건 완벽 지원)
+            // 2. crack.html 순정 트리거 매칭 (0.5 가중치)
             const matchedByTrigger = [];
             allEntries.forEach(e => {
                 if (!e.triggers || e.triggers.length === 0) return;
@@ -4379,43 +4385,134 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 e.triggers.forEach(t => {
                     const triggerStr = t.trim().toLowerCase();
                     if (!triggerStr) return;
-                    // && 복합 키워드 분할 검사
                     const andParts = triggerStr.split('&&').map(p => p.trim()).filter(Boolean);
-                    if (andParts.length > 0 && andParts.every(part => query.includes(part))) {
-                        maxScore = Math.max(maxScore, 1.0);
-                    }
+                    if (andParts.length === 0) return;
+                    let partsScore = 0;
+                    andParts.forEach(p => {
+                        if (query.includes(p)) partsScore += 1.0;
+                        else {
+                            const pWords = p.split(/\s+/).filter(Boolean);
+                            if (pWords.length > 0) {
+                                const cnt = pWords.filter(w => query.includes(w)).length;
+                                if (cnt === pWords.length) partsScore += 0.85;
+                                else if (cnt > 0) partsScore += 0.5 * (cnt / pWords.length);
+                            }
+                        }
+                    });
+                    const currentScore = partsScore / andParts.length;
+                    if (currentScore > maxScore) maxScore = currentScore;
                 });
                 if (maxScore > 0) matchedByTrigger.push({ entry: e, score: maxScore });
             });
 
-            // 2. 오버라이드(스위치 ON) 최우선 배치 & 자동 RAG 순위 결합
-            const forcedEntries = allEntries.filter(e => e.enabled === true);
-            const rankedAutoList = matchedByTrigger
-                .filter(r => r.entry.enabled !== true)
+            // 3. crack.html 순정 Gemini 임베딩 코사인 유사도 매칭 (0.5 가중치)
+            const matchedByEmbedding = [];
+            const embedKey = localStorage.getItem('pastel_crack_lore_embed_key') || localStorage.getItem('pastel_lore_embed_key') || localStorage.getItem('pastel_api_gemini') || '';
+            const embedModel = localStorage.getItem('pastel_crack_lore_embed_model') || 'gemini-embedding-001';
+
+            if (embedKey.trim() && userRawText.trim()) {
+                try {
+                    const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${embedModel}:embedContent?key=${embedKey.trim()}`;
+                    const embedRes = await fetch(embedUrl, {
+                        method: "POST", headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ content: { parts: [{ text: userRawText.slice(0, 1000) }] } })
+                    }).then(r => r.ok ? r.json() : null);
+
+                    if (embedRes && embedRes.embedding && embedRes.embedding.values) {
+                        const qVec = embedRes.embedding.values;
+                        const entryIds = allEntries.map(e => e.id);
+                        const embs = await loreDb.embeddings.where('entryId').anyOf(entryIds).toArray();
+
+                        for (const eb of embs) {
+                            if (eb.field === 'summary' && eb.vector) {
+                                let dot = 0, na = 0, nb = 0;
+                                const len = Math.min(qVec.length, eb.vector.length);
+                                for (let i = 0; i < len; i++) {
+                                    dot += qVec[i] * eb.vector[i];
+                                    na += qVec[i] * qVec[i];
+                                    nb += eb.vector[i] * eb.vector[i];
+                                }
+                                const denom = Math.sqrt(na) * Math.sqrt(nb);
+                                const sim = denom === 0 ? 0 : dot / denom;
+                                if (sim >= 0.27) {
+                                    const ent = allEntries.find(x => x.id === eb.entryId);
+                                    if (ent) matchedByEmbedding.push({ entry: ent, score: sim });
+                                }
+                            }
+                        }
+                    }
+                } catch (_) {}
+            }
+
+            // 4. 스코어 융합 & 타입 부스트 (1.3배)
+            const scoreMap = {};
+            const addToMap = (row, w) => {
+                const id = row.entry.id;
+                if (!scoreMap[id]) scoreMap[id] = { entry: row.entry, score: 0 };
+                scoreMap[id].score += row.score * w;
+            };
+            matchedByTrigger.forEach(r => addToMap(r, 0.5));
+            matchedByEmbedding.forEach(r => addToMap(r, 0.5));
+
+            const BOOST_TYPES = new Set(['event', 'promise', 'concept']);
+            Object.values(scoreMap).forEach(row => {
+                const typeLow = String(row.entry.type || '').toLowerCase().trim();
+                if (BOOST_TYPES.has(typeLow)) row.score *= 1.3;
+            });
+
+            // 5. 슬롯 우선순위 배정 알고리즘
+            const currentTurn = getCrackChatTurns(chatId);
+            const selectedLores = [];
+            const injectReport = [];
+            const usedIds = new Set();
+
+            // [0순위]: 로어 오버라이드 (스위치 ON) -> 쿨타임 무시하고 무조건 1순위 주입
+            const forcedEntries = allEntries.filter(e => e.enabled === true).sort((a, b) => (a.id || 0) - (b.id || 0));
+            for (const e of forcedEntries) {
+                if (selectedLores.length >= 3) break;
+                selectedLores.push(e);
+                usedIds.add(e.id);
+            }
+
+            // [1순위]: RAG 랭킹 상위 카드 (쿨타임 아닌 것)
+            const rankedAutoList = Object.values(scoreMap)
+                .filter(row => row.entry.enabled !== true && row.score > 0)
                 .sort((a, b) => b.score - a.score)
                 .map(r => r.entry);
 
-            const candidatePool = [];
-            forcedEntries.forEach(e => { if (!candidatePool.some(x => x.id === e.id)) candidatePool.push(e); });
-            rankedAutoList.forEach(e => { if (!candidatePool.some(x => x.id === e.id)) candidatePool.push(e); });
-
-            // 3. 3턴 쿨타임 제도 적용 (스위치 ON 카드는 쿨타임 무시하고 무조건 주입 프리패스!)
-            const selectedLores = [];
-            const injectReport = [];
-
-            for (const e of candidatePool) {
+            for (const e of rankedAutoList) {
                 if (selectedLores.length >= 3) break;
-                const isForced = (e.enabled === true);
-                const lastInjectedTurnKey = `pastel_crack_lore_last_turn_${chatId}_${e.id}`;
-                const lastTurn = parseInt(localStorage.getItem(lastInjectedTurnKey) || '-999', 10);
+                if (usedIds.has(e.id)) continue;
 
-                // 스위치 ON이 아닌 자동 RAG 카드에만 3턴 쿨타임 적용
-                if (!isForced && lastTurn !== -999 && (currentTurn - lastTurn) <= 3) {
+                const lastTurn = parseInt(localStorage.getItem(`pastel_crack_lore_last_turn_${chatId}_${e.id}`) || '-999', 10);
+                if (lastTurn !== -999 && (currentTurn - lastTurn) <= 3) {
                     injectReport.push({ name: e.name, status: 'failed', reason: '(쿨타임 대기)' });
                     continue;
                 }
 
                 selectedLores.push(e);
+                usedIds.add(e.id);
+            }
+
+            // [2순위 슬롯 보충]: 3개가 안 찼다면, 쿨타임이 아닌 남은 카드 중 "역대 주입 횟수가 가장 적은 순서"대로 채워넣기
+            if (selectedLores.length < 3) {
+                const remainingPool = allEntries
+                    .filter(e => !usedIds.has(e.id) && e.enabled !== true)
+                    .map(e => {
+                        const lastTurn = parseInt(localStorage.getItem(`pastel_crack_lore_last_turn_${chatId}_${e.id}`) || '-999', 10);
+                        const injCount = parseInt(localStorage.getItem(`pastel_crack_lore_inj_cnt_${chatId}_${e.id}`) || '0', 10);
+                        const isCooling = (lastTurn !== -999 && (currentTurn - lastTurn) <= 3);
+                        return { entry: e, injCount, isCooling };
+                    })
+                    .filter(item => !item.isCooling) // 쿨타임 아닌 것만
+                    .sort((a, b) => a.injCount - b.injCount); // 가장 안 넣은 순서 정렬
+
+                for (const item of remainingPool) {
+                    if (selectedLores.length >= 3) break;
+                    selectedLores.push(item.entry);
+                    usedIds.add(item.entry.id);
+                    injectReport.push({ name: item.entry.name, status: 'success', info: `보충(주입${item.injCount}회)` });
+                }
             }
 
             if (selectedLores.length === 0) {
@@ -4423,13 +4520,14 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 return "";
             }
 
-            // 4. 2000자 버퍼 역순 순차 압축
+            // 6. crack.html 순정 2,000자 역순 압축 (F ➔ C ➔ M ➔ 드롭)
             const loreBudget = Math.max(0, 2000 - userRawText.length - 4);
             const buildCardText = (e, level, rank) => {
                 const prefix = `[LORE ${rank}] [${e.type}] ${e.name}`;
-                if (level === 2) return `${prefix}: ${e.summary?.full || e.name}`;
-                if (level === 1) return `${prefix}: ${e.summary?.compact || e.name}`;
-                return `${prefix}=${e.summary?.micro || e.name}`;
+                const stateText = e.state ? ` (${e.state})` : "";
+                if (level === 2) return `${prefix}: ${e.summary?.full || e.summary?.compact || e.name}${stateText}`;
+                if (level === 1) return `${prefix}: ${e.summary?.compact || e.summary?.full || e.name}${stateText}`;
+                return `${prefix}=${e.summary?.micro || e.state || e.name}`;
             };
 
             const levels = selectedLores.map(() => 2);
@@ -4445,17 +4543,31 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
 
             if (selectedLores.length === 0) return "";
 
-            // 주입 성공한 로어의 최근 주입 턴수 갱신
-            selectedLores.forEach(e => {
+            // 7. 주입 성공 기록 및 주입 횟수 + 1 카운트 갱신
+            selectedLores.forEach((e, idx) => {
                 localStorage.setItem(`pastel_crack_lore_last_turn_${chatId}_${e.id}`, String(currentTurn));
-                injectReport.unshift({ name: e.name, status: 'success', info: e.enabled ? '오버라이드' : 'RAG' });
+                const prevCount = parseInt(localStorage.getItem(`pastel_crack_lore_inj_cnt_${chatId}_${e.id}`) || '0', 10);
+                localStorage.setItem(`pastel_crack_lore_inj_cnt_${chatId}_${e.id}`, String(prevCount + 1));
+
+                const finalLevel = levels[idx];
+                const levelLetter = finalLevel === 2 ? ' F' : finalLevel === 1 ? ' C' : ' M';
+                if (!injectReport.some(r => r.name.startsWith(e.name) && r.status === 'success')) {
+                    injectReport.unshift({
+                        name: e.name + levelLetter,
+                        status: 'success',
+                        info: e.enabled ? '오버라이드' : `${idx + 1}순위`
+                    });
+                }
             });
 
             const finalLoreBlock = selectedLores.map((e, idx) => buildCardText(e, levels[idx], idx + 1)).join("\n");
             recordInjectLog(chatId, currentTurn, injectReport, selectedLores.length, finalLoreBlock.length, 2000);
 
             return finalLoreBlock;
-        } catch (_) { return ""; }
+        } catch (err) {
+            console.warn("[로어 RAG 조립 예외]:", err);
+            return "";
+        }
     }
 
     // ==========================================
