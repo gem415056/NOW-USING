@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.2.9
+// @version      1.2.9.1
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -73,18 +73,20 @@
             background-color: #141413 !important;
         }
 
-        /* 2. 과도한 중복 여백 완전 제거 (순정 대화창 스크롤 여백으로 원복) */
+        /* 2. 대화 목록 끝 여백 완전 초기화 (대화 끝 팽창 방지) */
         .flex.flex-col-reverse.w-full.gap-10 {
-            padding-bottom: 30px !important;
+            padding-bottom: 0 !important;
+            margin-bottom: 0 !important;
         }
 
-        /* 3. 크랙 순정 스크롤 버튼 위치 (10px 더 올려 195px로 정밀 조정) */
+        /* 3. 크랙 순정 스크롤 버튼 절대 불변 고정 (위로 붕 뜨는 현상 100% 차단) */
         button[class*="size-[34px]"],
         button:has(svg path[d^="m12 6.87"]),
         button:has(svg path[d^="M20.09 8.3"]) {
             position: fixed !important;
-            bottom: 195px !important; /* 10px 상향 조정 */
+            bottom: 195px !important;
             right: calc(50% - 380px + 10px) !important;
+            transform: none !important; /* 크랙 스크립트가 위로 들어 올리는 현상 강제 차단 */
             z-index: 10005 !important;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
         }
@@ -464,7 +466,7 @@
             border: none !important;
         }
 
-        /* 크랙 하단 부모 컨테이너 가로폭 및 최하단 고정 */
+        /* 크랙 하단 부모 컨테이너 바깥 마진 완전 투명화 (주변 가림 100% 해결) */
         .bg-bg_screen.pointer-events-auto,
         .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
             position: fixed !important;
@@ -474,12 +476,14 @@
             max-width: 760px !important;
             width: calc(100% - 64px) !important;
             padding: 8px 0 !important;
-            background-color: var(--bg_screen, #ffffff) !important;
+            background: transparent !important; /* 바깥 마진 영역 완전 투명화 */
+            background-color: transparent !important;
             z-index: 10000 !important;
             overflow: visible !important;
+            pointer-events: none !important; /* 바깥 여백은 클릭이 뒤로 통과되도록 처리 */
         }
-        body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
-            background-color: #141413 !important;
+        .chat-footer-control {
+            pointer-events: auto !important; /* 입력창과 툴바만 정상 클릭 반응 */
         }
         body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
             background-color: #141413 !important;
