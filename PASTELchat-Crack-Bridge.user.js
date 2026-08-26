@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.4.8
+// @version      1.5.0
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -2327,14 +2327,18 @@
                 }
                 isInternalSending = false;
 
-                // 7. N턴 주기 백그라운드 자동 로어 추출 검사 및 실행
+                // 7. N턴 주기 백그라운드 자동 로어 추출 검사 및 실행 (중복 실행 방지)
                 setTimeout(() => {
                     const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${chatId}`), 10) || 6;
                     const currentTurns = getCrackChatTurns();
-                    if (currentTurns > 0 && currentTurns % extTurns === 0) {
+                    const lastAutoTurnKey = `pastel_crack_last_auto_ext_turn_${chatId}`;
+                    const lastAutoTurn = parseInt(localStorage.getItem(lastAutoTurnKey) || '0', 10);
+
+                    if (currentTurns > 0 && currentTurns % extTurns === 0 && currentTurns !== lastAutoTurn) {
+                        localStorage.setItem(lastAutoTurnKey, String(currentTurns));
                         (async () => {
                             try {
-                                showLoreExtPersistentToast("🔮 로어 생성 중...");
+                                showLoreExtPersistentToast("🔮 로어 자동 생성 중...");
                                 await executeBackgroundAutoExtraction(chatId);
                                 showToast("✨ 로어 생성 완료!");
                                 renderCrackActiveLores();
@@ -2345,7 +2349,7 @@
                             }
                         })();
                     }
-                }, 500);
+                }, 800);
             }, true); // Capture phase로 이벤트 최우선 가로채기
         }
     }
@@ -3098,23 +3102,22 @@ Conversation Log:
     // ==========================================
     // 로깅, 턴수 및 스냅샷 복원 엔진
     // ==========================================
-    // [대화 이력 만능 추출기]: 크랙 화면의 유저/AI 말풍선을 다계층으로 100% 전수 탐색
+    // [대화 이력 만능 추출기]: 크랙 화면의 유저/AI 말풍선을 과거->최신 순으로 100% 수급
     function getCrackConversationHistory() {
-        const chatContainer = document.querySelector('.flex.flex-col-reverse') ||
-                              document.querySelector('main') ||
-                              document.body;
+        const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') ||
+                         document.querySelector('.flex.flex-col-reverse') ||
+                         document.querySelector('main') ||
+                         document.body;
 
-        if (!chatContainer) return [];
+        if (!chatRoot) return [];
 
-        const history = [];
+        const turnsList = [];
+        // 크랙의 메시지 행 단위(Row) 요소 탐색
+        const messageRows = chatRoot.querySelectorAll('.flex.w-full.gap-4, .flex.w-full.items-start, div[class*="flex"][class*="w-full"]');
 
-        // 1. 크랙의 유저 및 AI 메시지 턴 요소 다중 탐색
-        const candidateRows = chatContainer.querySelectorAll(
-            '.flex.w-full, [class*="justify-end"], [class*="items-end"], [class*="bubble"], .whitespace-pre-wrap, .whitespace-pre-line, .break-words, .prose, div[data-role]'
-        );
+        const seenTexts = new Set();
 
-        candidateRows.forEach(row => {
-            // 입력창, 서랍, 모달, 에디터 내부 텍스트는 제외
+        messageRows.forEach(row => {
             if (row.closest('.chat-footer-control') ||
                 row.closest('#ep-chat-right-drawer') ||
                 row.closest('.ep-prompt-overlay') ||
@@ -3123,49 +3126,46 @@ Conversation Log:
                 return;
             }
 
-            let text = (row.innerText || row.textContent || '').trim();
-            if (!text) return;
+            // 본문 텍스트 컨테이너 탐색
+            const textEl = row.querySelector('.whitespace-pre-wrap, .break-words, .prose') || row;
+            let rawText = (textEl.getAttribute('data-pastel-raw') || textEl.innerText || textEl.textContent || '').trim();
+            if (!rawText) return;
 
-            // 로어 주입 접두사([LORE 1]...) 제거
-            let cleanText = stripLoreInjectionBlock(text).trim();
-            if (!cleanText) return;
+            let cleanText = stripLoreInjectionBlock(rawText).trim();
+            if (!cleanText || seenTexts.has(cleanText)) return;
+            seenTexts.add(cleanText);
 
-            // 유저 / AI 역할 판별
-            const isUser = !!row.closest('.justify-end') ||
-                           !!row.closest('[class*="items-end"]') ||
-                           !!row.closest('.bg-accent_translucent') ||
-                           row.classList.contains('bg-accent_translucent') ||
-                           row.getAttribute('data-role') === 'user';
-            const role = isUser ? 'user' : 'assistant';
+            const isUser = !!row.querySelector('.justify-end, [class*="items-end"], .bg-accent_translucent') ||
+                           !!row.closest('.justify-end, [class*="items-end"]') ||
+                           row.classList.contains('bg-accent_translucent');
 
-            // 부모/자식 요소 중복 수집 방지 (동일 턴 병합)
-            if (history.length > 0) {
-                const prev = history[history.length - 1];
-                if (prev.content === cleanText || cleanText.includes(prev.content) || prev.content.includes(cleanText)) {
-                    if (cleanText.length > prev.content.length) {
-                        prev.content = cleanText;
-                    }
-                    return;
-                }
-            }
-
-            history.push({ role, content: cleanText });
+            turnsList.push({
+                role: isUser ? 'user' : 'assistant',
+                content: cleanText
+            });
         });
 
-        // 2. 폴백: 단락(<p>) 태그 기반 수급
-        if (history.length === 0) {
-            const allP = chatContainer.querySelectorAll('p');
-            allP.forEach(p => {
-                if (p.closest('.chat-footer-control') || p.closest('#ep-chat-right-drawer') || p.closest('.ep-prompt-overlay') || p.closest('#ep-lore-storage-modal-overlay')) return;
-                const txt = stripLoreInjectionBlock(p.innerText || p.textContent || '').trim();
-                if (txt) {
-                    const isUser = !!p.closest('.justify-end') || !!p.closest('.bg-accent_translucent');
-                    history.push({ role: isUser ? 'user' : 'assistant', content: txt });
+        // 크랙 DOM이 flex-col-reverse(역순) 구조일 경우 정방향(과거 -> 최신)으로 뒤집기
+        if (chatRoot.classList.contains('flex-col-reverse') || chatRoot.querySelector('.flex-col-reverse')) {
+            turnsList.reverse();
+        }
+
+        // 폴백: 행 탐색이 비어있다면 Leaf 노드 직접 수집
+        if (turnsList.length === 0) {
+            const leaves = chatRoot.querySelectorAll('.whitespace-pre-wrap, .break-words, .prose');
+            leaves.forEach(leaf => {
+                if (leaf.closest('.chat-footer-control') || leaf.closest('#ep-chat-right-drawer') || leaf.closest('.ep-prompt-overlay') || leaf.closest('#ep-lore-storage-modal-overlay') || leaf.closest('.ProseMirror')) return;
+                let txt = (leaf.getAttribute('data-pastel-raw') || leaf.innerText || leaf.textContent || '').trim();
+                let clean = stripLoreInjectionBlock(txt).trim();
+                if (clean && !seenTexts.has(clean)) {
+                    seenTexts.add(clean);
+                    const isUser = !!leaf.closest('.justify-end, [class*="items-end"], .bg-accent_translucent');
+                    turnsList.push({ role: isUser ? 'user' : 'assistant', content: clean });
                 }
             });
         }
 
-        return history;
+        return turnsList;
     }
 
     function getCrackChatTurns() {
@@ -3394,11 +3394,6 @@ Conversation Log:
             if (!res.ok) throw new Error(`API 통신 실패 (HTTP ${res.status})`);
             const resData = await res.json();
 
-            const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
-            const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
-            const cost = (inTok * (0.00075 / 1000)) + (outTok * (0.00375 / 1000));
-            accumulateCrackLoreCost(cost);
-
             const rawJsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
             if (!rawJsonText.trim()) throw new Error("AI가 로어 데이터를 반환하지 않았습니다.");
             let raw = rawJsonText.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
@@ -3536,8 +3531,10 @@ Conversation Log:
             }
             recordExtractLog(episodeId, currentTurn, parsedArray.length, targetList.length, 'success', selectedModel, Date.now() - _manT0);
             renderCrackActiveLores();
+            return parsedArray.length;
         } else {
             recordExtractLog(episodeId, currentTurn, 0, targetList.length, 'failed', selectedModel, Date.now() - _manT0);
+            return 0;
         }
     }
 
@@ -3895,11 +3892,6 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 if (!res.ok) throw new Error("AI 병합 통신 실패 (HTTP " + res.status + ")");
                 const resData = await res.json();
 
-                const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(prompt.length * 1.2);
-                const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
-                const cost = (inTok * (0.00075 / 1000)) + (outTok * (0.00375 / 1000));
-                accumulateCrackLoreCost(cost);
-
                 let txt = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
                 let raw = txt.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
                 const parsedObj = JSON.parse(raw);
@@ -4220,68 +4212,162 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
     async function renderCrackActiveLores() {
         const activePanel = document.getElementById('ep-lore-panel-active');
         if (!activePanel || !loreDb) return;
-        const packName = `Ep_Crack_${getChatId()}_Pack`;
-        const entries = await loreDb.entries.where('packName').equals(packName).toArray();
+        const chatId = getChatId();
+        const packName = `Ep_Crack_${chatId}_Pack`;
+        let entries = [];
+        try {
+            entries = await loreDb.entries.where('packName').equals(packName).toArray();
+        } catch (_) {}
 
-        if (entries.length === 0) {
-            activePanel.innerHTML = `<div style="grid-column:1/3; text-align:center; padding:30px; font-size:13px; color:#999;">활성화된 지식이 존재하지 않습니다.</div>`;
+        if (!entries || entries.length === 0) {
+            activePanel.innerHTML = `<div style="grid-column: 1 / 3; text-align: center; padding: 30px; font-size: 13px; color: #999; user-select: none;">현재 대화방 전용 저장소에 등록된 활성 로어가 존재하지 않습니다.<br>로어를 자동/수동 생성하거나 텍스트를 변환해 주십시오.</div>`;
             return;
         }
 
         activePanel.innerHTML = '';
-        entries.forEach(e => {
+        entries.sort((a, b) => {
+            const typeA = String(a.type || "").toLowerCase().trim();
+            const typeB = String(b.type || "").toLowerCase().trim();
+            if (typeA !== typeB) return typeA.localeCompare(typeB);
+            return (a.id || 0) - (b.id || 0);
+        });
+
+        for (const e of entries) {
             const card = document.createElement('div');
-            card.className = 'decentral-grid-element-long-semi-flat';
-            card.style.cssText = "padding:8px 0; border-bottom:1px dashed var(--decentral-border); display:flex; flex-direction:column; width:100%;";
+            card.className = 'decentral-grid-element-long-semi-flat ep-lore-accordion-card';
+            card.style.cssText = "padding: 8px 0; border-bottom: 1px dashed var(--decentral-border); display: flex; flex-direction: column; width: 100%;";
+            card.dataset.id = e.id;
+
             const isEnabled = e.enabled === true;
 
             card.innerHTML = `
-                <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
-                    <div style="display:flex; align-items:center; cursor:pointer; margin-right:8px;" class="sw-wrap">
-                        <div style="width:24px; height:12px; border-radius:6px; background:${isEnabled ? '#88b9c8' : '#ddd'}; position:relative;">
-                            <div style="width:8px; height:8px; border-radius:50%; background:#fff; position:absolute; top:2px; left:${isEnabled ? '14px' : '2px'};"></div>
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%; gap: 6px;">
+                    <div style="display: flex; align-items: center; cursor: pointer; flex-shrink: 0; margin-right: 4px;" title="${isEnabled ? '무조건 주입 활성화 (스위치 ON)' : '자동 탐색 활성화 (스위치 OFF)'}">
+                        <div class="ep-lore-card-switch" style="width: 24px; height: 12px; border-radius: 6px; background: ${isEnabled ? '#88b9c8' : '#dddddd'}; position: relative;">
+                            <div class="ep-lore-card-switch-dot" style="width: 8px; height: 8px; border-radius: 50%; background: #fff; position: absolute; top: 2px; left: ${isEnabled ? '14px' : '2px'}; transition: left .2s;"></div>
                         </div>
                     </div>
-                    <div style="flex:1; text-align:left; cursor:pointer; font-weight:bold; font-size:13px;" class="card-trigger">
-                        [${e.type}] ${e.name} ${e.anchor ? '<span style="color:#88b9c8; font-size:11px;">[⚓︎]</span>' : ''}
+                    <div class="ep-lore-accordion-trigger" style="display: flex; align-items: center; gap: 8px; flex: 1; min-width: 0; padding-right: 8px; cursor: pointer; user-select: none;">
+                        <span style="font-size: 13px; color: var(--decentral-text); font-weight: bold; text-align: left; word-break: break-all; line-height: 1.4; pointer-events: none;">
+                            [${e.type}] ${e.name}
+                            <span class="ep-lore-emb-status" style="margin-left: 6px; font-size: 10px; padding: 1px 4px; border-radius: 3px; white-space: nowrap; background: var(--bg_primary); border: 1px solid #dddddd; color: #888888; display: none;">대기</span>
+                        </span>
                     </div>
-                    <div style="display:flex; gap:6px;">
-                        <button type="button" class="btn-anchor" style="padding:2px 6px; font-size:11px; cursor:pointer; background:${e.anchor ? '#88b9c8':'transparent'}; color:${e.anchor ? '#fff':'#888'}; border:1px solid #ccc; border-radius:4px;">⚓︎</button>
-                        <button type="button" class="btn-del" style="padding:2px 6px; font-size:11px; cursor:pointer; background:transparent; color:#eb6666; border:1px solid #eb6666; border-radius:4px;">✕</button>
+                    <div style="display: flex; gap: 6px; flex-shrink: 0; align-items: center;">
+                        <button type="button" class="ep-lore-act-btn btn-embed" title="임베딩 재발급" style="width:24px; height:24px; padding:0; display:inline-flex; align-items:center; justify-content:center; border-radius:4px; background:transparent; border:1px solid #cccccc; color:#888; cursor:pointer; box-sizing:border-box;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7V5a2 2 0 0 1 2-2h2"/><path d="M17 3h2a2 2 0 0 1 2 2v2"/><path d="M21 17v2a2 2 0 0 1-2 2h-2"/><path d="M7 21H5a2 2 0 0 1-2-2v-2"/><path d="M7 12h10"/></svg></button>
+                        <button type="button" class="ep-lore-act-btn btn-anchor" title="앵커 고정" style="width:24px; height:24px; padding:0; display:inline-flex; align-items:center; justify-content:center; border-radius:4px; background:${e.anchor ? '#88b9c8' : 'transparent'}; border:1px solid ${e.anchor ? '#88b9c8' : '#cccccc'}; color:${e.anchor ? '#ffffff' : '#888888'}; cursor:pointer; box-sizing:border-box;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 17v5"/><path d="M9 10.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24V16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1v-.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V7a1 1 0 0 1 1-1 2 2 0 0 0 0-4H8a2 2 0 0 0 0 4 1 1 0 0 1 1 1z"/></svg></button>
+                        <button type="button" class="ep-lore-act-btn btn-delete" title="영구 삭제" style="width:24px; height:24px; padding:0; display:inline-flex; align-items:center; justify-content:center; border-radius:4px; background:transparent; border:1px solid #eb6666; color:#eb6666; cursor:pointer; box-sizing:border-box;"><svg xmlns="http://www.w3.org/2000/svg" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 11v6"/><path d="M14 11v6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M3 6h18"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg></button>
                     </div>
                 </div>
-                <div class="card-body" style="display:none; margin-top:8px; width:100%;">
-                    <textarea class="decentral-text-area" style="height:160px; font-size:11px;">${JSON.stringify(reorderLoreKeys(e), null, 2)}</textarea>
+                <div class="ep-lore-accordion-body" style="display: none; width: 100%; margin-top: 8px; box-sizing: border-box;">
+                    <textarea class="decentral-text-area ep-lore-inline-textarea" style="height: 200px; font-size: 11px; line-height: 1.5; border-radius: 8px; border: 1px solid var(--decentral-text-border); background:var(--decentral-text-background); color:var(--decentral-text); resize: vertical; width: 100%; box-sizing: border-box;"></textarea>
                 </div>
             `;
 
-            const body = card.querySelector('.card-body');
-            const ta = card.querySelector('textarea');
-            card.querySelector('.card-trigger').onclick = () => { body.style.display = body.style.display === 'block' ? 'none' : 'block'; };
-            card.querySelector('.sw-wrap').onclick = async () => {
-                e.enabled = !e.enabled;
-                await loreDb.entries.update(e.id, { enabled: e.enabled });
-                renderCrackActiveLores();
-            };
-            card.querySelector('.btn-anchor').onclick = async () => {
-                e.anchor = !e.anchor;
-                await loreDb.entries.update(e.id, { anchor: e.anchor });
-                renderCrackActiveLores();
-            };
-            card.querySelector('.btn-del').onclick = async () => {
-                if (confirm(`[${e.name}] 로어를 삭제하시겠습니까?`)) {
-                    await loreDb.entries.delete(e.id);
-                    renderCrackActiveLores();
-                }
-            };
-            ta.onchange = async () => {
+            const bodyEl = card.querySelector('.ep-lore-accordion-body');
+            const textarea = card.querySelector('.ep-lore-inline-textarea');
+            const embStatus = card.querySelector('.ep-lore-emb-status');
+
+            let cleanEntry = { ...e };
+            delete cleanEntry.id; delete cleanEntry.packName; delete cleanEntry.project; delete cleanEntry.enabled;
+            cleanEntry = reorderLoreKeys(cleanEntry);
+            textarea.value = JSON.stringify(cleanEntry, null, 2);
+
+            const saveInlineEntry = async () => {
                 try {
-                    const parsed = JSON.parse(ta.value);
-                    await loreDb.entries.put({ ...e, ...parsed });
+                    const parsed = JSON.parse(textarea.value);
+                    const updated = { ...e, ...parsed };
+                    await loreDb.entries.put(updated);
+                    await loreDb.embeddings.where('entryId').equals(e.id).delete();
+                    Object.assign(e, updated);
+                    updateEmbeddingLabel();
                 } catch (_) {}
             };
+
+            textarea.addEventListener('change', saveInlineEntry);
+            textarea.addEventListener('blur', saveInlineEntry);
+
+            const updateEmbeddingLabel = async () => {
+                try {
+                    const emb = await loreDb.embeddings.where('entryId').equals(e.id).first();
+                    embStatus.style.display = 'inline-block';
+                    if (emb) {
+                        embStatus.textContent = "임베딩";
+                        embStatus.style.border = "1px solid #88b9c8";
+                        embStatus.style.color = "#88b9c8";
+                    } else {
+                        embStatus.textContent = "미임베딩";
+                        embStatus.style.border = "1px solid #dddddd";
+                        embStatus.style.color = "#888888";
+                    }
+                } catch (_) {}
+            };
+            updateEmbeddingLabel();
+
+            // 오버라이드 스위치
+            const sw = card.querySelector('.ep-lore-card-switch');
+            const swDot = card.querySelector('.ep-lore-card-switch-dot');
+            const swWrap = sw?.parentElement;
+            if (swWrap && sw && swDot) {
+                swWrap.onclick = async (ev) => {
+                    ev.stopPropagation();
+                    e.enabled = !e.enabled;
+                    await loreDb.entries.update(e.id, { enabled: e.enabled });
+                    sw.style.background = e.enabled ? '#88b9c8' : '#dddddd';
+                    swDot.style.left = e.enabled ? '14px' : '2px';
+                };
+            }
+
+            // 앵커 핀
+            const anchorBtn = card.querySelector('.btn-anchor');
+            anchorBtn.onclick = async (ev) => {
+                ev.stopPropagation();
+                e.anchor = !e.anchor;
+                await loreDb.entries.update(e.id, { anchor: e.anchor });
+                anchorBtn.style.background = e.anchor ? '#88b9c8' : 'transparent';
+                anchorBtn.style.borderColor = e.anchor ? '#88b9c8' : '#cccccc';
+                anchorBtn.style.color = e.anchor ? '#ffffff' : '#888888';
+            };
+
+            // 임베딩 재발급
+            const embBtn = card.querySelector('.btn-embed');
+            embBtn.onclick = async (ev) => {
+                ev.stopPropagation();
+                embBtn.disabled = true;
+                embBtn.style.opacity = '0.3';
+                try {
+                    await executeLoreEmbeddingForEntry(e);
+                    updateEmbeddingLabel();
+                    showToast("✨ 임베딩 발급 완료!");
+                } catch (err) {
+                    showToast("❌ 임베딩 발급 실패");
+                } finally {
+                    setTimeout(() => {
+                        embBtn.style.opacity = '1';
+                        embBtn.disabled = false;
+                    }, 1000);
+                }
+            };
+
+            // 영구 삭제
+            const delBtn = card.querySelector('.btn-delete');
+            delBtn.onclick = async (ev) => {
+                ev.stopPropagation();
+                if (!confirm(`[${e.name}] 로어를 정말 삭제하시겠습니까?`)) return;
+                await loreDb.entries.delete(e.id);
+                await loreDb.embeddings.where('entryId').equals(e.id).delete();
+                renderCrackActiveLores();
+            };
+
+            // 아코디언 열고 닫기
+            const trigger = card.querySelector('.ep-lore-accordion-trigger');
+            trigger.onclick = (ev) => {
+                ev.stopPropagation();
+                bodyEl.style.display = (bodyEl.style.display === 'block') ? 'none' : 'block';
+            };
+
             activePanel.appendChild(card);
-        });
+        }
     }
 
     function renderCrackLoreLogs() {
@@ -4317,31 +4403,65 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         const container = document.getElementById('ep-lore-snapshot-list-container');
         if (!container || !loreDb) return;
         container.innerHTML = '';
-        const packName = `Ep_Crack_${getChatId()}_Pack`;
+        const chatId = getChatId();
+        const packName = `Ep_Crack_${chatId}_Pack`;
         const snapshots = await loreDb.snapshots.where('packName').equals(packName).reverse().sortBy('timestamp');
 
         if (!snapshots || snapshots.length === 0) {
-            container.innerHTML = `<div style="text-align:center; padding:30px; color:#888; font-size:12px;">저장된 백업 포인트가 없습니다.</div>`;
+            container.innerHTML = `<div style="text-align:center; padding:30px; color:#888; font-size:12px; user-select:none;">저장된 로어 백업 세이브 포인트가 없습니다.</div>`;
             return;
         }
 
         snapshots.forEach(s => {
+            const timeStr = new Date(s.timestamp).toLocaleString();
+            let entriesList = [];
+            try { entriesList = JSON.parse(s.data || '[]'); } catch (_) {}
+
             const card = document.createElement('div');
-            card.style.cssText = "padding: 10px; display: flex; justify-content: space-between; align-items: center; width: 100%; box-sizing: border-box; background: var(--decentral-background); border: 1px solid var(--decentral-inner-border); border-radius: 8px; margin-bottom: 8px;";
-            card.innerHTML = `
-                <div style="text-align: left;">
-                    <span style="font-size: 13px; font-weight: bold; color: var(--decentral-text); display: block;">${s.type}</span>
-                    <span style="font-size: 10px; color: var(--decentral-text-formal);">${new Date(s.timestamp).toLocaleString()}</span>
+            card.style.cssText = "padding: 10px 14px; display: flex; flex-direction: column; width: 100%; box-sizing: border-box; background-color: var(--decentral-background); border: 1px solid var(--decentral-inner-border); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: background-color 0.2s;";
+
+            const header = document.createElement('div');
+            header.style.cssText = "display: flex; justify-content: space-between; align-items: center; width: 100%;";
+            header.innerHTML = `
+                <div style="text-align: left; flex: 1; min-width: 0; padding-right: 12px; pointer-events: none;">
+                    <span style="font-size: 13px; font-weight: bold; color: var(--decentral-text); display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${s.type}</span>
+                    <span style="font-size: 10px; color: var(--decentral-text-formal);">${timeStr}</span>
                 </div>
-                <button type="button" class="btn-restore-snap" style="background: transparent; border: 1px solid #88b9c8; color: #88b9c8; font-size: 11px; padding: 4px 8px; border-radius: 4px; cursor: pointer; font-weight: bold;">복원</button>
             `;
-            card.querySelector('.btn-restore-snap').onclick = async () => {
-                if (!confirm("이 시점으로 로어 데이터를 복원하시겠습니까?")) return;
-                await restoreLoreSnapshot(s.id);
-                showToast("✨ 로어 복원 완료!");
-                renderCrackActiveLores();
-                renderCrackLoreSnapshots();
+
+            const restoreBtn = document.createElement('button');
+            restoreBtn.type = "button";
+            restoreBtn.className = "decentral-button";
+            restoreBtn.title = "복원";
+            restoreBtn.style.cssText = "background: transparent !important; border: 1px solid #88b9c8; color: #88b9c8 !important; width: auto; height: 26px; padding: 0 8px; font-size: 11px; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; font-weight: bold; border-radius: 4px;";
+            restoreBtn.textContent = "복원";
+
+            restoreBtn.onclick = async (ev) => {
+                ev.stopPropagation();
+                if (!confirm("이 시점으로 전체 로어 데이터를 복원하시겠습니까?\n현재 저장소의 카드 목록이 선택한 백업 상태로 교체됩니다.")) return;
+                try {
+                    await restoreLoreSnapshot(s.id);
+                    showToast("✨ 로어 복원 완료!");
+                    renderCrackLoreSnapshots();
+                    renderCrackActiveLores();
+                } catch (err) {
+                    alert("복원 실패: " + err.message);
+                }
             };
+
+            header.appendChild(restoreBtn);
+            card.appendChild(header);
+
+            const accordionBody = document.createElement('div');
+            accordionBody.style.cssText = "display: none; padding-top: 8px; border-top: 1px dashed var(--decentral-border); margin-top: 8px; width: 100%; text-align: left;";
+            const listChips = entriesList.map(e => `<span style="font-size: 10px; color: var(--decentral-text-formal); display: inline-block; background: var(--bg_primary); padding: 2px 6px; border-radius: 4px; margin-right: 4px; margin-bottom: 4px; border: 1px solid var(--decentral-border);">[${e.type}] ${e.name}</span>`).join('');
+            accordionBody.innerHTML = listChips || `<span style="font-size: 11px; color: #888; font-style: italic;">지식이 비어있는 백업 포인트입니다.</span>`;
+            card.appendChild(accordionBody);
+
+            card.onclick = () => {
+                accordionBody.style.display = accordionBody.style.display === 'block' ? 'none' : 'block';
+            };
+
             container.appendChild(card);
         });
     }
@@ -4366,12 +4486,15 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                     mBtn.disabled = true; mBtn.textContent = "수동 추출 중...";
                     if (st) { st.textContent = "최근 대화 분석 중..."; st.style.color = "#74a1c0"; }
                     try {
-                        await executeManualLoreExtraction(getChatId(), turns);
-                        if (st) { st.textContent = `✅ 성공: ${turns}턴 로어가 병합되었습니다.`; st.style.color = "#88b9c8"; }
+                        showLoreExtPersistentToast(`🔮 최근 ${turns}턴 수동 로어 생성 중...`);
+                        const count = await executeManualLoreExtraction(getChatId(), turns);
+                        if (st) { st.textContent = `✅ 성공: 최근 ${turns}턴 분석 (${count || 0}개 로어 병합)`; st.style.color = "#88b9c8"; }
                         showToast("✨ 수동 로어 생성 완료!");
                     } catch (err) {
                         if (st) { st.textContent = "❌ 실패: " + err.message; st.style.color = "#da8"; }
+                        showToast("❌ 수동 로어 생성 실패");
                     } finally {
+                        hideLoreExtPersistentToast();
                         mBtn.disabled = false; mBtn.textContent = "지정 턴수만큼 수동 로어 생성";
                     }
                 };
