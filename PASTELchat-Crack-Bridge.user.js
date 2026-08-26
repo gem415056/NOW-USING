@@ -70,6 +70,14 @@
             --icon_primary: #F0EFEB;
         }
 
+        /* reCAPTCHA v3 우하단 뱃지 완전 은닉 (클릭 방해 차단 & App Check 정상 작동) */
+        .grecaptcha-badge {
+            visibility: hidden !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            z-index: -99999 !important;
+        }
+
         /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (스크롤 시 사라짐 원천 방지) */
         .absolute.z-docked.left-0.w-full.h-12,
         .h-12.px-5.flex.justify-between.items-center {
@@ -3386,15 +3394,39 @@ Conversation Log:
             };
 
         showLoreExtPersistentToast("🔑 App Check 보안 토큰 발급 중...");
-        const appCheckToken = await getAppCheckToken();
-        if (!appCheckToken) {
-            throw new Error("App Check 토큰 획득 실패 (401 방지). 콘솔 로그를 확인해 주십시오.");
-        }
+            const appCheckToken = await getAppCheckToken();
+            if (!appCheckToken) {
+                throw new Error("App Check 토큰 획득 실패. 콘솔을 확인해 주십시오.");
+            }
 
-        const headers = { 
-            "Content-Type": "application/json",
-            "X-Firebase-AppCheck": appCheckToken
-        };
+            const headers = { 
+                "Content-Type": "application/json",
+                "X-Firebase-AppCheck": appCheckToken
+            };
+
+            const abortCtrl = new AbortController();
+            const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
+
+            let res;
+            try {
+                res = await fetch(url, { 
+                    method: "POST", 
+                    headers: headers, 
+                    body: JSON.stringify(body),
+                    signal: abortCtrl.signal 
+                });
+            } catch (fetchErr) {
+                if (fetchErr.name === 'AbortError') throw new Error("텍스트 변환 응답 시간 초과(60초)");
+                throw fetchErr;
+            } finally {
+                clearTimeout(fetchTimeout);
+            }
+
+            if (!res.ok) {
+                const errBody = await res.text();
+                throw new Error(`API 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
+            }
+            const resData = await res.json();
 
         showLoreExtPersistentToast(`🔮 AI 대화 분석 및 로어 생성 중... (${selectedModel})`);
 
@@ -3636,12 +3668,28 @@ Conversation Log:
 
         try {
             const appCheckToken = await getAppCheckToken();
-            const headers = { "Content-Type": "application/json" };
-            if (appCheckToken && url.includes("firebasevertexai")) {
-                headers["X-Firebase-AppCheck"] = appCheckToken;
+            if (!appCheckToken) return;
+
+            const headers = { 
+                "Content-Type": "application/json",
+                "X-Firebase-AppCheck": appCheckToken
+            };
+
+            const abortCtrl = new AbortController();
+            const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
+
+            let res;
+            try {
+                res = await fetch(url, { 
+                    method: "POST", 
+                    headers: headers, 
+                    body: JSON.stringify(body),
+                    signal: abortCtrl.signal 
+                });
+            } finally {
+                clearTimeout(fetchTimeout);
             }
 
-            const res = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
             if (!res.ok) return;
             const resData = await res.json();
 
@@ -3723,13 +3771,37 @@ Conversation Log:
         };
 
         const appCheckToken = await getAppCheckToken();
-        const headers = { "Content-Type": "application/json" };
-        if (appCheckToken && url.includes("firebasevertexai")) {
-            headers["X-Firebase-AppCheck"] = appCheckToken;
+        if (!appCheckToken) {
+            throw new Error("App Check 토큰 획득 실패. 콘솔을 확인해 주십시오.");
         }
 
-        const res = await fetch(url, { method: "POST", headers: headers, body: JSON.stringify(body) });
-        if (!res.ok) throw new Error(`API 통신 실패 (HTTP ${res.status})`);
+        const headers = { 
+            "Content-Type": "application/json",
+            "X-Firebase-AppCheck": appCheckToken
+        };
+
+        const abortCtrl = new AbortController();
+        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
+
+        let res;
+        try {
+            res = await fetch(url, { 
+                method: "POST", 
+                headers: headers, 
+                body: JSON.stringify(body),
+                signal: abortCtrl.signal 
+            });
+        } catch (fetchErr) {
+            if (fetchErr.name === 'AbortError') throw new Error("재생성 구간 응답 시간 초과(60초)");
+            throw fetchErr;
+        } finally {
+            clearTimeout(fetchTimeout);
+        }
+
+        if (!res.ok) {
+            const errBody = await res.text();
+            throw new Error(`API 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
+        }
         const resData = await res.json();
 
         const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -3923,17 +3995,37 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 if (!url) throw new Error("우측 서랍의 [API 설정]에 Gemini API Key 또는 Firebase Script를 입력해 주십시오.");
 
                 const appCheckToken = await getAppCheckToken();
-                const headers = { "Content-Type": "application/json" };
-                if (appCheckToken && url.includes("firebasevertexai")) {
-                    headers["X-Firebase-AppCheck"] = appCheckToken;
+                if (!appCheckToken) {
+                    throw new Error("App Check 토큰 획득 실패. 콘솔을 확인해 주십시오.");
                 }
 
-                const res = await fetch(url, {
-                    method: "POST", headers: headers,
-                    body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } })
-                });
+                const headers = { 
+                    "Content-Type": "application/json",
+                    "X-Firebase-AppCheck": appCheckToken
+                };
 
-                if (!res.ok) throw new Error("AI 병합 통신 실패 (HTTP " + res.status + ")");
+                const abortCtrl = new AbortController();
+                const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
+
+                let res;
+                try {
+                    res = await fetch(url, {
+                        method: "POST", 
+                        headers: headers,
+                        body: JSON.stringify({ contents: [{ role: "user", parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json" } }),
+                        signal: abortCtrl.signal
+                    });
+                } catch (fetchErr) {
+                    if (fetchErr.name === 'AbortError') throw new Error("병합 요약 응답 시간 초과(60초)");
+                    throw fetchErr;
+                } finally {
+                    clearTimeout(fetchTimeout);
+                }
+
+                if (!res.ok) {
+                    const errBody = await res.text();
+                    throw new Error(`AI 병합 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
+                }
                 const resData = await res.json();
 
                 let txt = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
@@ -4644,11 +4736,15 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         return null;
     }
 
-    // 3. 토큰 발급 및 실시간 콘솔 진단
+    // 3. 토큰 7일 영구 재사용(localStorage) 발급 및 실시간 콘솔 진단
     async function getAppCheckToken() {
         const now = Date.now();
-        if (cachedAppCheckToken && now < cachedAppCheckExpiry) {
-            return cachedAppCheckToken;
+        const storedToken = localStorage.getItem('pastel_appcheck_token_persistent');
+        const storedExpiry = parseInt(localStorage.getItem('pastel_appcheck_token_expiry') || '0', 10);
+
+        // 7일 만료 전까지는 브라우저를 껐다 켜도 reCAPTCHA 호출 없이 0초 만에 즉각 재사용 (무료 할당량 100% 보존)
+        if (storedToken && now < storedExpiry) {
+            return storedToken;
         }
 
         try {
@@ -4663,15 +4759,21 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
 
                 const tokenResult = await Promise.race([tokenPromise, timeoutPromise]);
                 if (tokenResult && tokenResult.token) {
-                    cachedAppCheckToken = tokenResult.token;
-                    cachedAppCheckExpiry = now + (30 * 60 * 1000); // 30분 캐시
-                    console.log("🔑 [PASTEL:AppCheck] 토큰 발급 성공:", tokenResult.token.slice(0, 15) + "...");
-                    return cachedAppCheckToken;
+                    const token = tokenResult.token;
+                    // 7일(안전 마진 적용 6.5일 = 156시간) 동안 localStorage에 영구 보존
+                    const expiry = now + (6.5 * 24 * 60 * 60 * 1000);
+                    localStorage.setItem('pastel_appcheck_token_persistent', token);
+                    localStorage.setItem('pastel_appcheck_token_expiry', String(expiry));
+                    console.log("🔑 [PASTEL:AppCheck] 7일 토큰 신규 발급 완료:", token.slice(0, 15) + "...");
+                    return token;
                 }
             }
         } catch (e) {
             console.warn("[AppCheck 발급 경고]:", e.message || e);
         }
+
+        // 만약 신규 발급이 일시 지연되더라도 기존 토큰이 남아있다면 폴백으로 재사용
+        if (storedToken) return storedToken;
 
         console.error("❌ [PASTEL:AppCheck] 토큰 발급 실패! Firebase 설정 확인 필요");
         return null;
