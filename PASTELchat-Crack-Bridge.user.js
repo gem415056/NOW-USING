@@ -1,11 +1,12 @@
 // ==UserScript==
-// @name         PASTELchat × CRACK (Module 1: Complete Shell & UI Integration)
+// @name         PASTELchat × CRACK (Module 1: Crash-Proof Shell)
 // @namespace    https://github.com/PASTELchat/crack
-// @version      1.0.0
-// @description  Module 1: Safe & Pixel-Perfect PASTELchat UI Injection on crack.wrtn.ai
+// @version      1.1.0
+// @description  Module 1: Robust & Crash-Proof PASTELchat UI Injection on crack.wrtn.ai
 // @author       PASTELchat
 // @match        *://crack.wrtn.ai/*
 // @match        *://*.wrtn.ai/*
+// @match        https://crack.wrtn.ai/*
 // @grant        none
 // @run-at       document-start
 // ==/UserScript==
@@ -13,34 +14,42 @@
 (function() {
     'use strict';
 
-    console.log('%c[PASTELchat] 🚀 Module 1 (UI 뼈대 & 서랍 메뉴) 정상 가동 시작!', 'color: #FF4432; font-weight: bold; font-size: 16px;');
+    console.log('%c[PASTELchat] 🚀 유저스크립트 엔진 가동 시작!', 'color: #FF4432; font-weight: bold; font-size: 16px;');
 
     // =========================================================================
-    // [1. 순정 CSS 스타일 1:1 주입 (크랙 네이티브 오버라이드 & 다크모드 호환)]
+    // [1. 순정 CSS 스타일 주입 & 크랙 순정 대화창/입력창 자동 은닉]
     // =========================================================================
     const pastelCSS = `
         :root {
-            --bg_primary: #ffffff;
-            --text_primary: #222222;
-            --icon_primary: #222222;
+            --pastel_bg_primary: #ffffff;
+            --pastel_text_primary: #222222;
+            --pastel_icon_primary: #222222;
             --pastel_gradient: linear-gradient(135deg, #FFB5E8, #FF9CEE, #B28DFF, #85E3FF, #BFFCC6);
         }
 
         body[data-theme="dark"], html.dark, body.dark {
-            --bg_primary: #141413;
-            --text_primary: #F0EFEB;
-            --icon_primary: #F0EFEB;
+            --pastel_bg_primary: #141413;
+            --pastel_text_primary: #F0EFEB;
+            --pastel_icon_primary: #F0EFEB;
         }
 
-        /* 메인 컨테이너 */
+        /* 크랙 순정 대화창 & 하단 입력창만 완벽 은닉 (파스텔챗 내부 요소는 제외) */
+        div[class*="flex-col-reverse"]:not(#ep-pastel-injected-container *),
+        div[class*="bg-bg_screen"]:has(.ProseMirror),
+        div:has(> .ProseMirror),
+        div:has(> div > .ProseMirror) {
+            display: none !important;
+        }
+
+        /* 메인 감싸개 */
         #ep-pastel-injected-container {
             display: flex !important;
             flex-direction: column !important;
             width: 100% !important;
             height: 100% !important;
             position: relative !important;
-            background-color: var(--bg_primary) !important;
-            color: var(--text_primary) !important;
+            background-color: var(--pastel_bg_primary) !important;
+            color: var(--pastel_text_primary) !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif !important;
             box-sizing: border-box !important;
             overflow: hidden !important;
@@ -60,7 +69,7 @@
             margin: 0;
             user-select: none;
             font-size: 12px;
-            background: var(--bg_primary);
+            background: var(--pastel_bg_primary);
             box-sizing: border-box;
         }
         body[data-theme="dark"] .chat-info-header, html.dark .chat-info-header {
@@ -113,7 +122,7 @@
         .ep-chat-bold { font-weight: 800 !important; }
         .ep-chat-action { color: #666666 !important; font-weight: normal; }
         body[data-theme="dark"] .ep-chat-action, html.dark .ep-chat-action { color: #999999 !important; }
-        .quote-block { border-left: 4px solid #888888; padding-left: 12px; margin: 8px 0 8px 8px; display: block; color: var(--text_primary); white-space: pre-wrap; }
+        .quote-block { border-left: 4px solid #888888; padding-left: 12px; margin: 8px 0 8px 8px; display: block; color: var(--pastel_text_primary); white-space: pre-wrap; }
         .ep-inline-code { background-color: #F8F2F4; color: #6E5960; border: 1px solid #bfa5a6; border-radius: 4px; padding: 1.5px 4px; font-size: 15px !important; margin: 0 2px; display: inline; }
         body[data-theme="dark"] .ep-inline-code, html.dark .ep-inline-code { background-color: #2b2224; color: #e0bcc0; border-color: #5c4547; }
         
@@ -147,7 +156,7 @@
             flex-direction: column;
             gap: 8px;
             box-sizing: border-box;
-            background: var(--bg_primary);
+            background: var(--pastel_bg_primary);
             position: relative;
             z-index: 20;
         }
@@ -169,7 +178,7 @@
         }
         .input-area:focus-within {
             border: 2px solid #888888 !important;
-            background-color: var(--bg_primary) !important;
+            background-color: var(--pastel_bg_primary) !important;
             padding: 14px 19px 9px 19px;
         }
 
@@ -178,7 +187,7 @@
             height: 100%;
             border: none !important;
             background: transparent !important;
-            color: var(--text_primary);
+            color: var(--pastel_text_primary);
             padding: 0 !important;
             resize: none;
             font-size: 16px;
@@ -200,7 +209,7 @@
             position: relative;
             background-color: #fcfcfc;
             border: 1px solid #B0B0B0;
-            color: var(--text_primary);
+            color: var(--pastel_text_primary);
             cursor: pointer;
             width: 26px;
             height: 26px;
@@ -267,9 +276,9 @@
         }
         .ep-scroll-btn-wrapper.visible { display: flex; opacity: 1; transform: translateY(0); }
         .ep-scroll-btn-wrapper button {
-            background-color: var(--bg_primary);
+            background-color: var(--pastel_bg_primary);
             border: 1px solid #E6E6E6;
-            color: var(--text_primary);
+            color: var(--pastel_text_primary);
             width: 26px;
             height: 26px;
             border-radius: 50%;
@@ -290,7 +299,7 @@
             right: 0;
             width: 255px;
             height: 100%;
-            background-color: var(--bg_primary);
+            background-color: var(--pastel_bg_primary);
             border-left: 1px solid #E6E6E6;
             box-sizing: border-box;
             z-index: 45;
@@ -337,11 +346,11 @@
             border-color: #333230;
         }
         .api-tabs-row, .model-tabs-row { display: flex; gap: 4px; margin-bottom: 6px; }
-        .api-tab-btn, .model-tab-btn { border: 1px solid #E6E6E6; border-radius: 4px; font-size: 12px; background-color: transparent; color: var(--text_primary); padding: 4px 8px; cursor: pointer; font-weight: bold; }
+        .api-tab-btn, .model-tab-btn { border: 1px solid #E6E6E6; border-radius: 4px; font-size: 12px; background-color: transparent; color: var(--pastel_text_primary); padding: 4px 8px; cursor: pointer; font-weight: bold; }
         .api-tab-btn.active, .model-tab-btn.active { border-color: #E6E6E6; background-color: #F5E19A; color: #333333; }
         .api-input-group, .model-input-group { display: flex; flex-direction: column; gap: 6px; text-align: left; }
         .api-input-group label, .model-input-group label { font-size: 11px; font-weight: bold; color: #888888; }
-        .api-textbox, .model-select-dropdown { border: 1px solid #E6E6E6; border-radius: 8px; background: var(--bg_primary); color: var(--text_primary); font-size: 13px; padding: 7px; box-sizing: border-box; outline: none; width: 100%; }
+        .api-textbox, .model-select-dropdown { border: 1px solid #E6E6E6; border-radius: 8px; background: var(--pastel_bg_primary); color: var(--pastel_text_primary); font-size: 13px; padding: 7px; box-sizing: border-box; outline: none; width: 100%; }
         
         .menu-item {
             padding: 10px 12px;
@@ -349,7 +358,7 @@
             cursor: pointer;
             font-size: 15px;
             font-weight: bold;
-            color: var(--text_primary);
+            color: var(--pastel_text_primary);
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -391,7 +400,7 @@
     injectStylesSafely();
 
     // =========================================================================
-    // [2. PASTELchat HTML 템플릿 (crack.html 100% 동일 이식)]
+    // [2. PASTELchat 메인 뷰 HTML 템플릿]
     // =========================================================================
     function getPastelHTMLTemplate() {
         return `
@@ -418,8 +427,8 @@
                     <div class="ep-chat-drawer-overlay" id="ep-chat-drawer-overlay"></div>
                     <div class="chat-content-box" id="ep-chat-content-box">
                         <div style="text-align:center; padding:40px 20px; color:#888; font-size:14px;">
-                            ✨ <strong>PASTELchat 모듈 1</strong> UI 뼈대 이식이 완벽히 완료되었습니다.<br>
-                            우측 상단 <strong>[점 3개 메뉴]</strong> 버튼을 눌러 서랍 메뉴와 모달창이 정상 작동하는지 확인해 보세요!
+                            ✨ <strong>PASTELchat 모듈 1</strong> UI 이식이 완료되었습니다.<br>
+                            우측 상단 모델 버튼 옆의 <strong>[추천답변]</strong> 버튼과 <strong>[점 3개 메뉴]</strong> 버튼을 확인해 보세요!
                         </div>
                     </div>
 
@@ -561,94 +570,97 @@
     }
 
     // =========================================================================
-    // [3. 크래시 없는 안전한 DOM 탐색 및 이식 엔진]
+    // [3. 초정밀 안심 마운트 엔진]
     // =========================================================================
     function tryInjectPastelShell() {
         try {
             injectStylesSafely();
 
-            // 1. 크랙의 네이티브 에디터(.ProseMirror) 탐색
+            // 1. 이미 마운트되어 있다면 중복 실행 방지
+            if (document.getElementById('ep-pastel-injected-container')) {
+                ensureHeaderButtons();
+                return;
+            }
+
+            // 2. 크랙의 대화 화면 영역 감지 (.ProseMirror 에디터 또는 <main> 태그)
             const nativeEditor = document.querySelector('.ProseMirror');
-            
-            // 2. 크랙 중앙 채팅 컨테이너 탐색
-            const chatReverseBox = document.querySelector('[data-message-group-id]')?.closest('div[class*="flex-col-reverse"]') ||
-                                   document.querySelector('div[class*="flex-col-reverse"]');
+            const mainContainer = document.querySelector('main') || document.querySelector('div[class*="flex-1"][class*="flex-col"]');
 
-            if (chatReverseBox && !document.getElementById('ep-pastel-injected-container')) {
-                // 중앙 대화 영역의 최상위 부모 찾기
-                const chatContainer = chatReverseBox.parentElement?.parentElement || chatReverseBox.parentElement;
-                
-                if (chatContainer) {
-                    chatContainer.style.setProperty('display', 'none', 'important');
+            if (nativeEditor || mainContainer) {
+                // 에디터를 감싸는 최상위 뷰 탐색
+                let mountTarget = null;
+                if (nativeEditor) {
+                    mountTarget = nativeEditor.closest('main') || 
+                                  nativeEditor.closest('div[class*="flex-1"][class*="flex-col"]') || 
+                                  nativeEditor.parentElement?.parentElement?.parentElement?.parentElement;
+                }
+                if (!mountTarget) mountTarget = mainContainer;
 
-                    // 하단 고정 입력창 숨기기
-                    const nativeBottomInput = nativeEditor?.closest('div[class*="absolute"][class*="bottom-0"]') ||
-                                              document.querySelector('div[class*="absolute"][class*="bottom-0"]');
-                    if (nativeBottomInput) {
-                        nativeBottomInput.style.setProperty('display', 'none', 'important');
-                    }
-
-                    // 파스텔챗 마운트
-                    const mountTarget = chatContainer.parentElement || document.querySelector('main') || document.body;
+                if (mountTarget) {
                     const mountPoint = document.createElement('div');
                     mountPoint.id = 'pastel-mount-point';
-                    mountPoint.style.cssText = 'width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; flex: 1; min-height: 0;';
+                    mountPoint.style.cssText = 'width: 100%; height: 100%; display: flex; flex-direction: column; overflow: hidden; position: relative; flex: 1; min-height: 0; z-index: 10;';
                     mountPoint.innerHTML = getPastelHTMLTemplate();
                     
                     mountTarget.appendChild(mountPoint);
                     initModule1Events();
-                    console.log('%c[PASTELchat] ✅ 중앙 대화창 & 입력창 교체 성공!', 'color: #2ecc71; font-weight: bold;');
+                    console.log('%c[PASTELchat] ✅ 중앙 대화창 & 입력창 마운트 성공!', 'color: #2ecc71; font-weight: bold; font-size: 14px;');
                 }
             }
 
-            // 3. 상단 헤더 영역 탐색 및 버튼 텔레포트
-            const comboboxBtn = document.querySelector('button[role="combobox"]');
-            const topActionRow = comboboxBtn?.closest('div[class*="flex"]') || document.querySelector('div[class*="gap-3"][class*="items-center"]');
-
-            if (topActionRow) {
-                // [A] 추천답변 버튼 상단으로 이동
-                const recBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('추천답변'));
-                if (recBtn && !topActionRow.contains(recBtn)) {
-                    if (comboboxBtn) {
-                        comboboxBtn.after(recBtn);
-                    } else {
-                        topActionRow.prepend(recBtn);
-                    }
-                }
-
-                // [B] 파스텔챗 점 3개 메뉴 버튼 상단에 삽입
-                if (!document.getElementById('ep-chat-drawer-trigger')) {
-                    const drawerBtn = document.createElement('button');
-                    drawerBtn.id = 'ep-chat-drawer-trigger';
-                    drawerBtn.className = 'relative inline-flex items-center justify-center p-2 rounded-md hover:bg-accent active:bg-accent/80 transition-colors';
-                    drawerBtn.style.cssText = 'cursor: pointer; background: transparent; border: none; color: inherit; margin-left: 4px;';
-                    drawerBtn.title = '파스텔챗 서랍 메뉴';
-                    drawerBtn.innerHTML = `
-                        <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="22px" height="22px">
-                            <path d="M11 11h2v2h-2zm-2.5 0h-2v2h2zm7 0h2v2h-2z"></path>
-                            <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
-                        </svg>
-                    `;
-                    topActionRow.appendChild(drawerBtn);
-
-                    const drawer = document.getElementById('ep-chat-right-drawer');
-                    const overlay = document.getElementById('ep-chat-drawer-overlay');
-                    drawerBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        if (!drawer || !overlay) return;
-                        const isOpen = drawer.style.display === 'flex';
-                        drawer.style.display = isOpen ? 'none' : 'flex';
-                        overlay.style.display = isOpen ? 'none' : 'block';
-                    };
-                }
-            }
+            ensureHeaderButtons();
         } catch (err) {
-            console.warn('[PASTELchat] 주입 대기 중:', err.message);
+            console.warn('[PASTELchat] 대기 중:', err.message);
+        }
+    }
+
+    // 상단 헤더 버튼(추천답변 이동 및 점 3개 메뉴 주입)
+    function ensureHeaderButtons() {
+        const comboboxBtn = document.querySelector('button[role="combobox"]');
+        const topActionRow = comboboxBtn?.closest('div[class*="flex"]') || document.querySelector('div[class*="gap-3"][class*="items-center"]');
+
+        if (topActionRow) {
+            // [A] 추천답변 버튼 상단으로 안전 텔레포트
+            const recBtn = Array.from(document.querySelectorAll('button')).find(b => b.textContent && b.textContent.includes('추천답변'));
+            if (recBtn && !topActionRow.contains(recBtn)) {
+                if (comboboxBtn) {
+                    comboboxBtn.after(recBtn);
+                } else {
+                    topActionRow.prepend(recBtn);
+                }
+            }
+
+            // [B] 파스텔챗 점 3개 메뉴 버튼 상단에 삽입
+            if (!document.getElementById('ep-chat-drawer-trigger')) {
+                const drawerBtn = document.createElement('button');
+                drawerBtn.id = 'ep-chat-drawer-trigger';
+                drawerBtn.className = 'relative inline-flex items-center justify-center p-2 rounded-md hover:bg-accent active:bg-accent/80 transition-colors';
+                drawerBtn.style.cssText = 'cursor: pointer; background: transparent; border: none; color: inherit; margin-left: 4px;';
+                drawerBtn.title = '파스텔챗 서랍 메뉴';
+                drawerBtn.innerHTML = `
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="currentColor" viewBox="0 0 24 24" width="22px" height="22px">
+                        <path d="M11 11h2v2h-2zm-2.5 0h-2v2h2zm7 0h2v2h-2z"></path>
+                        <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
+                    </svg>
+                `;
+                topActionRow.appendChild(drawerBtn);
+
+                const drawer = document.getElementById('ep-chat-right-drawer');
+                const overlay = document.getElementById('ep-chat-drawer-overlay');
+                drawerBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (!drawer || !overlay) return;
+                    const isOpen = drawer.style.display === 'flex';
+                    drawer.style.display = isOpen ? 'none' : 'flex';
+                    overlay.style.display = isOpen ? 'none' : 'block';
+                };
+                console.log('%c[PASTELchat] ✅ 상단 헤더 메뉴 버튼 주입 완료!', 'color: #3498db; font-weight: bold;');
+            }
         }
     }
 
     // =========================================================================
-    // [4. 기본 이벤트 바인딩 (서랍, 모달, 구슬 버튼)]
+    // [4. 기본 이벤트 바인딩]
     // =========================================================================
     function initModule1Events() {
         const overlay = document.getElementById('ep-chat-drawer-overlay');
@@ -660,7 +672,7 @@
             };
         }
 
-        // 아코디언 (API 설정, 모델 선택)
+        // 아코디언
         const apiTitle = document.getElementById('ep-api-accordion-title');
         const apiCard = document.getElementById('api-collapsible-card');
         if (apiTitle && apiCard) {
@@ -671,44 +683,3 @@
         const modelCard = document.getElementById('model-collapsible-card');
         if (modelTitle && modelCard) {
             modelTitle.onclick = () => modelCard.style.display = modelCard.style.display === 'flex' ? 'none' : 'flex';
-        }
-
-        // 에피소드 노트 모달
-        const epNoteBtn = document.getElementById('ep-menu-epnote-btn');
-        const epNoteModal = document.getElementById('ep-epnote-modal-overlay');
-        const epNoteClose = document.getElementById('ep-epnote-close-btn');
-        if (epNoteBtn && epNoteModal) {
-            epNoteBtn.onclick = () => epNoteModal.classList.add('visible');
-            epNoteClose.onclick = () => epNoteModal.classList.remove('visible');
-        }
-
-        // 로어 저장소 모달
-        const loreBtn = document.getElementById('ep-menu-lore-btn');
-        const loreModal = document.getElementById('ep-lore-storage-modal-overlay');
-        const loreClose = document.getElementById('ep-lore-close-btn');
-        if (loreBtn && loreModal) {
-            loreBtn.onclick = () => loreModal.style.display = 'flex';
-            loreClose.onclick = () => loreModal.style.display = 'none';
-        }
-
-        // 9개 구슬 버튼 입력창 특수문자 주입
-        const textarea = document.getElementById('ep-chat-input-textarea');
-        document.querySelectorAll('.ep-symbol-btn').forEach(btn => {
-            btn.onclick = () => {
-                if (!textarea) return;
-                const open = btn.dataset.open || '';
-                const close = btn.dataset.close || '';
-                const start = textarea.selectionStart;
-                const end = textarea.selectionEnd;
-                textarea.value = textarea.value.substring(0, start) + open + close + textarea.value.substring(end);
-                textarea.focus();
-                textarea.setSelectionRange(start + open.length, start + open.length);
-            };
-        });
-    }
-
-    // =========================================================================
-    // [5. 가벼운 주기적 마운트 확인 (Zero-CPU 점유)]
-    // =========================================================================
-    setInterval(tryInjectPastelShell, 300);
-})();
