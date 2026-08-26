@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name         PASTELchat Crack API Bridge
+// @name         PASTELchat Crack API Bridge & Packet Recorder
 // @namespace    https://github.com/
-// @version      2.1.0.1
-// @description  Bypass CORS and bridge PASTELchat crack.html with crack.wrtn.ai APIs
+// @version      3.0.0
+// @description  Bypass CORS, bridge PASTELchat crack.html with crack.wrtn.ai and record WebSocket packets
 // @author       PASTELchat
 // @match        *://*/*crack.html*
 // @match        *://*/*
@@ -15,6 +15,7 @@
 // @grant        GM_xmlhttpRequest
 // @grant        GM_setValue
 // @grant        GM_getValue
+// @grant        unsafeWindow
 // @connect      crack-api.wrtn.ai
 // @connect      crack.wrtn.ai
 // @connect      *
@@ -25,7 +26,92 @@
     'use strict';
 
     // =========================================================================
-    // [1. crack.wrtn.ai 공식 사이트: 토큰 자동 캐싱 & B방식 자동 입력 매크로]
+    // [0. 웹소켓 & Fetch 통신 가로채기 엔진 (메인 월드 주입)]
+    // =========================================================================
+    const injectionCode = `
+    (function() {
+        window.__PASTEL_RECORDING__ = false;
+        window.__PASTEL_PACKET_LOGS__ = [];
+
+        function logPacket(type, direction, urlOrEvent, data) {
+            if (!window.__PASTEL_RECORDING__) return;
+            const time = new Date().toTimeString().split(' ')[0] + '.' + String(Date.now() % 1000).padStart(3, '0');
+            window.__PASTEL_PACKET_LOGS__.push({
+                time: time,
+                type: type,
+                dir: direction,
+                target: urlOrEvent,
+                data: data
+            });
+            console.log('%c[PASTEL-REC] ' + direction + ' [' + type + ']', 'color: #FF4432; font-weight: bold;', data);
+        }
+
+        // 1. WebSocket Hook
+        const OrigWebSocket = window.WebSocket;
+        window.WebSocket = function(url, protocols) {
+            const ws = new OrigWebSocket(url, protocols);
+            
+            const origSend = ws.send;
+            ws.send = function(data) {
+                logPacket('WS', 'SEND (송신 ➔)', url, data);
+                return origSend.apply(this, arguments);
+            };
+
+            ws.addEventListener('message', function(e) {
+                logPacket('WS', 'RECV (수신 ⬅)', url, e.data);
+            });
+
+            return ws;
+        };
+        window.WebSocket.prototype = OrigWebSocket.prototype;
+
+        // 2. Fetch Hook (Socket.IO 폴링 및 REST API 감청)
+        const origFetch = window.fetch;
+        window.fetch = async function(...args) {
+            const url = typeof args[0] === 'string' ? args[0] : (args[0]?.url || '');
+            const method = (args[1]?.method || 'GET').toUpperCase();
+            const reqBody = args[1]?.body;
+
+            if (url.includes('crack-api') || url.includes('socket.io') || url.includes('crack-gen')) {
+                logPacket('FETCH', 'REQ (송신 ➔) [' + method + ']', url, reqBody);
+            }
+
+            const response = await origFetch.apply(this, args);
+            
+            if (url.includes('crack-api') || url.includes('socket.io') || url.includes('crack-gen')) {
+                const clone = response.clone();
+                clone.text().then(resText => {
+                    logPacket('FETCH', 'RES (수신 ⬅) [' + response.status + ']', url, resText);
+                }).catch(() => {});
+            }
+            return response;
+        };
+
+        // 3. Recorder Control Events
+        window.addEventListener('message', function(e) {
+            if (e.data?.action === 'PASTEL_START_REC') {
+                window.__PASTEL_PACKET_LOGS__ = [];
+                window.__PASTEL_RECORDING__ = true;
+                console.log('%c[PASTEL] 🔴 통신 패킷 녹화가 시작되었습니다.', 'color:#2ecc71; font-size:14px; font-weight:bold;');
+            } else if (e.data?.action === 'PASTEL_STOP_REC') {
+                window.__PASTEL_RECORDING__ = false;
+                window.postMessage({
+                    action: 'PASTEL_REC_RESULT',
+                    logs: window.__PASTEL_PACKET_LOGS__
+                }, '*');
+                console.log('%c[PASTEL] ⏹ 통신 패킷 녹화가 종료되었습니다.', 'color:#FF4432; font-size:14px; font-weight:bold;');
+            }
+        });
+    })();
+    `;
+
+    const scriptEl = document.createElement('script');
+    scriptEl.textContent = injectionCode;
+    (document.head || document.documentElement).appendChild(scriptEl);
+    scriptEl.remove();
+
+    // =========================================================================
+    // [1. crack.wrtn.ai 사이트 UI: 녹화 제어기 플로팅 버튼 & 자동 매크로]
     // =========================================================================
     if (location.hostname.includes('wrtn.ai')) {
         const checkTokenAndWId = () => {
@@ -53,126 +139,99 @@
         checkTokenAndWId();
         setInterval(checkTokenAndWId, 2000);
 
-        // 파스텔챗에서 전달된 텍스트 자동 입력 & 안전장치 팝업
-        const dispatchData = GM_getValue('pastel_macro_dispatch', null);
-        if (dispatchData) {
-            const returnUrl = dispatchData.returnUrl || '';
+        // 녹화 제어 플로팅 UI 생성
+        const injectRecorderUI = () => {
+            if (document.getElementById('pastel-recorder-btn')) return;
+            const btn = document.createElement('button');
+            btn.id = 'pastel-recorder-btn';
+            btn.style.cssText = 'position:fixed;top:15px;right:20px;z-index:2147483647;padding:10px 16px;border-radius:24px;border:2px solid #FF4432;background:#1a1918;color:#fff;font-weight:bold;font-size:13px;cursor:pointer;box-shadow:0 4px 16px rgba(0,0,0,0.5);display:flex;align-items:center;gap:6px;';
+            btn.innerHTML = `🔴 <span>통신 패킷 녹화 시작</span>`;
 
-            // 1. [돌아가기 알약 플로팅 버튼]
-            const injectReturnPillButton = () => {
-                if (document.getElementById('pastel-return-floating-pill')) return;
-                const pill = document.createElement('div');
-                pill.id = 'pastel-return-floating-pill';
-                pill.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%, -50%);z-index:2147483647;cursor:pointer;user-select:none;display:inline-flex;align-items:center;justify-content:center;box-shadow:0 4px 16px rgba(0,0,0,0.4);background-color:#3a001e !important;border:1.5px solid #FF4432 !important;border-radius:9999px !important;padding:9px 16px !important;transition:transform 0.15s ease, opacity 0.15s ease;pointer-events:auto;';
-                pill.innerHTML = `<p style="color:#fff5f1 !important;font-size:12px !important;font-weight:bold !important;margin:0 !important;white-space:nowrap !important;line-height:1 !important;">돌아가기</p>`;
+            let isRecording = false;
 
-                pill.onclick = () => {
-                    GM_setValue('pastel_macro_dispatch', null);
-                    if (returnUrl) window.location.href = returnUrl;
-                    else window.history.back();
-                };
-                (document.body || document.documentElement).appendChild(pill);
+            btn.onclick = () => {
+                if (!isRecording) {
+                    isRecording = true;
+                    btn.style.background = '#FF4432';
+                    btn.innerHTML = `⏹ <span>녹화 중지 & 로그 복사</span>`;
+                    window.postMessage({ action: 'PASTEL_START_REC' }, '*');
+                } else {
+                    isRecording = false;
+                    btn.style.background = '#1a1918';
+                    btn.innerHTML = `⏳ <span>추출 중...</span>`;
+                    window.postMessage({ action: 'PASTEL_STOP_REC' }, '*');
+                }
             };
+            (document.body || document.documentElement).appendChild(btn);
+        };
 
-            injectReturnPillButton();
+        window.addEventListener('message', (e) => {
+            if (e.data?.action === 'PASTEL_REC_RESULT') {
+                const logs = e.data.logs || [];
+                const formatted = JSON.stringify(logs, null, 2);
+                
+                navigator.clipboard.writeText(formatted).then(() => {
+                    const btn = document.getElementById('pastel-recorder-btn');
+                    if (btn) btn.innerHTML = `✨ <span>복사 완료! (AI에게 붙여넣기)</span>`;
+                    setTimeout(injectRecorderUI, 3000);
+                });
 
-            // 2. [타임아웃 시 뜰 원클릭 복사 모달 팝업]
-            const showFallbackCopyModal = (rawText) => {
-                if (document.getElementById('pastel-fallback-copy-modal')) return;
-                const modal = document.createElement('div');
-                modal.id = 'pastel-fallback-copy-modal';
-                modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:2147483647;display:flex;align-items:center;justify-content:center;padding:20px;box-sizing:border-box;';
-
-                modal.innerHTML = `
-                    <div style="background:#ffffff;border-radius:16px;padding:20px;max-width:500px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.3);display:flex;flex-direction:column;gap:12px;box-sizing:border-box;color:#222;font-family:-apple-system,BlinkMacSystemFont,sans-serif;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;">
-                            <strong style="font-size:15px;color:#FF4432;">⚠️ 자동 입력 지연 (수동 복사 안내)</strong>
-                            <button id="pastel-modal-close-btn" style="background:none;border:none;font-size:16px;cursor:pointer;color:#888;">✕</button>
-                        </div>
-                        <p style="font-size:12px;color:#666;margin:0;line-height:1.4;">크랙 사이트 로딩이 길어져 자동 입력이 지연되었습니다. 아래 버튼을 눌러 복사 후 입력창에 붙여넣어 주세요.</p>
-                        <textarea id="pastel-fallback-textarea" readonly style="width:100%;height:140px;padding:10px;border:1px solid #ddd;border-radius:8px;font-size:13px;resize:none;box-sizing:border-box;background:#f9f9f9;color:#222;outline:none;">${rawText}</textarea>
-                        <button id="pastel-modal-copy-btn" style="background:#FF4432;color:#ffffff;border:none;border-radius:8px;padding:10px;font-size:14px;font-weight:bold;cursor:pointer;width:100%;">📋 전체 복사하기</button>
-                    </div>
-                `;
-                document.body.appendChild(modal);
-
-                document.getElementById('pastel-modal-close-btn').onclick = () => modal.remove();
-                document.getElementById('pastel-modal-copy-btn').onclick = () => {
-                    const ta = document.getElementById('pastel-fallback-textarea');
-                    ta.select();
-                    navigator.clipboard.writeText(rawText);
-                    const btn = document.getElementById('pastel-modal-copy-btn');
-                    btn.textContent = '✨ 복사 완료! (입력창에 붙여넣기 하세요)';
-                    btn.style.backgroundColor = '#2ecc71';
-                    setTimeout(() => modal.remove(), 1200);
-                };
-            };
-
-            // 3. [30초 조기 복사 팝업 + 3분 백그라운드 끈질긴 자동 입력 루프]
-            if (dispatchData.message) {
-                const startTime = Date.now();
-                const POPUP_LIMIT = 30000;    // 30초 후 복사 팝업 노출
-                const TIMEOUT_LIMIT = 180000; // 3분(180초) 최종 감시 한도
-                let popupShown = false;
-
-                const inputTimer = setInterval(() => {
-                    const editor = document.querySelector('.ProseMirror') ||
-                                   document.querySelector('[contenteditable="true"]') ||
-                                   document.querySelector('div[role="textbox"]') ||
-                                   document.querySelector('textarea');
-
-                    if (editor) {
-                        clearInterval(inputTimer);
-                        editor.focus();
-
-                        if (document.queryCommandSupported && document.queryCommandSupported('insertText')) {
-                            document.execCommand('selectAll', false, null);
-                            document.execCommand('insertText', false, dispatchData.message);
-                        } else {
-                            editor.innerHTML = `<p>${dispatchData.message.replace(/\n/g, '<br>')}</p>`;
-                        }
-
-                        editor.dispatchEvent(new Event('input', { bubbles: true }));
-                        editor.dispatchEvent(new Event('change', { bubbles: true }));
-
-                        // 만약 30초 경과로 복사 팝업이 떠 있었다면, 자동 입력 성공 시 팝업을 알아서 닫아줌
-                        const fallbackModal = document.getElementById('pastel-fallback-copy-modal');
-                        if (fallbackModal) fallbackModal.remove();
-                        return;
-                    }
-
-                    // 30초가 지나도 입력창을 못 찾으면 유저가 바로 복사할 수 있게 팝업 노출 (루프는 계속 유지)
-                    if (!popupShown && (Date.now() - startTime > POPUP_LIMIT)) {
-                        popupShown = true;
-                        showFallbackCopyModal(dispatchData.message);
-                    }
-
-                    // 3분 초과 시 탐색 루프 최종 종료
-                    if (Date.now() - startTime > TIMEOUT_LIMIT) {
-                        clearInterval(inputTimer);
-                    }
-                }, 400);
+                // 화면에 즉시 확인할 수 있는 팝업창도 띄워줌
+                showLogViewerModal(formatted);
             }
+        });
+
+        const showLogViewerModal = (logText) => {
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:2147483647;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px;box-sizing:border-box;color:#fff;font-family:monospace;';
+            modal.innerHTML = `
+                <div style="background:#222;border-radius:12px;padding:20px;max-width:800px;width:100%;height:80vh;display:flex;flex-direction:column;gap:12px;box-sizing:border-box;border:1px solid #444;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <strong style="color:#FF4432;font-size:16px;">📋 녹화된 통신 패킷 데이터 (클립보드 자동 복사됨)</strong>
+                        <button id="pastel-close-log-modal" style="background:#444;color:#fff;border:none;padding:4px 10px;border-radius:4px;cursor:pointer;">닫기</button>
+                    </div>
+                    <textarea readonly style="flex:1;background:#141413;color:#00ff66;border:1px solid #333;border-radius:8px;padding:12px;font-size:12px;resize:none;outline:none;">${logText}</textarea>
+                    <button id="pastel-re-copy-btn" style="background:#FF4432;color:#fff;border:none;border-radius:8px;padding:12px;font-weight:bold;cursor:pointer;">다시 클립보드에 복사하기</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            modal.querySelector('#pastel-close-log-modal').onclick = () => modal.remove();
+            modal.querySelector('#pastel-re-copy-btn').onclick = () => {
+                navigator.clipboard.writeText(logText);
+                alert("클립보드에 다시 복사되었습니다!");
+            };
+        };
+
+        window.addEventListener('DOMContentLoaded', injectRecorderUI);
+        setTimeout(injectRecorderUI, 1500);
+
+        // 파스텔챗에서 전달된 텍스트 자동 입력 매크로 유지
+        const dispatchData = GM_getValue('pastel_macro_dispatch', null);
+        if (dispatchData && dispatchData.message) {
+            GM_setValue('pastel_macro_dispatch', null);
+            const inputTimer = setInterval(() => {
+                const editor = document.querySelector('.ProseMirror') ||
+                               document.querySelector('[contenteditable="true"]') ||
+                               document.querySelector('div[role="textbox"]') ||
+                               document.querySelector('textarea');
+                if (editor) {
+                    clearInterval(inputTimer);
+                    editor.focus();
+                    document.execCommand('selectAll', false, null);
+                    document.execCommand('insertText', false, dispatchData.message);
+                    editor.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertText', data: dispatchData.message }));
+                }
+            }, 300);
         }
         return;
     }
 
     // =========================================================================
-    // [2. crack.html 통신 리스너: 순정 대화목록/캐시 조회 + 매크로 신호 수신]
+    // [2. crack.html 통신 리스너: GET 목록/캐시 조회]
     // =========================================================================
     window.addEventListener('message', function(event) {
         if (!event.data) return;
-
-        if (event.data.source === 'PASTEL_CRACK_MACRO_DISPATCH') {
-            GM_setValue('pastel_macro_dispatch', {
-                message: event.data.message,
-                chatId: event.data.chatId,
-                storyId: event.data.storyId,
-                returnUrl: event.data.returnUrl,
-                t: Date.now()
-            });
-            return;
-        }
 
         if (event.data.source === 'PASTEL_CRACK_REQUEST') {
             const { reqId, method, url, headers, data, responseType } = event.data;
@@ -184,9 +243,7 @@
                 'Referer': 'https://crack.wrtn.ai/',
                 'platform': 'web',
                 'wrtn-locale': 'ko-KR',
-                'x-wrtn-id': cachedWId,
-                'Cache-Control': 'no-cache, no-store, must-revalidate',
-                'Pragma': 'no-cache'
+                'x-wrtn-id': cachedWId
             }, headers || {});
 
             if (cachedToken) {
@@ -201,18 +258,14 @@
                 data: data,
                 responseType: responseType || 'text',
                 withCredentials: true,
-                timeout: event.data.timeout || 120000,
+                timeout: 120000,
                 onload: function(res) {
                     let parsed = res.responseText;
-                    try {
-                        parsed = JSON.parse(res.responseText);
-                    } catch (_) {}
-
+                    try { parsed = JSON.parse(res.responseText); } catch (_) {}
                     window.postMessage({
                         source: 'PASTEL_CRACK_RESPONSE',
                         reqId: reqId,
                         status: res.status,
-                        statusText: res.statusText,
                         data: parsed,
                         rawText: res.responseText
                     }, '*');
@@ -222,7 +275,7 @@
                         source: 'PASTEL_CRACK_RESPONSE',
                         reqId: reqId,
                         status: 0,
-                        error: err.error || 'Network/Bridge Error'
+                        error: 'Network/Bridge Error'
                     }, '*');
                 }
             });
@@ -230,7 +283,4 @@
     });
 
     window.PASTEL_CRACK_BRIDGE_READY = true;
-    document.addEventListener('DOMContentLoaded', () => {
-        window.postMessage({ source: 'PASTEL_CRACK_BRIDGE_READY' }, '*');
-    });
 })();
