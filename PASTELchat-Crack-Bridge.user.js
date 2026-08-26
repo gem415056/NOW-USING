@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.2.5
+// @version      1.2.6
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1154,7 +1154,7 @@
             const varsModal = document.createElement('div');
             varsModal.id = 'ep-tpl-vars-modal-overlay';
             varsModal.className = 'ep-prompt-overlay';
-            varsModal.style.zIndex = '100070';
+            varsModal.style.zIndex = '2147483647';
             varsModal.innerHTML = `
                 <div class="ep-tpl-vars-modal">
                     <div style="display:flex; justify-content:space-between; align-items:center;">
@@ -1565,11 +1565,22 @@
         }
     }
 
-    // [무지연 동기화 함수]: 바깥 터치 시(blur) 또는 전송 버튼을 누르는 순간(mousedown)에만 딱 1회 작동
+    // [단축어 자동 확장 동기화 함수]: 전송 시 !단축어를 additional note 포맷으로 확장 주입
     function syncTextToNativeEditor() {
         const textarea = document.getElementById('ep-chat-input-textarea');
         if (!textarea) return;
-        const text = textarea.value;
+        let text = textarea.value;
+
+        // crack.html 순정 100% 단축어 확장 로직
+        const shortcuts = GM_getValue('pastel_mockShortcuts', null) || JSON.parse(localStorage.getItem('pastel_mockShortcuts') || '[]');
+        if (Array.isArray(shortcuts) && text.trim()) {
+            shortcuts.forEach(sh => {
+                const token = `!${sh.title}`;
+                if (text.includes(token)) {
+                    text += `\n\n---\n\`\`\`additional note: !${sh.title}\n${sh.text}\n\`\`\``;
+                }
+            });
+        }
 
         const editor = document.querySelector('.ProseMirror') || document.querySelector('[contenteditable="true"]');
         if (editor) {
