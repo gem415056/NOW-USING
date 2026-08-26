@@ -1,12 +1,11 @@
 // ==UserScript==
-// @name         PASTELchat × CRACK (Module 1: Crash-Proof Shell)
-// @namespace    https://github.com/
-// @version      1.2.0
-// @description  Module 1: Safe & Crash-Proof PASTELchat UI Injection on crack.wrtn.ai
+// @name         PASTELchat × CRACK (Module 1: Complete Shell & UI Integration)
+// @namespace    https://github.com/PASTELchat/crack
+// @version      1.0.0
+// @description  Module 1: Safe & Pixel-Perfect PASTELchat UI Injection on crack.wrtn.ai
 // @author       PASTELchat
 // @match        *://crack.wrtn.ai/*
 // @match        *://*.wrtn.ai/*
-// @match        https://crack.wrtn.ai/*
 // @grant        none
 // @run-at       document-start
 // ==/UserScript==
@@ -14,41 +13,70 @@
 (function() {
     'use strict';
 
-    console.log('%c[PASTELchat] 🚀 유저스크립트 정상 로딩 시작!', 'color: #FF4432; font-weight: bold; font-size: 16px;');
+    console.log('%c[PASTELchat] 🚀 Module 1 (UI 뼈대 & 서랍 메뉴) 정상 가동 시작!', 'color: #FF4432; font-weight: bold; font-size: 16px;');
 
     // =========================================================================
-    // [1. 안전한 CSS 스타일 주입 (크래시 방지)]
+    // [1. 순정 CSS 스타일 1:1 주입 (크랙 네이티브 오버라이드 & 다크모드 호환)]
     // =========================================================================
     const pastelCSS = `
         :root {
-            --pastel_bg_primary: #ffffff;
-            --pastel_text_primary: #222222;
-            --pastel_icon_primary: #222222;
+            --bg_primary: #ffffff;
+            --text_primary: #222222;
+            --icon_primary: #222222;
             --pastel_gradient: linear-gradient(135deg, #FFB5E8, #FF9CEE, #B28DFF, #85E3FF, #BFFCC6);
         }
 
-        body[data-theme="dark"] {
-            --pastel_bg_primary: #141413;
-            --pastel_text_primary: #F0EFEB;
-            --pastel_icon_primary: #F0EFEB;
+        body[data-theme="dark"], html.dark, body.dark {
+            --bg_primary: #141413;
+            --text_primary: #F0EFEB;
+            --icon_primary: #F0EFEB;
         }
 
-        /* 메인 감싸개 */
+        /* 메인 컨테이너 */
         #ep-pastel-injected-container {
             display: flex !important;
             flex-direction: column !important;
             width: 100% !important;
             height: 100% !important;
             position: relative !important;
-            background-color: var(--pastel_bg_primary) !important;
-            color: var(--pastel_text_primary) !important;
+            background-color: var(--bg_primary) !important;
+            color: var(--text_primary) !important;
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif !important;
             box-sizing: border-box !important;
             overflow: hidden !important;
             z-index: 10 !important;
             flex: 1 !important;
+            min-height: 0 !important;
         }
 
+        /* 3대 지표 헤더 바 */
+        .chat-info-header {
+            height: auto;
+            border-bottom: 1px solid #E6E6E6;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 25px;
+            margin: 0;
+            user-select: none;
+            font-size: 12px;
+            background: var(--bg_primary);
+            box-sizing: border-box;
+        }
+        body[data-theme="dark"] .chat-info-header, html.dark .chat-info-header {
+            border-bottom-color: #333230;
+        }
+        .chat-info-header .header-left {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        #ep-lore-cost-val, #ep-crack-total-cash, #ep-crack-recent-cash {
+            margin-left: 2px;
+            font-weight: bold;
+        }
+
+        /* 대화창 본문 영역 */
         .chat-main-wrapper {
             position: relative;
             flex: 1;
@@ -72,17 +100,22 @@
             font-size: 16px;
             text-align: left;
         }
-        body[data-theme="dark"] .msg-card { border-bottom-color: #333230; }
+        body[data-theme="dark"] .msg-card, html.dark .msg-card {
+            border-bottom-color: #333230;
+        }
 
-        .msg-text { white-space: pre-wrap !important; word-break: break-all; }
+        .msg-text {
+            white-space: pre-wrap !important;
+            word-break: break-all;
+        }
 
         /* 서식 및 마크다운 */
         .ep-chat-bold { font-weight: 800 !important; }
         .ep-chat-action { color: #666666 !important; font-weight: normal; }
-        body[data-theme="dark"] .ep-chat-action { color: #999999 !important; }
-        .quote-block { border-left: 4px solid #888888; padding-left: 12px; margin: 8px 0 8px 8px; display: block; color: var(--pastel_text_primary); white-space: pre-wrap; }
-        .ep-inline-code { background-color: #F8F2F4; color: #6E5960; border: 1px solid #bfa5a6; border-radius: 4px; padding: 1.5px; font-size: 15px !important; margin: 0 2px; display: inline; }
-        body[data-theme="dark"] .ep-inline-code { background-color: #2b2224; color: #e0bcc0; border-color: #5c4547; }
+        body[data-theme="dark"] .ep-chat-action, html.dark .ep-chat-action { color: #999999 !important; }
+        .quote-block { border-left: 4px solid #888888; padding-left: 12px; margin: 8px 0 8px 8px; display: block; color: var(--text_primary); white-space: pre-wrap; }
+        .ep-inline-code { background-color: #F8F2F4; color: #6E5960; border: 1px solid #bfa5a6; border-radius: 4px; padding: 1.5px 4px; font-size: 15px !important; margin: 0 2px; display: inline; }
+        body[data-theme="dark"] .ep-inline-code, html.dark .ep-inline-code { background-color: #2b2224; color: #e0bcc0; border-color: #5c4547; }
         
         .ep-hud-box { position: relative; margin: 0 0 0 auto; width: fit-content; padding: 2px 0 0 0; text-align: right; font-size: 14px !important; font-weight: 300; letter-spacing: 1.4px; line-height: 1.6; }
         .ep-hud-box::after { content: ""; display: block; width: 100%; margin-top: 6px; border-bottom: 6px double #D2C0C0; }
@@ -94,7 +127,7 @@
         .ep-dialogue-badge { background-color: #bfa5a6; color: #FDFBFC; font-size: 13.5px; font-weight: 600; padding: 3.5px 13px; border-radius: 9999px; width: fit-content; display: inline-flex; align-items: center; white-space: nowrap; }
         .ep-dialogue-card-box { background-color: #F8F2F4; border: 0.7px solid #bfa5a6; border-radius: 0 16px 0 16px; color: #9a868d; font-weight: 700; padding: 14px 16px 12px 16px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; width: 100%; box-sizing: border-box; }
         .ep-dialogue-card-wrapper.user-side .ep-dialogue-card-box { border-radius: 16px 0 16px 0; }
-        body[data-theme="dark"] .ep-dialogue-card-box { background-color: #2b2224; border-color: #5c4547; color: #e0bcc0; }
+        body[data-theme="dark"] .ep-dialogue-card-box, html.dark .ep-dialogue-card-box { background-color: #2b2224; border-color: #5c4547; color: #e0bcc0; }
 
         .ep-sms-container { display: flex; gap: 10px; margin: 12px 0; align-items: flex-start; width: 100%; box-sizing: border-box; }
         .ep-sms-container.user-side { flex-direction: row-reverse; }
@@ -104,7 +137,7 @@
         .ep-sms-container.user-side .ep-sms-content-col { align-items: flex-end; }
         .ep-sms-name { font-size: 13.5px; font-weight: 700; color: #bfa5a6; line-height: 1; }
         .ep-sms-bubble { background-color: #F8F2F4; border: 1px solid #bfa5a6; border-radius: 16px; color: #9a868d; font-size: 15px; font-weight: 700; line-height: 1.5; padding: 10px 14px; width: fit-content; max-width: 100%; box-sizing: border-box; }
-        body[data-theme="dark"] .ep-sms-bubble { background-color: #2b2224; border-color: #5c4547; color: #e0bcc0; }
+        body[data-theme="dark"] .ep-sms-bubble, html.dark .ep-sms-bubble { background-color: #2b2224; border-color: #5c4547; color: #e0bcc0; }
 
         /* 하단 입력바 & 툴바 */
         .chat-footer-control {
@@ -114,7 +147,7 @@
             flex-direction: column;
             gap: 8px;
             box-sizing: border-box;
-            background: var(--pastel_bg_primary);
+            background: var(--bg_primary);
             position: relative;
             z-index: 20;
         }
@@ -130,15 +163,22 @@
             padding: 15px 20px 10px 20px;
             box-sizing: border-box;
         }
-        body[data-theme="dark"] .input-area { background-color: #1a1918; border-color: #333230; }
-        .input-area:focus-within { border: 2px solid #888888 !important; background-color: var(--pastel_bg_primary) !important; padding: 14px 19px 9px 19px; }
+        body[data-theme="dark"] .input-area, html.dark .input-area {
+            background-color: #1a1918;
+            border-color: #333230;
+        }
+        .input-area:focus-within {
+            border: 2px solid #888888 !important;
+            background-color: var(--bg_primary) !important;
+            padding: 14px 19px 9px 19px;
+        }
 
         .chat-textarea {
             width: 100%;
             height: 100%;
             border: none !important;
             background: transparent !important;
-            color: var(--pastel_text_primary);
+            color: var(--text_primary);
             padding: 0 !important;
             resize: none;
             font-size: 16px;
@@ -147,13 +187,20 @@
             font-family: inherit;
         }
 
-        .input-toolbar { display: flex; align-items: center; gap: 12px; width: 100%; user-select: none; margin-top: 5px; }
+        .input-toolbar {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            user-select: none;
+            margin-top: 5px;
+        }
 
         .tool-btn {
             position: relative;
             background-color: #fcfcfc;
             border: 1px solid #B0B0B0;
-            color: var(--pastel_text_primary);
+            color: var(--text_primary);
             cursor: pointer;
             width: 26px;
             height: 26px;
@@ -166,9 +213,19 @@
             box-sizing: border-box;
             transition: border-color 0.2s, box-shadow 0.2s;
         }
-        body[data-theme="dark"] .tool-btn { background-color: #242321; border-color: #555; }
-        .tool-btn.active { border-color: #888888 !important; box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important; }
-        .vertical-divider { width: 1px; height: 14px; border-left: 1px dashed #888888; }
+        body[data-theme="dark"] .tool-btn, html.dark .tool-btn {
+            background-color: #242321;
+            border-color: #555;
+        }
+        .tool-btn.active {
+            border-color: #888888 !important;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+        }
+        .vertical-divider {
+            width: 1px;
+            height: 14px;
+            border-left: 1px dashed #888888;
+        }
 
         .hold-send-btn {
             width: 32px;
@@ -184,7 +241,9 @@
             flex-shrink: 0;
             transition: background-color 0.2s;
         }
-        body[data-theme="dark"] .hold-send-btn { background-color: #333230; }
+        body[data-theme="dark"] .hold-send-btn, html.dark .hold-send-btn {
+            background-color: #333230;
+        }
 
         /* 플로팅 스크롤 버튼 */
         .ep-scroll-shortcuts-container {
@@ -208,9 +267,9 @@
         }
         .ep-scroll-btn-wrapper.visible { display: flex; opacity: 1; transform: translateY(0); }
         .ep-scroll-btn-wrapper button {
-            background-color: var(--pastel_bg_primary);
+            background-color: var(--bg_primary);
             border: 1px solid #E6E6E6;
-            color: var(--pastel_text_primary);
+            color: var(--text_primary);
             width: 26px;
             height: 26px;
             border-radius: 50%;
@@ -231,7 +290,7 @@
             right: 0;
             width: 255px;
             height: 100%;
-            background-color: var(--pastel_bg_primary);
+            background-color: var(--bg_primary);
             border-left: 1px solid #E6E6E6;
             box-sizing: border-box;
             z-index: 45;
@@ -240,47 +299,88 @@
             user-select: none;
             box-shadow: -4px 0 16px rgba(0,0,0,0.06);
         }
-        body[data-theme="dark"] .right-drawer-container { border-left-color: #333230; }
-        .right-drawer-body { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 8px; }
-        .drawer-section-title { font-size: 13px; color: #888888; font-weight: bold; text-transform: uppercase; margin: 16px 0 8px 4px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        body[data-theme="dark"] .right-drawer-container, html.dark .right-drawer-container {
+            border-left-color: #333230;
+        }
+        .right-drawer-body {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .drawer-section-title {
+            font-size: 13px;
+            color: #888888;
+            font-weight: bold;
+            text-transform: uppercase;
+            margin: 16px 0 8px 4px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
         
-        .api-boxed-card, .model-boxed-card { background-color: #F9F9F9; border: 1px solid #E6E6E6; border-radius: 8px; padding: 9px; display: none; flex-direction: column; box-sizing: border-box; }
-        body[data-theme="dark"] .api-boxed-card, body[data-theme="dark"] .model-boxed-card { background-color: #1a1918; border-color: #333230; }
+        .api-boxed-card, .model-boxed-card {
+            background-color: #F9F9F9;
+            border: 1px solid #E6E6E6;
+            border-radius: 8px;
+            padding: 9px;
+            display: none;
+            flex-direction: column;
+            box-sizing: border-box;
+        }
+        body[data-theme="dark"] .api-boxed-card, body[data-theme="dark"] .model-boxed-card,
+        html.dark .api-boxed-card, html.dark .model-boxed-card {
+            background-color: #1a1918;
+            border-color: #333230;
+        }
         .api-tabs-row, .model-tabs-row { display: flex; gap: 4px; margin-bottom: 6px; }
-        .api-tab-btn, .model-tab-btn { border: 1px solid #E6E6E6; border-radius: 4px; font-size: 12px; background-color: transparent; color: var(--pastel_text_primary); padding: 4px 8px; cursor: pointer; font-weight: bold; }
+        .api-tab-btn, .model-tab-btn { border: 1px solid #E6E6E6; border-radius: 4px; font-size: 12px; background-color: transparent; color: var(--text_primary); padding: 4px 8px; cursor: pointer; font-weight: bold; }
         .api-tab-btn.active, .model-tab-btn.active { border-color: #E6E6E6; background-color: #F5E19A; color: #333333; }
         .api-input-group, .model-input-group { display: flex; flex-direction: column; gap: 6px; text-align: left; }
         .api-input-group label, .model-input-group label { font-size: 11px; font-weight: bold; color: #888888; }
-        .api-textbox, .model-select-dropdown { border: 1px solid #E6E6E6; border-radius: 8px; background: var(--pastel_bg_primary); color: var(--pastel_text_primary); font-size: 13px; padding: 7px; box-sizing: border-box; outline: none; width: 100%; }
+        .api-textbox, .model-select-dropdown { border: 1px solid #E6E6E6; border-radius: 8px; background: var(--bg_primary); color: var(--text_primary); font-size: 13px; padding: 7px; box-sizing: border-box; outline: none; width: 100%; }
         
-        .menu-item { padding: 10px 12px; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: bold; color: var(--pastel_text_primary); display: flex; justify-content: space-between; align-items: center; user-select: none; }
+        .menu-item {
+            padding: 10px 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 15px;
+            font-weight: bold;
+            color: var(--text_primary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
         .menu-item:hover { background-color: #F9F9F9; }
-        body[data-theme="dark"] .menu-item:hover { background-color: #242321; }
+        body[data-theme="dark"] .menu-item:hover, html.dark .menu-item:hover { background-color: #242321; }
         .ep-chat-drawer-overlay { position: absolute; inset: 0; background: rgba(0, 0, 0, 0.4); z-index: 29; display: none; }
 
         /* 공용 모달창 */
         .ep-prompt-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); z-index: 99999; display: none; align-items: center; justify-content: center; }
         .ep-prompt-overlay.visible { display: flex; }
         .ep-prompt-modal { background: #fff !important; border-radius: 12px; padding: 24px; width: 480px; max-width: 90vw; box-shadow: 0 4px 20px rgba(0,0,0,0.15); display: flex; flex-direction: column; gap: 16px; box-sizing: border-box; }
-        body[data-theme="dark"] .ep-prompt-modal { background: #1a1918 !important; color: #F0EFEB; border: 1px solid #333; }
+        body[data-theme="dark"] .ep-prompt-modal, html.dark .ep-prompt-modal { background: #1a1918 !important; color: #F0EFEB; border: 1px solid #333; }
         .ep-epnote-modal { width: 600px !important; height: 690px !important; max-height: 90vh !important; }
         .ep-profile-textarea { width: 100%; flex: 1; padding: 10px 12px; font-size: 14px; background-color: #fafafa; border: 1px solid #E6E6E6; border-radius: 8px; color: #222; box-sizing: border-box; resize: none; outline: none; }
-        body[data-theme="dark"] .ep-profile-textarea { background: #141413; color: #F0EFEB; border-color: #333; }
+        body[data-theme="dark"] .ep-profile-textarea, html.dark .ep-profile-textarea { background: #141413; color: #F0EFEB; border-color: #333; }
 
         /* 로어 저장소 모달 스타일 */
         .decentral-modal-container { display: none; align-items: center; justify-content: center; z-index: 999999; position: fixed; inset: 0; background-color: rgba(0,0,0,0.5); }
         .decentral-modal { display: flex; flex-direction: column; width: 600px; max-width: 90vw; height: 690px; max-height: 90vh; border-radius: 16px; background-color: #fff; color: #2c3e50; padding: 28px; box-sizing: border-box; overflow: hidden; box-shadow: 0 8px 40px rgba(0,0,0,0.2); }
-        body[data-theme="dark"] .decentral-modal { background-color: #242321; color: #F0EFEB; border: 1px solid #42413D; }
+        body[data-theme="dark"] .decentral-modal, html.dark .decentral-modal { background-color: #242321; color: #F0EFEB; border: 1px solid #42413D; }
         .decentral-menu-container { display: flex; gap: 17px; border-bottom: 1px solid #eee; margin-bottom: 12px; }
         .decentral-menu-element { background: none; border: none; font-size: 14px; font-weight: 500; color: #888; padding: 0 4px 8px 4px; cursor: pointer; border-bottom: 2.5px solid transparent; }
         .decentral-menu-element[active="true"] { color: #2c3e50; border-bottom-color: #88b9c8; font-weight: bold; }
-        body[data-theme="dark"] .decentral-menu-element[active="true"] { color: #fff; border-bottom-color: #bcd0d7; }
+        body[data-theme="dark"] .decentral-menu-element[active="true"], html.dark .decentral-menu-element[active="true"] { color: #fff; border-bottom-color: #bcd0d7; }
         .decentral-grid-container { flex: 1; overflow-y: auto; }
         .ep-lore-panel { display: none; }
         .ep-lore-panel.active-panel { display: flex; flex-direction: column; gap: 12px; }
     `;
 
-    // 스타일에 태그 직접 주입
     function injectStylesSafely() {
         if (document.getElementById('pastel-injected-styles')) return;
         const styleEl = document.createElement('style');
@@ -291,17 +391,35 @@
     injectStylesSafely();
 
     // =========================================================================
-    // [2. PASTELchat 메인 뷰 HTML 템플릿]
+    // [2. PASTELchat HTML 템플릿 (crack.html 100% 동일 이식)]
     // =========================================================================
     function getPastelHTMLTemplate() {
         return `
             <div id="ep-pastel-injected-container">
+                <!-- 상단 3대 지표 바 -->
+                <div class="chat-info-header">
+                    <div class="header-left">
+                        <span style="display: inline-flex; align-items: center; gap: 2px;" title="로어 소모 비용">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" width="14px" height="14px"><path fill="#88B9C8" d="M21.17 12.01c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21l.17-.21q0-.01.02-.02l.14-.21q0-.02.03-.05.06-.1.1-.2l.05-.08.09-.2q.01-.05.04-.11l.06-.18q0-.08.04-.14.01-.07.04-.16l.03-.19q0-.06.02-.13v-.33a3.37 3.37 0 0 0-3.36-3.37l-.33.01q-.06 0-.12.02-.1 0-.2.03-.07 0-.15.04l-.14.04-.18.06-.11.04-.2.09-.07.04-.2.11q-.03 0-.05.03l-.21.14-.02.02-.21.17a3.4 3.4 0 0 0-4.42 0 3.3 3.3 0 0 0-2.21-.83c-.85 0-1.62.31-2.21.83l-.21-.17-.02-.02-.21-.14q-.02 0-.05-.03l-.2-.11-.08-.04-.2-.09-.11-.04-.18-.06-.14-.04-.16-.04-.2-.03-.12-.02-.33-.01a3.37 3.37 0 0 0-3.34 3.82q0 .1.03.19 0 .07.04.16 0 .08.04.14l.06.18q0 .05.04.11.03.1.09.19l.04.08.1.2q.01.02.04.05l.16.23q.07.1.17.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21l-.17.21-.02.02-.14.21q0 .02-.03.05l-.11.2-.04.08-.1.2-.03.11-.06.18-.04.14-.04.16-.03.19-.02.13-.01.33A3.4 3.4 0 0 0 3.02 21c.6.61 1.45.99 2.38.99l.33-.01q.06 0 .12-.02.1 0 .19-.03.07 0 .16-.04l.14-.04.18-.06.1-.04.2-.09.08-.04.2-.11q.03 0 .05-.03l.2-.14.03-.02.2-.17a3.4 3.4 0 0 0 4.43 0 3.32 3.32 0 0 0 4.42 0 3 3 0 0 0 .44.33q.03 0 .05.03l.2.11.08.04.2.09.1.04.19.06.14.04.16.04.19.03.13.02.33.01c.92 0 1.75-.37 2.36-.97l.02-.02c.6-.61.99-1.45.99-2.38l-.01-.33q0-.06-.02-.12 0-.1-.03-.19 0-.07-.04-.16l-.04-.14-.06-.18-.04-.11-.1-.19-.03-.08-.11-.2q0-.02-.03-.05l-.14-.21-.02-.02-.17-.21c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21M7.5 13.5 6 12l1.5-1.5L9 12zM12 6l1.5 1.5L12 9l-1.5-1.5zm0 12-1.5-1.5L12 15l1.5 1.5zm4.5-4.5L15 12l1.5-1.5L18 12z"></path></svg>
+                            <strong id="ep-lore-cost-val">0</strong>원
+                        </span>
+                        <span style="display: inline-flex; align-items: center; gap: 2px;" title="크랙 잔여 크래커">
+                            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" width="14px" height="14px"><path fill="#FFA600" d="M21.17 12.01c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21l.17-.21q0-.01.02-.02l.14-.21q0-.02.03-.05.06-.1.1-.2l.05-.08.09-.2q.01-.05.04-.11l.06-.18q0-.08.04-.14.01-.07.04-.16l.03-.19q0-.06.02-.13v-.33a3.37 3.37 0 0 0-3.36-3.37l-.33.01q-.06 0-.12.02-.1 0-.2.03-.07 0-.15.04l-.14.04-.18.06-.11.04-.2.09-.07.04-.2.11q-.03 0-.05.03l-.21.14-.02.02-.21.17a3.4 3.4 0 0 0-4.42 0 3.3 3.3 0 0 0-2.21-.83c-.85 0-1.62.31-2.21.83l-.21-.17-.02-.02-.21-.14q-.02 0-.05-.03l-.2-.11-.08-.04-.2-.09-.11-.04-.18-.06-.14-.04-.16-.04-.2-.03-.12-.02-.33-.01a3.37 3.37 0 0 0-3.34 3.82q0 .1.03.19 0 .07.04.16 0 .08.04.14l.06.18q0 .05.04.11.03.1.09.19l.04.08.1.2q.01.02.04.05l.16.23q.07.1.17.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21l-.17.21-.02.02-.14.21q0 .02-.03.05l-.11.2-.04.08-.1.2-.03.11-.06.18-.04.14-.04.16-.03.19-.02.13-.01.33A3.4 3.4 0 0 0 3.02 21c.6.61 1.45.99 2.38.99l.33-.01q.06 0 .12-.02.1 0 .19-.03.07 0 .16-.04l.14-.04.18-.06.1-.04.2-.09.08-.04.2-.11q.03 0 .05-.03l.2-.14.03-.02.2-.17a3.4 3.4 0 0 0 4.43 0 3.32 3.32 0 0 0 4.42 0 3 3 0 0 0 .44.33q.03 0 .05.03l.2.11.08.04.2.09.1.04.19.06.14.04.16.04.19.03.13.02.33.01c.92 0 1.75-.37 2.36-.97l.02-.02c.6-.61.99-1.45.99-2.38l-.01-.33q0-.06-.02-.12 0-.1-.03-.19 0-.07-.04-.16l-.04-.14-.06-.18-.04-.11-.1-.19-.03-.08-.11-.2q0-.02-.03-.05l-.14-.21-.02-.02-.17-.21c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21M7.5 13.5 6 12l1.5-1.5L9 12zM12 6l1.5 1.5L12 9l-1.5-1.5zm0 12-1.5-1.5L12 15l1.5 1.5zm4.5-4.5L15 12l1.5-1.5L18 12z"></path></svg>
+                            <strong id="ep-crack-total-cash">0</strong>개
+                        </span>
+                        <span style="display: inline-flex; align-items: center; gap: 2px;" title="최근 턴 소모 크래커">
+                            <svg width="14px" height="14px" viewBox="0 0 24 24" fill="none"><defs><mask id="ep-chat-bite-mask"><rect width="24" height="24" fill="#ffffff"/><circle cx="24" cy="0" r="10" fill="#000000"/></mask></defs><path fill="#ff9b9b" mask="url(#ep-chat-bite-mask)" d="M21.17 12.01c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21l.17-.21q0-.01.02-.02l.14-.21q0-.02.03-.05.06-.1.1-.2l.05-.08.09-.2q.01-.05.04-.11l.06-.18q0-.08.04-.14.01-.07.04-.16l.03-.19q0-.06.02-.13v-.33a3.37 3.37 0 0 0-3.36-3.37l-.33.01q-.06 0-.12.02-.1 0-.2.03-.07 0-.15.04l-.14.04-.18.06-.11.04-.2.09-.07.04-.2.11q-.03 0-.05.03l-.21.14-.02.02-.21.17a3.4 3.4 0 0 0-4.42 0 3.3 3.3 0 0 0-2.21-.83c-.85 0-1.62.31-2.21.83l-.21-.17-.02-.02-.21-.14q-.02 0-.05-.03l-.2-.11-.08-.04-.2-.09-.11-.04-.18-.06-.14-.04-.16-.04-.2-.03-.12-.02-.33-.01a3.37 3.37 0 0 0-3.34 3.82q0 .1.03.19 0 .07.04.16 0 .08.04.14l.06.18q0 .05.04.11.03.1.09.19l.04.08.1.2q.01.02.04.05l.16.23q.07.1.17.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21l-.17.21-.02.02-.14.21q0 .02-.03.05l-.11.2-.04.08-.1.2-.03.11-.06.18-.04.14-.04.16-.03.19-.02.13-.01.33A3.4 3.4 0 0 0 3.02 21c.6.61 1.45.99 2.38.99l.33-.01q.06 0 .12-.02.1 0 .19-.03.07 0 .16-.04l.14-.04.18-.06.1-.04.2-.09.08-.04.2-.11q.03 0 .05-.03l.2-.14.03-.02.2-.17a3.4 3.4 0 0 0 4.43 0 3.32 3.32 0 0 0 4.42 0 3 3 0 0 0 .44.33q.03 0 .05.03l.2.11.08.04.2.09.1.04.19.06.14.04.16.04.19.03.13.02.33.01c.92 0 1.75-.37 2.36-.97l.02-.02c.6-.61.99-1.45.99-2.38l-.01-.33q0-.06-.02-.12 0-.1-.03-.19 0-.07-.04-.16l-.04-.14-.06-.18-.04-.11-.1-.19-.03-.08-.11-.2q0-.02-.03-.05l-.14-.21-.02-.02-.17-.21c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21M7.5 13.5 6 12l1.5-1.5L9 12zM12 6l1.5 1.5L12 9l-1.5-1.5zm0 12-1.5-1.5L12 15l1.5 1.5zm4.5-4.5L15 12l1.5-1.5L18 12z"></path></svg>
+                            <strong id="ep-crack-recent-cash">0</strong>개
+                        </span>
+                    </div>
+                </div>
+
                 <div class="chat-main-wrapper">
                     <div class="ep-chat-drawer-overlay" id="ep-chat-drawer-overlay"></div>
                     <div class="chat-content-box" id="ep-chat-content-box">
                         <div style="text-align:center; padding:40px 20px; color:#888; font-size:14px;">
-                            ✨ <strong>PASTELchat 모듈 1</strong> UI 이식이 완료되었습니다.<br>
-                            우측 상단 모델 버튼 옆의 <strong>[추천답변]</strong> 버튼과 <strong>[점 3개 메뉴]</strong> 버튼을 확인해 보세요!
+                            ✨ <strong>PASTELchat 모듈 1</strong> UI 뼈대 이식이 완벽히 완료되었습니다.<br>
+                            우측 상단 <strong>[점 3개 메뉴]</strong> 버튼을 눌러 서랍 메뉴와 모달창이 정상 작동하는지 확인해 보세요!
                         </div>
                     </div>
 
@@ -452,7 +570,7 @@
             // 1. 크랙의 네이티브 에디터(.ProseMirror) 탐색
             const nativeEditor = document.querySelector('.ProseMirror');
             
-            // 2. 크랙 중앙 채팅 컨테이너 탐색 (특수문자 셀렉터 대신 안전한 속성 검색)
+            // 2. 크랙 중앙 채팅 컨테이너 탐색
             const chatReverseBox = document.querySelector('[data-message-group-id]')?.closest('div[class*="flex-col-reverse"]') ||
                                    document.querySelector('div[class*="flex-col-reverse"]');
 
@@ -530,7 +648,7 @@
     }
 
     // =========================================================================
-    // [4. 이벤트 연결]
+    // [4. 기본 이벤트 바인딩 (서랍, 모달, 구슬 버튼)]
     // =========================================================================
     function initModule1Events() {
         const overlay = document.getElementById('ep-chat-drawer-overlay');
@@ -542,7 +660,7 @@
             };
         }
 
-        // 아코디언
+        // 아코디언 (API 설정, 모델 선택)
         const apiTitle = document.getElementById('ep-api-accordion-title');
         const apiCard = document.getElementById('api-collapsible-card');
         if (apiTitle && apiCard) {
@@ -555,7 +673,7 @@
             modelTitle.onclick = () => modelCard.style.display = modelCard.style.display === 'flex' ? 'none' : 'flex';
         }
 
-        // 에피소드 노트
+        // 에피소드 노트 모달
         const epNoteBtn = document.getElementById('ep-menu-epnote-btn');
         const epNoteModal = document.getElementById('ep-epnote-modal-overlay');
         const epNoteClose = document.getElementById('ep-epnote-close-btn');
@@ -564,7 +682,7 @@
             epNoteClose.onclick = () => epNoteModal.classList.remove('visible');
         }
 
-        // 로어 저장소
+        // 로어 저장소 모달
         const loreBtn = document.getElementById('ep-menu-lore-btn');
         const loreModal = document.getElementById('ep-lore-storage-modal-overlay');
         const loreClose = document.getElementById('ep-lore-close-btn');
@@ -573,7 +691,7 @@
             loreClose.onclick = () => loreModal.style.display = 'none';
         }
 
-        // 9개 구슬 버튼 입력창 주입
+        // 9개 구슬 버튼 입력창 특수문자 주입
         const textarea = document.getElementById('ep-chat-input-textarea');
         document.querySelectorAll('.ep-symbol-btn').forEach(btn => {
             btn.onclick = () => {
@@ -590,7 +708,7 @@
     }
 
     // =========================================================================
-    // [5. 상시 감시 루프]
+    // [5. 가벼운 주기적 마운트 확인 (Zero-CPU 점유)]
     // =========================================================================
     setInterval(tryInjectPastelShell, 300);
 })();
