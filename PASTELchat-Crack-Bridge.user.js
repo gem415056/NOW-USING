@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.3.4
+// @version      1.3.5
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1009,23 +1009,11 @@
         body[data-theme="dark"] .ep-chat-action { color: #aaaaaa !important; }
         body[data-theme="dark"] .quote-block { border-color: #555555; }
 
-        /* React 가상 DOM 충돌 방지용 순정 숨김 & 파스텔 전용 렌더 박스 */
-        .pastel-origin-hidden {
-            display: none !important;
-        }
-        .pastel-custom-rendered {
-            width: 100%;
-            line-height: 1.6;
-            font-size: 16px;
-            text-align: left;
-            word-break: break-all;
-            user-select: text;
-            display: block;
-            white-space: pre-wrap !important; /* 일반 문단 및 빈 줄 공백 100% 보존 */
-            color: var(--text_primary, #222222);
-        }
-        body[data-theme="dark"] .pastel-custom-rendered {
-            color: var(--text_primary, #F0EFEB);
+        /* 대화방 마크다운 렌더링 강제 줄바꿈 및 스타일 보존 */
+        [data-pastel-parsed="true"] {
+            white-space: pre-wrap !important;
+            word-break: break-word !important;
+            line-height: 1.6 !important;
         }
     `;
 
@@ -1077,28 +1065,22 @@
         if (!text) return "";
         const isUser = (msgType === 'user');
 
-        // 1. 주입된 로어 블록 은닉
-        let cleanedText = stripLoreInjectionBlock(text).trim();
+        // 1. 로어 블록 완벽 은닉
+        let str = stripLoreInjectionBlock(text);
 
-        // 2. 크랙 에디터가 대사카드/문자 사이에 강제로 끼워넣은 빈 줄만 결합
-        cleanedText = cleanedText
-            .replace(/([—―][^\n]+)\n+(?=▎)/g, '$1\n')
-            .replace(/(▎[^\n]*)\n+(?=▎)/g, '$1\n')
-            .replace(/([—―][^\n]+)\n+(?=`)/g, '$1\n')
-            .replace(/(`[^`\n]+`)\n+(?=`)/g, '$1\n');
-
-        let html = cleanedText
+        // 2. HTML 특수문자 안전 이스케이프
+        let html = str
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")
             .replace(/>/g, "&gt;");
 
-        // 0. HUD 전용 ❴ ❵ 파싱 (블록 요소 뒤의 첫 개행만 흡수하여 정확한 1줄 간격 유지)
-        html = html.replace(/❴\n?([\s\S]*?)\n?❵(?:\r?\n)?/g, function(match, hudContent) {
+        // 3. HUD 박스: ❴ content ❵ (내부 엔터 100% 보존)
+        html = html.replace(/❴\n?([\s\S]*?)\n?❵/g, function(match, hudContent) {
             return `<div class="ep-hud-box">${hudContent.trim()}</div>`;
         });
 
-        // 0.2 대사 카드 파싱
-        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*▎[^\n\r]*)+)(?:\r?\n)?/g, function(match, leadNL, name, lines) {
+        // 4. 대사 카드: — 캐릭터명 \n ▎ 대사
+        html = html.replace(/(^|\n)[—―]\s*([^\n\r]+)((?:\n\s*▎[^\n\r]*)+)/g, function(match, leadNL, name, lines) {
             const cleanName = name.trim();
             const contentList = lines.split('\n')
                 .map(l => l.trim())
@@ -1108,8 +1090,8 @@
             return `${leadNL}<div class="ep-dialogue-card-wrapper ${isUser ? 'user-side' : ''}"><div class="ep-dialogue-badge-row"><div class="ep-dialogue-badge">${cleanName}</div></div><div class="ep-dialogue-card-box">${cleanContent}</div></div>`;
         });
 
-        // 0.3 메신저 문자 말풍선 파싱
-        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*`[^`\n\r]+`)+)(?:\r?\n)?/g, function(match, leadNL, name, lines) {
+        // 5. SMS 메신저 말풍선: — 캐릭터명 \n `문자내용`
+        html = html.replace(/(^|\n)[—―]\s*([^\n\r]+)((?:\n\s*`[^`\n\r]+`)+)/g, function(match, leadNL, name, lines) {
             const cleanName = name.trim();
             const bubbleList = lines.split('\n')
                 .map(l => l.trim())
@@ -1122,8 +1104,8 @@
             return `${leadNL}<div class="ep-sms-container ${isUser ? 'user-side' : ''}"><div class="ep-sms-avatar-icon">${userSvg}</div><div class="ep-sms-content-col"><span class="ep-sms-name">${cleanName}</span>${bubblesHtml}</div></div>`;
         });
 
-        // 1. 코드블록 치환
-        html = html.replace(/`{3}([^\n]*?)(?:\r?\n([\s\S]*?))?`{3}(?:\r?\n)?/g, function(match, title, content) {
+        // 6. 코드 블록
+        html = html.replace(/`{3}([^\n]*?)(?:\n([\s\S]*?))?`{3}/g, function(match, title, content) {
             const trimmedTitle = title.trim();
             if (content === undefined) return `<div class="ep-code-block-wrapper"><div class="ep-code-block-body no-header">${trimmedTitle}</div></div>`;
             const cleanedContent = content.trim();
@@ -1132,22 +1114,22 @@
                 : `<div class="ep-code-block-wrapper"><div class="ep-code-block-body no-header">${cleanedContent}</div></div>`;
         });
 
-        // 2. 인라인 백틱
+        // 7. 인라인 백틱
         html = html.replace(/`([^`\n]+)`/g, '<span class="ep-inline-code">$1</span>');
 
-        // 2.5 단축어 전송 토큰 치환
+        // 8. 단축어 뱃지: !단축어명
         html = html.replace(/(![a-zA-Z0-9가-힣/]+)/g, '<span class="ep-chat-shortcut-token">$1</span>');
 
-        // 2.8 점선 구분선
-        html = html.replace(/(^\s*([\*_=~+─━═┈┉┄┅―—–‒·•-]\s*){3,}\s*$|\*{3,}|={3,}|─{2,}|━{2,}|═{2,})(?:\r?\n)?/gm, '<hr class="ep-chat-hr">');
+        // 9. 점선 구분선
+        html = html.replace(/(^\s*([\*_=~+─━═┈┉┄┅―—–‒·•-]\s*){3,}\s*$|\*{3,}|={3,}|─{2,}|━{2,}|═{2,})/gm, '<hr class="ep-chat-hr">');
 
-        // 3. 볼드
+        // 10. 볼드: **텍스트**
         html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="ep-chat-bold">$1</strong>');
 
-        // 4. 행동 지문
+        // 11. 행동 지문: *지문* (단일 라인 보장)
         html = html.replace(/\*([^*\n]+)\*/g, '<span class="ep-chat-action">$1</span>');
 
-        // 5. 연속 인용구 그룹핑 알고리즘
+        // 12. 인용구: > 텍스트
         const lines = html.split('\n');
         const processedLines = [];
         let inQuoteBlock = false;
@@ -2376,97 +2358,84 @@
     }
 
     /* ==========================================================================
-     * 4.5 [무충돌/무지연] 크랙 대화창 정밀 탐색 및 파스텔 마크다운 렌더러
+     * 4.5 [순정 1:1 무손실] 말풍선 텍스트 직접 렌더러 & 수정모드 완벽 연동
      * ========================================================================== */
     let chatObserverInstance = null;
     let scanScheduled = false;
 
-    function processMessageContainer(container) {
-        if (!container) return;
+    function renderSingleMessageLeaf(targetEl) {
+        if (!targetEl) return;
 
-        // 에디터, 서랍, 모달 등 내부 요소는 절대 변환하지 않음
-        if (container.closest('.chat-footer-control') ||
-            container.closest('#ep-chat-right-drawer') ||
-            container.closest('.ProseMirror') ||
-            container.closest('.ep-prompt-overlay') ||
-            container.closest('#ep-tpl-quick-panel') ||
-            container.closest('#ep-shortcut-select-popup')) {
+        // 1. 에디터 툴바, 서랍, 모달 내부 요소는 절대 건드리지 않음
+        if (targetEl.closest('.chat-footer-control') ||
+            targetEl.closest('#ep-chat-right-drawer') ||
+            targetEl.closest('.ProseMirror') ||
+            targetEl.closest('.ep-prompt-overlay') ||
+            targetEl.closest('#ep-tpl-quick-panel') ||
+            targetEl.closest('#ep-shortcut-select-popup')) {
             return;
         }
 
-        // [중요] 크랙 순정 '메시지 수정 모드' 감지 (textarea나 에디터 활성화 여부)
-        const activeEditor = container.querySelector('textarea, [contenteditable="true"], input[type="text"]');
-        let customBox = container.querySelector('.pastel-custom-rendered');
-        let targetTextEl = container;
-
-        if (container.children.length > 0) {
-            const candidate = Array.from(container.children).find(c => !c.classList.contains('pastel-custom-rendered'));
-            if (candidate) targetTextEl = candidate;
-        }
-
-        // 수정 모드일 때는 파스텔 렌더 박스를 완전히 숨기고 크랙 순정 에디터를 100% 정상 노출
-        if (activeEditor) {
-            targetTextEl.classList.remove('pastel-origin-hidden');
-            if (customBox) customBox.style.display = 'none';
+        // 2. 크랙 순정 수정 모드(textarea 활성화)일 때는 파싱을 건너뛰고 순정 에디터 보존
+        if (targetEl.tagName === 'TEXTAREA' || 
+            targetEl.querySelector('textarea') || 
+            targetEl.getAttribute('contenteditable') === 'true' || 
+            targetEl.closest('textarea, [contenteditable="true"]')) {
+            targetEl.removeAttribute('data-pastel-parsed');
+            targetEl.removeAttribute('data-pastel-raw');
             return;
-        } else {
-            if (customBox) customBox.style.display = 'block';
         }
 
-        // 유저 메시지 판별
-        const isUser = !!container.closest('.justify-end') || 
-                       !!container.closest('[class*="items-end"]') || 
-                       !!container.closest('.bg-accent_translucent') ||
-                       container.classList.contains('bg-accent_translucent');
+        // 3. 자식 요소 중에 텍스트 컨테이너가 또 있다면 최하위(Leaf) 노드만 처리
+        if (targetEl.querySelector('.whitespace-pre-wrap, .break-words, .prose, p')) {
+            return;
+        }
 
-        // 수정 후 갱신된 텍스트 실시간 반영 (숨김 상태에서도 textContent로 최신 텍스트 취득)
-        const rawText = targetTextEl.textContent || targetTextEl.innerText || '';
-        if (!rawText.trim()) return;
+        // 4. 유저 메시지 여부 판별
+        const isUser = !!targetEl.closest('.justify-end') || 
+                       !!targetEl.closest('[class*="items-end"]') || 
+                       !!targetEl.closest('.bg-accent_translucent') ||
+                       targetEl.classList.contains('bg-accent_translucent');
+
+        // 5. 엔터(\n)가 살아있는 순수 텍스트 추출 (최초 1회 캐싱 후 갱신 시 업데이트)
+        let rawText = targetEl.getAttribute('data-pastel-raw');
+        if (!rawText) {
+            rawText = targetEl.innerText || '';
+            if (!rawText.trim()) return;
+            targetEl.setAttribute('data-pastel-raw', rawText);
+        }
 
         const role = isUser ? 'user' : 'model';
         const parsedHtml = parseChatMarkdown(rawText, role);
 
-        targetTextEl.classList.add('pastel-origin-hidden');
-
-        if (!customBox) {
-            customBox = document.createElement('div');
-            customBox.className = 'pastel-custom-rendered';
-            container.appendChild(customBox);
-        }
-
-        if (customBox.innerHTML !== parsedHtml) {
-            customBox.innerHTML = parsedHtml;
+        if (targetEl.innerHTML !== parsedHtml) {
+            targetEl.innerHTML = parsedHtml;
+            targetEl.setAttribute('data-pastel-parsed', 'true');
         }
     }
 
     function scanAndRenderAllMessages() {
         scanScheduled = false;
 
-        // 크랙의 대화 메시지 버블이 들어있는 모든 영역을 안전하게 다중 탐색
         const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || 
                          document.querySelector('main') || 
                          document.body;
 
         if (!chatRoot) return;
 
-        // 크랙의 유저/AI 텍스트 컨테이너 탐색 (단락, 프리랩, prose, 버블)
-        const candidates = chatRoot.querySelectorAll(
-            '.whitespace-pre-wrap, .break-words, .prose, div[class*="bubble"], div[class*="message"], p'
+        // 크랙 대화창 내의 텍스트 말풍선 컨테이너들 전수 탐색
+        const textElements = chatRoot.querySelectorAll(
+            '.whitespace-pre-wrap, .break-words, .prose, p, div[class*="bubble"]'
         );
 
-        candidates.forEach(el => {
-            // 상위 턴 래퍼 찾기
-            const messageWrapper = el.closest('.flex.flex-col') || el.parentElement;
-            if (messageWrapper && !messageWrapper.classList.contains('pastel-custom-rendered')) {
-                processMessageContainer(messageWrapper);
-            }
+        textElements.forEach(el => {
+            renderSingleMessageLeaf(el);
         });
     }
 
     function scheduleScan() {
         if (scanScheduled) return;
         scanScheduled = true;
-        // 1프레임(16ms) 디바운싱: 브라우저 렉 0% 보장
         requestAnimationFrame(scanAndRenderAllMessages);
     }
 
@@ -2482,8 +2451,8 @@
         chatObserverInstance = new MutationObserver((mutations) => {
             let needsScan = false;
             for (const m of mutations) {
-                // 파스텔 자체 렌더링에 의한 변화는 무시하여 무한 루프 차단
-                if (m.target && (m.target.classList?.contains('pastel-custom-rendered') || m.target.classList?.contains('pastel-origin-hidden'))) {
+                // 수정 입력창 내부 타이핑은 무시
+                if (m.target && (m.target.tagName === 'TEXTAREA' || m.target.getAttribute?.('contenteditable') === 'true')) {
                     continue;
                 }
                 if (m.addedNodes.length > 0 || m.type === 'characterData') {
