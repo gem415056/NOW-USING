@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.5.8
+// @version      1.6.0
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -3559,7 +3559,7 @@ Conversation Log:
             };
 
             const abortCtrl = new AbortController();
-            const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
+            const fetchTimeout = setTimeout(() => abortCtrl.abort(), 180000); // 3분(180초)
 
             let res;
             try {
@@ -3570,7 +3570,7 @@ Conversation Log:
                     signal: abortCtrl.signal 
                 });
             } catch (fetchErr) {
-                if (fetchErr.name === 'AbortError') throw new Error("텍스트 변환 응답 시간 초과(60초)");
+                if (fetchErr.name === 'AbortError') throw new Error("텍스트 변환 응답 시간 초과(180초). 분량이 많아 잠시 후 다시 시도해 주십시오.");
                 throw fetchErr;
             } finally {
                 clearTimeout(fetchTimeout);
@@ -3696,7 +3696,7 @@ Conversation Log:
         }
 
         const abortCtrl = new AbortController();
-        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
+        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 180000); // 3분(180초) 넉넉한 대기 시간
 
         let res;
         try {
@@ -3704,8 +3704,13 @@ Conversation Log:
                 method: "POST", 
                 headers: headers, 
                 body: JSON.stringify(body),
-                signal: abortCtrl.signal 
+                signal: abortCtrl.signal
             });
+        } catch (fetchErr) {
+            if (fetchErr.name === 'AbortError') {
+                throw new Error("AI 응답 시간 초과(180초). 다시 시도해 주십시오.");
+            }
+            throw fetchErr;
         } finally {
             clearTimeout(fetchTimeout);
         }
@@ -3811,7 +3816,7 @@ Conversation Log:
             };
 
             const abortCtrl = new AbortController();
-            const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
+            const fetchTimeout = setTimeout(() => abortCtrl.abort(), 180000); // 3분(180초)
 
             let res;
             try {
@@ -4146,7 +4151,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 };
 
                 const abortCtrl = new AbortController();
-                const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
+                const fetchTimeout = setTimeout(() => abortCtrl.abort(), 180000); // 3분(180초)
 
                 let res;
                 try {
@@ -4157,7 +4162,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                         signal: abortCtrl.signal
                     });
                 } catch (fetchErr) {
-                    if (fetchErr.name === 'AbortError') throw new Error("병합 요약 응답 시간 초과(60초)");
+                    if (fetchErr.name === 'AbortError') throw new Error("병합 요약 응답 시간 초과(180초). AI 연산량이 많아 잠시 후 다시 시도해 주십시오.");
                     throw fetchErr;
                 } finally {
                     clearTimeout(fetchTimeout);
@@ -4366,7 +4371,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
             const currentTurn = getCrackChatTurns();
             const query = userRawText.toLowerCase();
 
-            // 1. 트리거 매칭
+            // 1. 트리거 매칭 (단일 키워드 및 && 복합 조건 완벽 지원)
             const matchedByTrigger = [];
             allEntries.forEach(e => {
                 if (!e.triggers || e.triggers.length === 0) return;
@@ -4374,30 +4379,38 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 e.triggers.forEach(t => {
                     const triggerStr = t.trim().toLowerCase();
                     if (!triggerStr) return;
-                    if (query.includes(triggerStr)) maxScore = Math.max(maxScore, 1.0);
+                    // && 복합 키워드 분할 검사
+                    const andParts = triggerStr.split('&&').map(p => p.trim()).filter(Boolean);
+                    if (andParts.length > 0 && andParts.every(part => query.includes(part))) {
+                        maxScore = Math.max(maxScore, 1.0);
+                    }
                 });
                 if (maxScore > 0) matchedByTrigger.push({ entry: e, score: maxScore });
             });
 
-            // 2. 오버라이드(스위치 ON) & 매칭 결합
+            // 2. 오버라이드(스위치 ON) 최우선 배치 & 자동 RAG 순위 결합
             const forcedEntries = allEntries.filter(e => e.enabled === true);
-            const rankedAutoList = matchedByTrigger.sort((a, b) => b.score - a.score).map(r => r.entry);
+            const rankedAutoList = matchedByTrigger
+                .filter(r => r.entry.enabled !== true)
+                .sort((a, b) => b.score - a.score)
+                .map(r => r.entry);
 
             const candidatePool = [];
             forcedEntries.forEach(e => { if (!candidatePool.some(x => x.id === e.id)) candidatePool.push(e); });
             rankedAutoList.forEach(e => { if (!candidatePool.some(x => x.id === e.id)) candidatePool.push(e); });
 
-            // 3. [요청 기능] 3턴 쿨타임 제도 적용
+            // 3. 3턴 쿨타임 제도 적용 (스위치 ON 카드는 쿨타임 무시하고 무조건 주입 프리패스!)
             const selectedLores = [];
             const injectReport = [];
 
             for (const e of candidatePool) {
                 if (selectedLores.length >= 3) break;
+                const isForced = (e.enabled === true);
                 const lastInjectedTurnKey = `pastel_crack_lore_last_turn_${chatId}_${e.id}`;
                 const lastTurn = parseInt(localStorage.getItem(lastInjectedTurnKey) || '-999', 10);
 
-                // 최근 3턴 이내에 이미 주입된 로어는 쿨타임 대기
-                if (lastTurn !== -999 && (currentTurn - lastTurn) <= 3) {
+                // 스위치 ON이 아닌 자동 RAG 카드에만 3턴 쿨타임 적용
+                if (!isForced && lastTurn !== -999 && (currentTurn - lastTurn) <= 3) {
                     injectReport.push({ name: e.name, status: 'failed', reason: '(쿨타임 대기)' });
                     continue;
                 }
