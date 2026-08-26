@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.6.0
+// @version      1.6.1
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -3921,7 +3921,7 @@ Conversation Log:
         };
 
         const abortCtrl = new AbortController();
-        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
+        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 180000); // 3분(180초) 넉넉한 대기 시간
 
         let res;
         try {
@@ -3932,7 +3932,7 @@ Conversation Log:
                 signal: abortCtrl.signal 
             });
         } catch (fetchErr) {
-            if (fetchErr.name === 'AbortError') throw new Error("재생성 구간 응답 시간 초과(60초)");
+            if (fetchErr.name === 'AbortError') throw new Error("재생성 구간 응답 시간 초과(180초). AI 연산량이 많아 잠시 후 다시 시도해 주십시오.");
             throw fetchErr;
         } finally {
             clearTimeout(fetchTimeout);
