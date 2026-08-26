@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.5.2
+// @version      1.5.3
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -3393,7 +3393,6 @@ Conversation Log:
                 safetySettings: getSafetySettingsPayload()
             };
 
-        showLoreExtPersistentToast("🔑 App Check 보안 토큰 발급 중...");
             const appCheckToken = await getAppCheckToken();
             if (!appCheckToken) {
                 throw new Error("App Check 토큰 획득 실패. 콘솔을 확인해 주십시오.");
@@ -3427,34 +3426,6 @@ Conversation Log:
                 throw new Error(`API 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
             }
             const resData = await res.json();
-
-        showLoreExtPersistentToast(`🔮 AI 대화 분석 및 로어 생성 중... (${selectedModel})`);
-
-        const abortCtrl = new AbortController();
-        const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
-
-        let res;
-        try {
-            res = await fetch(url, { 
-                method: "POST", 
-                headers: headers, 
-                body: JSON.stringify(body),
-                signal: abortCtrl.signal
-            });
-        } catch (fetchErr) {
-            if (fetchErr.name === 'AbortError') {
-                throw new Error("AI 응답 시간 초과(60초). 다시 시도해 주십시오.");
-            }
-            throw fetchErr;
-        } finally {
-            clearTimeout(fetchTimeout);
-        }
-
-        if (!res.ok) {
-            const errBody = await res.text();
-            throw new Error(`API 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
-        }
-        const resData = await res.json();
 
             const rawJsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
             if (!rawJsonText.trim()) throw new Error("AI가 로어 데이터를 반환하지 않았습니다.");
