@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.5.1
+// @version      1.5.2
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -14,6 +14,7 @@
 // @grant        GM_setValue
 // @grant        GM_getValue
 // @grant        GM_addStyle
+// @grant        unsafeWindow
 // @require      https://cdn.jsdelivr.net/npm/dexie@4.2.1/dist/dexie.min.js
 // @require      https://www.gstatic.com/firebasejs/10.8.0/firebase-app-compat.js
 // @require      https://www.gstatic.com/firebasejs/10.8.0/firebase-app-check-compat.js
@@ -3384,16 +3385,19 @@ Conversation Log:
                 safetySettings: getSafetySettingsPayload()
             };
 
-        showLoreExtPersistentToast("🔑 App Check 보안 토큰 확인 중...");
+        showLoreExtPersistentToast("🔑 App Check 보안 토큰 발급 중...");
         const appCheckToken = await getAppCheckToken();
-        const headers = { "Content-Type": "application/json" };
-        if (appCheckToken) {
-            headers["X-Firebase-AppCheck"] = appCheckToken;
+        if (!appCheckToken) {
+            throw new Error("App Check 토큰 획득 실패 (401 방지). 콘솔 로그를 확인해 주십시오.");
         }
+
+        const headers = { 
+            "Content-Type": "application/json",
+            "X-Firebase-AppCheck": appCheckToken
+        };
 
         showLoreExtPersistentToast(`🔮 AI 대화 분석 및 로어 생성 중... (${selectedModel})`);
 
-        // 60초 강제 타임아웃 제어기 적용 (무한 멈춤 원천 방지)
         const abortCtrl = new AbortController();
         const fetchTimeout = setTimeout(() => abortCtrl.abort(), 60000);
 
@@ -4560,65 +4564,61 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         else if (panelId === 'ep-lore-panel-settings') loadCrackLoreSettingsTab();
     }
 
-    // Firebase SDK 및 App Check 초기화 엔진 (reCAPTCHA v3 DOM 자동 주입 및 8초 타임아웃 완비)
+    // Firebase SDK 및 App Check 초기화 엔진 (Tampermonkey 샌드박스 브릿징 & 안전 발급)
     let geminiAppCheckApp = null;
     let cachedAppCheckToken = null;
     let cachedAppCheckExpiry = 0;
     const RECAPTCHA_SITE_KEY = "6Lc_imwtAAAAADr3ojpxWjAb5ofGvBzD4rgEnfr4";
 
-    // 1. reCAPTCHA v3 런타임 스크립트를 브라우저 DOM에 즉각 주입
-    function injectRecaptchaScript() {
-        if (!document.getElementById('recaptcha-v3-runtime-script')) {
-            const script = document.createElement('script');
-            script.id = 'recaptcha-v3-runtime-script';
-            script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
-            script.async = true;
-            (document.head || document.documentElement).appendChild(script);
-        }
-    }
-    injectRecaptchaScript();
+    // 1. 브라우저 최상위 윈도우에 reCAPTCHA v3 스크립트 주입 및 샌드박스 브릿징
+    function ensureRecaptchaLoaded() {
+        return new Promise((resolve) => {
+            const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
 
-    // 2. 메모리 캐시 & 8초 안전 타임아웃 탑재 토큰 발급기
-    async function getAppCheckToken() {
-        // 이미 유효한 캐시 토큰이 있으면 즉시 반환 (지연 시간 0초)
-        const now = Date.now();
-        if (cachedAppCheckToken && now < cachedAppCheckExpiry) {
-            return cachedAppCheckToken;
-        }
-
-        try {
-            injectRecaptchaScript();
-            if (!geminiAppCheckApp) {
-                initializeFirebaseDynamically();
+            // 이미 로드되어 있는 경우 즉시 브릿징
+            if (win.grecaptcha && typeof win.grecaptcha.ready === 'function') {
+                window.grecaptcha = win.grecaptcha;
+                return resolve(win.grecaptcha);
             }
 
-            const targetApp = geminiAppCheckApp || (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0 ? firebase.app() : null);
-            if (targetApp && typeof firebase !== 'undefined' && firebase.appCheck) {
-                // 8초 타임아웃 Promise와 경쟁시켜 무한 멈춤(Hang)을 100% 차단
-                const tokenPromise = firebase.appCheck(targetApp).getToken(false);
-                const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error("AppCheck 토큰 발급 시간 초과(8초)")), 8000)
-                );
+            // 스크립트 태그가 없으면 DOM에 삽입
+            if (!document.getElementById('recaptcha-v3-runtime-script')) {
+                const script = document.createElement('script');
+                script.id = 'recaptcha-v3-runtime-script';
+                script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
+                script.async = true;
+                (document.head || document.documentElement).appendChild(script);
+            }
 
-                const tokenResult = await Promise.race([tokenPromise, timeoutPromise]);
-                if (tokenResult && tokenResult.token) {
-                    cachedAppCheckToken = tokenResult.token;
-                    // 30분간 토큰 재사용 캐싱
-                    cachedAppCheckExpiry = now + (30 * 60 * 1000);
-                    return cachedAppCheckToken;
+            // reCAPTCHA 엔진이 브라우저에 마운트될 때까지 최대 5초 대기
+            let elapsed = 0;
+            const timer = setInterval(() => {
+                elapsed += 100;
+                const currentWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+                if (currentWin.grecaptcha && typeof currentWin.grecaptcha.ready === 'function') {
+                    clearInterval(timer);
+                    window.grecaptcha = currentWin.grecaptcha;
+                    resolve(currentWin.grecaptcha);
+                } else if (elapsed >= 5000) {
+                    clearInterval(timer);
+                    resolve(null);
                 }
-            }
-        } catch (e) {
-            console.warn("[AppCheck 알림]:", e ? e.message : e);
-        }
-        return cachedAppCheckToken || null;
+            }, 100);
+        });
     }
 
-    function initializeFirebaseDynamically() {
+    // 2. App Check 초기화 (grecaptcha 브릿징 후 activate)
+    async function initializeFirebaseDynamically() {
         const firebaseScript = localStorage.getItem('pastel_api_firebase') || '';
-        if (!firebaseScript.trim()) return;
+        if (!firebaseScript.trim()) return null;
 
         try {
+            await ensureRecaptchaLoaded();
+            const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+            if (win.grecaptcha) {
+                window.grecaptcha = win.grecaptcha;
+            }
+
             const config = parseFirebaseConfig(firebaseScript);
             if (config && config.projectId && config.apiKey) {
                 let defaultApp = typeof firebase !== 'undefined' && firebase.apps ? firebase.apps.find(a => a.name === '[DEFAULT]') : null;
@@ -4634,12 +4634,47 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                             new firebase.appCheck.ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
                             true
                         );
-                    } catch (acErr) {}
+                    } catch (_) {}
                 }
+                return geminiAppCheckApp;
             }
         } catch (e) {
             console.warn("[Firebase 초기화 에러]:", e);
         }
+        return null;
+    }
+
+    // 3. 토큰 발급 및 실시간 콘솔 진단
+    async function getAppCheckToken() {
+        const now = Date.now();
+        if (cachedAppCheckToken && now < cachedAppCheckExpiry) {
+            return cachedAppCheckToken;
+        }
+
+        try {
+            await initializeFirebaseDynamically();
+
+            const targetApp = geminiAppCheckApp || (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0 ? firebase.app() : null);
+            if (targetApp && typeof firebase !== 'undefined' && firebase.appCheck) {
+                const tokenPromise = firebase.appCheck(targetApp).getToken(false);
+                const timeoutPromise = new Promise((_, reject) => 
+                    setTimeout(() => reject(new Error("AppCheck 토큰 발급 시간 초과(8초)")), 8000)
+                );
+
+                const tokenResult = await Promise.race([tokenPromise, timeoutPromise]);
+                if (tokenResult && tokenResult.token) {
+                    cachedAppCheckToken = tokenResult.token;
+                    cachedAppCheckExpiry = now + (30 * 60 * 1000); // 30분 캐시
+                    console.log("🔑 [PASTEL:AppCheck] 토큰 발급 성공:", tokenResult.token.slice(0, 15) + "...");
+                    return cachedAppCheckToken;
+                }
+            }
+        } catch (e) {
+            console.warn("[AppCheck 발급 경고]:", e.message || e);
+        }
+
+        console.error("❌ [PASTEL:AppCheck] 토큰 발급 실패! Firebase 설정 확인 필요");
+        return null;
     }
 
     // [유저 본문 100% 보존 & 로어만 정밀 은닉 엔진]
