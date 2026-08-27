@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.8.9
+// @version      1.9.0
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -110,34 +110,26 @@
             z-index: -99999 !important;
         }
 
-        /* 크랙 순정 서랍 열림 시 입력창 및 상하 여백 래퍼 전체 암전 딤 처리 */
-        .bg-bg_screen.pointer-events-auto::after,
-        .chat-footer-control::after {
+        /* 크랙 순정 서랍 열림 시 입력창 단일 암전 딤 처리 (0.3s 완전 동기화 & 균일 농도) */
+        .bg-bg_screen.pointer-events-auto::after {
             content: "";
             position: absolute;
             inset: 0;
             background: rgba(0, 0, 0, 0.45);
             opacity: 0;
             pointer-events: none;
-            transition: opacity 0.2s ease-in-out;
+            transition: opacity 0.3s ease-in-out;
             z-index: 1000;
         }
-        .chat-footer-control::after {
-            border-radius: 12px;
-        }
-        body.crack-drawer-active .bg-bg_screen.pointer-events-auto::after,
-        body.crack-drawer-active .chat-footer-control::after {
+        body.crack-drawer-active .bg-bg_screen.pointer-events-auto::after {
             opacity: 1;
             pointer-events: auto;
             cursor: pointer;
         }
-        body.crack-drawer-active .bg-bg_screen.pointer-events-auto {
-            background-color: transparent !important;
-        }
 
-        /* 크랙 순정 우측 서랍: 헤더 아래(top: 104px)부터 바닥까지 100% 꽉 차게 밀착 (헤더 침범 0%) */
-        body.crack-drawer-active div[class*="border-outline_tertiary"][class*="w-[260px]"],
-        body.crack-drawer-active div[class*="z-[3]"] {
+        /* 크랙 순정 우측 서랍: 상시 Fixed 고정 및 0.3s 슬라이딩 트랜지션 (닫힘 깜빡임 0%) */
+        div[class*="border-outline_tertiary"][class*="w-[260px]"],
+        div[class*="z-[3]"] {
             position: fixed !important;
             top: 104px !important;
             bottom: 0 !important;
@@ -146,9 +138,9 @@
             height: auto !important;
             max-height: none !important;
             z-index: 100050 !important;
-            pointer-events: auto !important;
             background-color: var(--bg_primary, #ffffff) !important;
             box-shadow: -4px 4px 24px rgba(0, 0, 0, 0.08) !important;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
         }
         body.crack-drawer-active .bg-sidebar {
             z-index: 100050 !important;
