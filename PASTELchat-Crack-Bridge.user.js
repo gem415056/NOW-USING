@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.9.5
+// @version      1.9.6
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -5331,10 +5331,11 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || document.querySelector('main') || document.body;
         if (!chatRoot) return;
 
-        // 1. <p> 태그 단위로 렌더링된 경우: [LORE로 시작하는 개별 <p> 단락만 숨김 (부모 말풍선 div는 절대 건드리지 않음)
+        // 1. <p> 태그 단위로 렌더링된 경우: [LORE로 시작하는 개별 <p> 단락만 숨김 (수정 에디터 내부의 p는 100% 노출 보존)
         const pTags = chatRoot.querySelectorAll('p');
         pTags.forEach(p => {
             if (p.closest('.chat-footer-control') || p.closest('#ep-chat-right-drawer') || p.closest('.ep-prompt-overlay') || p.closest('#ep-lore-storage-modal-overlay')) return;
+            if (p.closest('.ProseMirror, [contenteditable="true"], form, textarea')) return; // 수정창 내부는 온전히 노출
             const txt = (p.textContent || '').trim();
             if (/^\[LORE\s*\d*\]/i.test(txt)) {
                 p.style.display = 'none';
@@ -5345,6 +5346,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         const textElements = chatRoot.querySelectorAll('.break-words, .whitespace-pre-wrap, .prose');
         textElements.forEach(el => {
             if (el.closest('.chat-footer-control') || el.closest('#ep-chat-right-drawer') || el.closest('.ep-prompt-overlay') || el.closest('#ep-lore-storage-modal-overlay')) return;
+            if (el.closest('.ProseMirror, [contenteditable="true"], form, textarea') || el.getAttribute('contenteditable') === 'true') return; // 수정창 내부는 원본 유지
 
             // <p> 태그 자식이 있는 상자는 1번에서 <p>를 숨겼으므로 패스
             if (el.querySelector('p')) return;
