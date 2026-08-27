@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.9.4
+// @version      1.9.5
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -534,10 +534,10 @@
             font-weight: bold !important;
         }
 
-        /* 크랙 순정 에디터 박스 및 폼 잔여 요소의 높이 점유 원천 박멸 */
-        .flex.w-full.flex-col.rounded-lg.border.bg-background.transition-colors,
-        form:has(.ProseMirror),
-        .relative.flex.w-full.flex-col:has(.ProseMirror) {
+        /* 크랙 하단 입력바 내부의 순정 에디터만 정밀 은닉 (대화 목록 내 말풍선 수정 에디터는 정상 노출 보존) */
+        .bg-bg_screen.pointer-events-auto .flex.w-full.flex-col.rounded-lg.border.bg-background.transition-colors,
+        .bg-bg_screen.pointer-events-auto form:has(.ProseMirror),
+        .bg-bg_screen.pointer-events-auto .relative.flex.w-full.flex-col:has(.ProseMirror) {
             position: absolute !important;
             height: 0 !important;
             min-height: 0 !important;
@@ -2073,13 +2073,20 @@
         return domTurns;
     }
 
-    // [crack.html 순정 100%] 실시간 유저 턴수 계산기
+    // [crack.html 순정 100%] API 기반 실시간 유저 턴수 계산기 (동기 조회 + 백그라운드 API 동기화)
     function getCrackChatTurns(chatId) {
         const targetId = chatId || getChatId();
-        const saved = parseInt(localStorage.getItem(`pastel_crack_chat_turns_${targetId}`) || '0', 10);
-        if (saved > 0) return saved;
+        if (!targetId || targetId === 'global') return 0;
 
-        // DOM에서 유저 말풍선 카운팅 폴백
+        const saved = localStorage.getItem(`pastel_crack_chat_turns_${targetId}`);
+        if (saved !== null) {
+            const parsed = parseInt(saved, 10);
+            if (!isNaN(parsed) && parsed >= 0) return parsed;
+        }
+
+        // 저장된 값이 없을 경우 API를 즉시 백그라운드 호출하여 동기화
+        fetchCrackMessagesPure(targetId).catch(() => {});
+
         const domUserCount = document.querySelectorAll('.justify-end, [class*="items-end"], .bg-accent_translucent').length;
         return domUserCount || 0;
     }
@@ -2721,6 +2728,10 @@
 
                 // 3. [단축어 포함 전체 길이 기준 예산 산출]: 유저본문 + 단축어 공간을 먼저 100% 확보하고 남은 공간에만 로어 조립
                 const chatId = getChatId();
+                // 턴수 실시간 갱신 확인
+                if (!localStorage.getItem(`pastel_crack_chat_turns_${chatId}`)) {
+                    await fetchCrackMessagesPure(chatId).catch(() => {});
+                }
                 const loreBlock = await buildCrackRAGLoreBlock(userExpandedText, chatId);
                 const finalPayloadMessage = loreBlock ? `${loreBlock}\n\n${userExpandedText}` : userExpandedText;
 
@@ -3588,73 +3599,6 @@ Conversation Log:
     // ==========================================
     // 로깅, 턴수 및 스냅샷 복원 엔진
     // ==========================================
-    // [crack.html 순정 100% 1:1 완전 일치] 10,000턴 원본 메시지 배열 수급기
-    async function fetchCrackMessagesPure(targetChatId) {
-        const chatId = targetChatId || getChatId();
-        if (!chatId || chatId === 'global') return [];
-
-        const token = getCrackAuthToken();
-        const headers = { 'accept': 'application/json, text/plain, */*' };
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-
-        let loadedMessages = [];
-
-        // 1단계: crack.html 순정 1순위 (/messages?limit=10000)
-        try {
-            const res = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=10000`, {
-                method: 'GET',
-                headers: headers,
-                credentials: 'include'
-            });
-            if (res.ok) {
-                const parsedMsgData = await res.json();
-                if (Array.isArray(parsedMsgData?.data)) loadedMessages = parsedMsgData.data;
-                else if (Array.isArray(parsedMsgData?.data?.messages)) loadedMessages = parsedMsgData.data.messages;
-                else if (Array.isArray(parsedMsgData?.messages)) loadedMessages = parsedMsgData.messages;
-                else if (Array.isArray(parsedMsgData)) loadedMessages = parsedMsgData;
-            }
-        } catch (_) {}
-
-        // 2단계: crack.html 순정 2순위 폴백 (/chats/${chatId}?limit=10000)
-        if (loadedMessages.length === 0) {
-            try {
-                const res2 = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}?limit=10000`, {
-                    method: 'GET',
-                    headers: headers,
-                    credentials: 'include'
-                });
-                if (res2.ok) {
-                    const parsedChatData = await res2.json();
-                    if (Array.isArray(parsedChatData?.data?.messages)) loadedMessages = parsedChatData.data.messages;
-                    else if (Array.isArray(parsedChatData?.messages)) loadedMessages = parsedChatData.messages;
-                }
-            } catch (_) {}
-        }
-
-        // crack.html 순정 3단계: 과거 1턴부터 순서대로 reverse() 정렬
-        if (loadedMessages.length > 0) {
-            loadedMessages.reverse();
-            return loadedMessages;
-        }
-
-        return [];
-    }
-
-    function getCrackChatTurns(chatId) {
-        const count = document.querySelectorAll('.justify-end, [class*="items-end"], .bg-accent_translucent').length;
-        return count || 0;
-    }
-
-    function getCrackChatTurns(chatId) {
-        const domHistory = [];
-        const leaves = document.querySelectorAll('.whitespace-pre-wrap, .break-words, .prose');
-        leaves.forEach(l => {
-            if (!l.closest('.chat-footer-control') && !l.closest('#ep-chat-right-drawer') && !!l.closest('.justify-end, [class*="items-end"], .bg-accent_translucent')) {
-                domHistory.push(l);
-            }
-        });
-        return domHistory.length || 0;
-    }
 
     function recordInjectLog(epId, turn, matched, count, usedChars, budget) {
         try {
@@ -4683,6 +4627,17 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
     async function buildCrackRAGLoreBlock(userRawText, chatId) {
         try {
             if (!loreDb || !chatId) return "";
+
+            // [최우선 철벽 원칙]: 유저 본문 + 확장된 단축어 공간을 먼저 100% 확보
+            const userLen = (userRawText || '').length;
+            const loreBudget = Math.max(0, 2000 - userLen - 8);
+
+            // 유저 본문과 단축어로 2,000자가 찼다면 오버라이드 포함 모든 로어 주입 0개로 완전 스킵
+            if (loreBudget <= 15) {
+                console.log(`ℹ️ [PASTEL:RAG] 유저 본문 및 단축어 전체 길이(${userLen}자) 보존을 위해 로어 주입을 안전하게 스킵합니다.`);
+                return "";
+            }
+
             const packName = `Ep_Crack_${chatId}_Pack`;
             let allEntries = [];
             try {
@@ -4785,7 +4740,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
             const injectReport = [];
             const usedIds = new Set();
 
-            // [0순위]: 로어 오버라이드 (스위치 ON) -> 쿨타임 무시하고 무조건 1순위 주입
+            // [0순위]: 로어 오버라이드 (스위치 ON) -> 쿨타임 무시하고 최우선 주입 후보 배정
             const forcedEntries = allEntries.filter(e => e.enabled === true).sort((a, b) => (a.id || 0) - (b.id || 0));
             for (const e of forcedEntries) {
                 if (selectedLores.length >= 3) break;
@@ -4804,7 +4759,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 if (usedIds.has(e.id)) continue;
 
                 const lastTurn = parseInt(localStorage.getItem(`pastel_crack_lore_last_turn_${chatId}_${e.id}`) || '-999', 10);
-                if (lastTurn !== -999 && (currentTurn - lastTurn) <= 3) {
+                if (lastTurn !== -999 && currentTurn > 0 && (currentTurn - lastTurn) <= 3) {
                     injectReport.push({ name: e.name, status: 'failed', reason: '(쿨타임 대기)' });
                     continue;
                 }
@@ -4820,11 +4775,11 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                     .map(e => {
                         const lastTurn = parseInt(localStorage.getItem(`pastel_crack_lore_last_turn_${chatId}_${e.id}`) || '-999', 10);
                         const injCount = parseInt(localStorage.getItem(`pastel_crack_lore_inj_cnt_${chatId}_${e.id}`) || '0', 10);
-                        const isCooling = (lastTurn !== -999 && (currentTurn - lastTurn) <= 3);
+                        const isCooling = (lastTurn !== -999 && currentTurn > 0 && (currentTurn - lastTurn) <= 3);
                         return { entry: e, injCount, isCooling };
                     })
-                    .filter(item => !item.isCooling) // 쿨타임 아닌 것만
-                    .sort((a, b) => a.injCount - b.injCount); // 가장 안 넣은 순서 정렬
+                    .filter(item => !item.isCooling)
+                    .sort((a, b) => a.injCount - b.injCount);
 
                 for (const item of remainingPool) {
                     if (selectedLores.length >= 3) break;
@@ -4839,14 +4794,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 return "";
             }
 
-            // 6. [본문 + 단축어 100% 무손실 보존] 2,000자 절대 한도 철벽 계산
-            // userRawText에는 이미 확장된 단축어(additional note)까지 전부 포함되어 있으므로 전체 길이를 차감
-            const loreBudget = Math.max(0, 2000 - userRawText.length - 8);
-            if (loreBudget <= 10) {
-                console.log("ℹ️ [PASTEL:RAG] 유저 본문 및 단축어 전체 길이( " + userRawText.length + "자) 보존을 위해 로어 주입을 안전하게 스킵합니다.");
-                return "";
-            }
-
+            // 6. [2,000자 절대 한도 철벽 압축 및 가지치기 엔진]
             const buildCardText = (e, level, rank) => {
                 const prefix = `[LORE ${rank}] [${e.type}] ${e.name}`;
                 const stateText = e.state ? ` (${e.state})` : "";
