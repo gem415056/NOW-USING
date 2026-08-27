@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.9.8
+// @version      1.9.9
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -2819,9 +2819,8 @@
                 // 7. N턴 주기 백그라운드 자동 로어 추출 검사 및 실행 (중복 실행 방지)
                 setTimeout(() => {
                     const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${chatId}`), 10) || 6;
-                    const currentTurns = getCrackChatTurns();
+                    const currentTurns = getCrackChatTurns(chatId);
                     const lastAutoTurnKey = `pastel_crack_last_auto_ext_turn_${chatId}`;
-                    const lastAutoTurn = parseInt(localStorage.getItem(lastAutoTurnKey) || '0', 10);
 
                     if (currentTurns > 0 && currentTurns % extTurns === 0 && currentTurns !== lastAutoTurn) {
                         localStorage.setItem(lastAutoTurnKey, String(currentTurns));
@@ -3878,7 +3877,7 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
             const lastB = Math.max(raw.lastIndexOf("]"), raw.lastIndexOf("}"));
             if (lastB !== -1 && lastB < raw.length - 1) raw = raw.slice(0, lastB + 1);
 
-            const parsedArray = JSON.parse(raw);
+            const currentTurn = getCrackChatTurns(chatId);
             if (Array.isArray(parsedArray)) accumulatedLore = parsedArray;
         }
 
@@ -4022,7 +4021,7 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
             else parsedArray = [];
         }
 
-        const currentTurn = getCrackChatTurns();
+        const currentTurn = getCrackChatTurns(episodeId);
 
         if (Array.isArray(parsedArray) && parsedArray.length > 0) {
             try { await createLoreSnapshot(episodeId, "수동 생성 전 백업"); } catch(_) {}
@@ -4138,7 +4137,7 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
                 else parsedArray = [];
             }
 
-            const currentTurn = getCrackChatTurns();
+            const currentTurn = getCrackChatTurns(episodeId);
 
             if (Array.isArray(parsedArray) && parsedArray.length > 0) {
                 try { await createLoreSnapshot(episodeId, "자동 추출 전 백업"); } catch(_) {}
@@ -4678,9 +4677,11 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
 
             if (!allEntries || allEntries.length === 0) return "";
 
-            // 1. 컨텍스트 수집 (최근 4턴 + 유저 입력문)
+            // 1. 컨텍스트 수집 (이전 로어 찌꺼기 완전 정제 + 순수 대화 및 유저 입력문 결합)
             const history = (typeof fetchCrackMessagesPure === 'function') ? await fetchCrackMessagesPure(chatId, 6) : [];
-            const lastContext = history.slice(-4).map(m => m.content || m.message || m.text || '').join(' ');
+            const lastContext = (Array.isArray(history) ? history.slice(-4) : [])
+                .map(m => stripLoreInjectionBlock(m.content || m.message || m.text || ''))
+                .join(' ');
             const query = (lastContext + " " + userRawText).toLowerCase();
 
             // 2. crack.html 순정 트리거 매칭 (0.5 가중치)
