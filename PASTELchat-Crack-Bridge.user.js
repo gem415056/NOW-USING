@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.6.4
+// @version      1.6.5
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1779,10 +1779,14 @@
             } catch (_) {}
         }
 
-        // API 수급 성공: 과거 1턴부터 순서대로 reverse() 정렬
+        // API 수급 성공: 과거 1턴부터 순서대로 reverse() 정렬 및 [crack.html 순정] 유저 턴수 카운팅
         if (loadedMessages.length > 0) {
             loadedMessages.reverse();
-            console.log(`📥 [PASTEL:수급] contents-api에서 총 ${loadedMessages.length}개 메시지 전수 수급 완료!`);
+            // [crack.html 순정 100%] 백엔드 대화 배열 중 유저 메시지(role === 'user')의 개수로 실시간 턴수 산출
+            const userTurns = loadedMessages.filter(m => (m.role === 'user' || m.type === 'user')).length;
+            localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(userTurns));
+
+            console.log(`📥 [PASTEL:수급] contents-api에서 총 ${loadedMessages.length}개 메시지 수급 완료! (현재 ${userTurns}턴)`);
             return loadedMessages;
         }
 
@@ -1800,8 +1804,25 @@
             }
         });
         if (document.querySelector('.flex-col-reverse')) domTurns.reverse();
-        console.log(`📥 [PASTEL:수급] DOM 파서에서 ${domTurns.length}개 메시지 수급 완료!`);
+
+        const domUserTurns = domTurns.filter(m => m.role === 'user').length;
+        if (domUserTurns > 0) {
+            localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(domUserTurns));
+        }
+
+        console.log(`📥 [PASTEL:수급] DOM 파서에서 ${domTurns.length}개 메시지 수급 완료! (현재 ${domUserTurns}턴)`);
         return domTurns;
+    }
+
+    // [crack.html 순정 100%] 실시간 유저 턴수 계산기
+    function getCrackChatTurns(chatId) {
+        const targetId = chatId || getChatId();
+        const saved = parseInt(localStorage.getItem(`pastel_crack_chat_turns_${targetId}`) || '0', 10);
+        if (saved > 0) return saved;
+
+        // DOM에서 유저 말풍선 카운팅 폴백
+        const domUserCount = document.querySelectorAll('.justify-end, [class*="items-end"], .bg-accent_translucent').length;
+        return domUserCount || 0;
     }
 
     function injectCustomInputBox() {
@@ -2485,14 +2506,17 @@
                     editor.dispatchEvent(new Event('change', { bubbles: true }));
                 }
 
-                // 6. 에디터에 텍스트가 정상 채워졌는지 검증 후 순정 전송 버튼 클릭
+                // 6. 에디터에 텍스트가 정상 채워졌는지 검증 후 순정 전송 버튼 클릭 및 실시간 턴수 +1 카운트
                 isInternalSending = true;
                 setTimeout(() => {
                     const nativeBtn = slot.querySelector('button');
                     if (nativeBtn) {
                         nativeBtn.removeAttribute('disabled');
                         nativeBtn.click();
-                        // 전송 클릭이 확실히 완료된 후에만 파스텔 입력창 비우기
+                        // 전송 클릭 완료 시 턴수 +1 즉시 반영
+                        const prevTurns = parseInt(localStorage.getItem(`pastel_crack_chat_turns_${chatId}`) || '0', 10);
+                        localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(prevTurns + 1));
+
                         textarea.value = '';
                         updateSendButtonColor();
                     } else {
