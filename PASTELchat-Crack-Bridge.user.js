@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.9.6
+// @version      1.9.7
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1932,14 +1932,20 @@
     let isSendConfirmed = false;
     let sendHoldTimer = null;
 
-    // [오리지널 순정 _CrackCookieApi] 쿠키에서 access_token 직접 추출
+    // [오리지널 순정 _CrackCookieApi] 네트워크 캡처 토큰 1순위 추출
     function getCrackAuthToken() {
+        // 1. 네트워크 인터셉터가 실시간으로 낚아챈 Bearer 토큰 1순위
+        if (capturedCrackToken && capturedCrackToken.trim()) return capturedCrackToken.trim();
+        const storedCaptured = localStorage.getItem('pastel_captured_crack_token');
+        if (storedCaptured && storedCaptured.trim()) return storedCaptured.trim();
+
+        // 2. 쿠키 access_token 탐색
         const cookieMatch = document.cookie.match(/(?:^|; )access_token=([^;]*)/);
         if (cookieMatch && cookieMatch[1]) {
             return decodeURIComponent(cookieMatch[1]);
         }
 
-        // 스토리지 보조 탐색
+        // 3. 스토리지 보조 탐색
         try {
             const raw = localStorage.getItem('accessToken') || localStorage.getItem('access_token') || '';
             if (raw) return raw.replace(/^["']|["']$/g, '').trim();
@@ -1953,7 +1959,7 @@
         return '';
     }
 
-    // [오리지널 순정 _CrackPathApi] /characters/.../chats/<chatRoomId> 정밀 추출
+    // [오리지널 순정 _CrackPathApi] URL 경로 + 캡처 ChatId 1순위 정밀 추출
     function getChatId() {
         const path = location.pathname || '';
         const split = path.substring(1).split('/');
@@ -1976,6 +1982,11 @@
         // 5. 24자리 ObjectId 정규식
         const hexMatch = path.match(/([a-f0-9]{24})/i);
         if (hexMatch && hexMatch[1]) return hexMatch[1];
+
+        // 6. 네트워크 인터셉터 캡처 ID 폴백
+        if (capturedCrackChatId) return capturedCrackChatId;
+        const storedChatId = localStorage.getItem('pastel_captured_crack_chat_id');
+        if (storedChatId) return storedChatId;
 
         return 'global';
     }
@@ -2073,7 +2084,25 @@
         return domTurns;
     }
 
-    // [crack.html 순정 100%] API 기반 실시간 유저 턴수 계산기 (동기 조회 + 백그라운드 API 동기화)
+    // [crack.html 순정 100%] API 커서 기반 실시간 유저 턴 수 비동기 전수 집계 엔진
+    async function getCrackUserTurnsRealtime(chatId) {
+        const targetId = chatId || getChatId();
+        if (!targetId || targetId === 'global') return 0;
+
+        try {
+            const msgs = await fetchCrackMessagesPure(targetId, -1);
+            if (Array.isArray(msgs) && msgs.length > 0) {
+                const userCount = msgs.filter(m => (m.role === 'user' || m.type === 'user')).length;
+                localStorage.setItem(`pastel_crack_chat_turns_${targetId}`, String(userCount));
+                return userCount;
+            }
+        } catch (_) {}
+
+        const saved = parseInt(localStorage.getItem(`pastel_crack_chat_turns_${targetId}`) || '0', 10);
+        return saved || 0;
+    }
+
+    // 동기식 간이 턴수 조회기 (기존 UI 및 로그용)
     function getCrackChatTurns(chatId) {
         const targetId = chatId || getChatId();
         if (!targetId || targetId === 'global') return 0;
@@ -2083,12 +2112,7 @@
             const parsed = parseInt(saved, 10);
             if (!isNaN(parsed) && parsed >= 0) return parsed;
         }
-
-        // 저장된 값이 없을 경우 API를 즉시 백그라운드 호출하여 동기화
-        fetchCrackMessagesPure(targetId).catch(() => {});
-
-        const domUserCount = document.querySelectorAll('.justify-end, [class*="items-end"], .bg-accent_translucent').length;
-        return domUserCount || 0;
+        return 0;
     }
 
     function injectCustomInputBox() {
@@ -2728,10 +2752,6 @@
 
                 // 3. [단축어 포함 전체 길이 기준 예산 산출]: 유저본문 + 단축어 공간을 먼저 100% 확보하고 남은 공간에만 로어 조립
                 const chatId = getChatId();
-                // 턴수 실시간 갱신 확인
-                if (!localStorage.getItem(`pastel_crack_chat_turns_${chatId}`)) {
-                    await fetchCrackMessagesPure(chatId).catch(() => {});
-                }
                 const loreBlock = await buildCrackRAGLoreBlock(userExpandedText, chatId);
                 const finalPayloadMessage = loreBlock ? `${loreBlock}\n\n${userExpandedText}` : userExpandedText;
 
@@ -4734,13 +4754,13 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 if (BOOST_TYPES.has(typeLow)) row.score *= 1.3;
             });
 
-            // 5. 슬롯 우선순위 배정 알고리즘
-            const currentTurn = getCrackChatTurns(chatId);
+            // 5. 슬롯 우선순위 배정 알고리즘 (API 실시간 유저 턴수 직접 동기화)
+            const currentTurn = await getCrackUserTurnsRealtime(chatId);
             const selectedLores = [];
             const injectReport = [];
             const usedIds = new Set();
 
-            // [0순위]: 로어 오버라이드 (스위치 ON) -> 쿨타임 무시하고 최우선 주입 후보 배정
+            // [0순위]: 로어 오버라이드 (스위치 ON) -> 쿨타임을 완전히 무시하고 1순위 강제 주입
             const forcedEntries = allEntries.filter(e => e.enabled === true).sort((a, b) => (a.id || 0) - (b.id || 0));
             for (const e of forcedEntries) {
                 if (selectedLores.length >= 3) break;
@@ -4748,7 +4768,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 usedIds.add(e.id);
             }
 
-            // [1순위]: RAG 랭킹 상위 카드 (쿨타임 아닌 것)
+            // [1순위]: RAG 랭킹 상위 카드 (쿨타임 검사)
             const rankedAutoList = Object.values(scoreMap)
                 .filter(row => row.entry.enabled !== true && row.score > 0)
                 .sort((a, b) => b.score - a.score)
@@ -4759,8 +4779,9 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 if (usedIds.has(e.id)) continue;
 
                 const lastTurn = parseInt(localStorage.getItem(`pastel_crack_lore_last_turn_${chatId}_${e.id}`) || '-999', 10);
-                if (lastTurn !== -999 && currentTurn > 0 && (currentTurn - lastTurn) <= 3) {
-                    injectReport.push({ name: e.name, status: 'failed', reason: '(쿨타임 대기)' });
+                // 쿨타임: 최근 3턴 이내에 이미 주입된 적이 있는 경우만 스킵 (단, 처음이거나 4턴 이상 지났으면 즉시 주입)
+                if (lastTurn !== -999 && currentTurn > 0 && (currentTurn - lastTurn) >= 0 && (currentTurn - lastTurn) <= 3) {
+                    injectReport.push({ name: e.name, status: 'failed', reason: `(쿨타임: ${currentTurn - lastTurn}/3턴)` });
                     continue;
                 }
 
