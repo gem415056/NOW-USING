@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.7.1
+// @version      1.8.0
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1227,6 +1227,167 @@
             str = str.replace(/^\[LORE\s*\d*\][^\n]*(?:\n|$)/i, '').trimStart();
         }
         return str;
+    }
+
+    /* ==========================================================================
+     * 2.6 크랙 순정 무손실 HTML 대화 백업/내보내기 엔진
+     * ========================================================================== */
+    async function exportCrackChatToHtml() {
+        const chatId = getChatId();
+        showToast("📥 대화 데이터를 수급하는 중...");
+
+        try {
+            const messages = await fetchCrackMessagesPure(chatId, -1);
+            if (!messages || messages.length === 0) {
+                showToast("❌ 저장할 대화 내역이 없습니다.");
+                return;
+            }
+
+            // 캐릭터/대화방 타이틀 추출
+            let title = document.title || 'CRACK_Chat_Backup';
+            title = title.replace(/[\\/:*?"<>|]/g, '_').trim();
+            const nowStr = new Date().toISOString().slice(0, 10);
+
+            // 메시지 HTML 블록 조립 (크랙 고유 말풍선 렌더링 스타일)
+            const chatItemsHtml = messages.map(msg => {
+                const isUser = (msg.role === 'user' || msg.type === 'user');
+                const rawContent = msg.content || msg.message || msg.text || '';
+                const cleanContent = stripLoreInjectionBlock(rawContent);
+                if (!cleanContent.trim()) return '';
+
+                // 줄바꿈 보존 및 특수문자 이스케이프
+                const safeContent = cleanContent
+                    .replace(/&/g, '&amp;')
+                    .replace(/</g, '&lt;')
+                    .replace(/>/g, '&gt;');
+
+                return `
+                <div class="chat-row ${isUser ? 'user-row' : 'assistant-row'}">
+                    <div class="bubble ${isUser ? 'user-bubble' : 'assistant-bubble'}">
+                        <div class="bubble-content">${safeContent}</div>
+                    </div>
+                </div>`;
+            }).filter(Boolean).join('\n');
+
+            const fullHtml = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${title} (${nowStr})</title>
+    <style>
+        :root {
+            --bg-color: #141413;
+            --text-color: #F0EFEB;
+            --user-bg: #2b2a27;
+            --user-text: #F0EFEB;
+            --assistant-bg: transparent;
+            --assistant-text: #F0EFEB;
+            --border-color: #33322e;
+        }
+        @media (prefers-color-scheme: light) {
+            :root {
+                --bg-color: #ffffff;
+                --text-color: #222222;
+                --user-bg: #f2f2ee;
+                --user-text: #222222;
+                --assistant-bg: transparent;
+                --assistant-text: #222222;
+                --border-color: #e5e5e5;
+            }
+        }
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+            margin: 0;
+            padding: 24px 16px 80px 16px;
+            display: flex;
+            justify-content: center;
+        }
+        .container {
+            width: 100%;
+            max-width: 768px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .header {
+            padding-bottom: 16px;
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 10px;
+        }
+        .header h1 {
+            font-size: 18px;
+            margin: 0 0 6px 0;
+        }
+        .header .meta {
+            font-size: 12px;
+            color: #888888;
+        }
+        .chat-row {
+            display: flex;
+            width: 100%;
+        }
+        .chat-row.user-row {
+            justify-content: flex-end;
+        }
+        .chat-row.assistant-row {
+            justify-content: flex-start;
+        }
+        .bubble {
+            max-width: 85%;
+            padding: 12px 16px;
+            border-radius: 16px;
+            box-sizing: border-box;
+        }
+        .user-bubble {
+            background-color: var(--user-bg);
+            color: var(--user-text);
+            border-bottom-right-radius: 4px;
+        }
+        .assistant-bubble {
+            background-color: var(--assistant-bg);
+            color: var(--assistant-text);
+            padding-left: 0;
+            padding-right: 0;
+            width: 100%;
+            max-width: 100%;
+        }
+        .bubble-content {
+            font-size: 15px;
+            line-height: 1.65;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>${title}</h1>
+            <div class="meta">저장 일시: ${new Date().toLocaleString()} | 총 ${messages.length}개 메시지</div>
+        </div>
+        ${chatItemsHtml}
+    </div>
+</body>
+</html>`;
+
+            const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${title}_${nowStr}.html`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast("✨ 대화 저장이 완료되었습니다!");
+        } catch (err) {
+            console.error("[대화 저장 오류]:", err);
+            showToast("❌ 대화 저장 중 오류가 발생했습니다.");
+        }
     }
 
     /* ==========================================================================
@@ -2826,19 +2987,47 @@
         const tabSet = document.getElementById('ep-lore-tab-settings');
         if (tabSet) tabSet.onclick = () => switchCrackLoreTab('ep-lore-tab-settings', 'ep-lore-panel-settings');
 
-        // 5. 크랙 데이터 전체 정리
+        // 4-1. 데이터 관리: 대화 저장 (HTML)
+        const htmlSaveBtn = document.getElementById('ep-menu-html-save-btn');
+        if (htmlSaveBtn) {
+            htmlSaveBtn.onclick = (e) => {
+                e.stopPropagation();
+                exportCrackChatToHtml();
+            };
+        }
+
+        // 4-2. 데이터 관리: 크랙 로컬 DB 및 설정값 전체 완전 초기화 (Wipe)
         const clearBtn = document.getElementById('ep-menu-crack-clear-btn');
         if (clearBtn) {
-            clearBtn.onclick = () => {
-                if (!confirm("⚠️ 크랙 전용 로컬 데이터(메모, 로어 저장소, 설정값 등)를 전부 삭제하시겠습니까?")) return;
-                const keysToRemove = [];
-                for (let i = 0; i < localStorage.length; i++) {
-                    const k = localStorage.key(i);
-                    if (k && k.startsWith('pastel_crack_')) keysToRemove.push(k);
+            clearBtn.onclick = async () => {
+                if (!confirm("⚠️ 주의: 크랙 사이트에 저장된 모든 로컬 데이터(로어 저장소 DB, 백업 스냅샷, 치환자, 메모, API 캐시 등)를 완전히 삭제하고 초기화하시겠습니까?")) return;
+
+                try {
+                    // 1. Dexie IndexedDB ('lore-injector') 완전 삭제 및 초기화
+                    if (loreDb) {
+                        try {
+                            await loreDb.delete();
+                            console.log("🗑️ [PASTEL] Dexie lore-injector DB 완전 삭제 완료");
+                        } catch (dbErr) {
+                            console.warn("Dexie 삭제 예외:", dbErr);
+                        }
+                    }
+
+                    // 2. LocalStorage 내 PASTEL & CRACK 관련 모든 키 일괄 삭제
+                    const keysToRemove = [];
+                    for (let i = 0; i < localStorage.length; i++) {
+                        const k = localStorage.key(i);
+                        if (k && (k.startsWith('pastel_') || k.startsWith('pastel_crack_') || k.includes('crack'))) {
+                            keysToRemove.push(k);
+                        }
+                    }
+                    keysToRemove.forEach(k => localStorage.removeItem(k));
+
+                    showToast("✨ 크랙 로컬 DB 및 데이터가 완전히 초기화되었습니다.");
+                    setTimeout(() => location.reload(), 900);
+                } catch (err) {
+                    alert("초기화 중 오류 발생: " + err.message);
                 }
-                keysToRemove.forEach(k => localStorage.removeItem(k));
-                showToast("✨ 크랙 전용 데이터가 완전히 정리되었습니다.");
-                setTimeout(() => location.reload(), 800);
             };
         }
     }
