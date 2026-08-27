@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.8.0
+// @version      1.8.1
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -110,12 +110,25 @@
             z-index: -99999 !important;
         }
 
-        /* 크랙 순정 우측 서랍 암전 딤(z-0 -> z-2) 레이어 보정 (입력창 암전 정상화) */
+        /* 크랙 순정 암전 딤 오버레이 (서랍 열림 시 입력창까지 완벽 암전) */
         div[class*="bg-bg_dimmed"] {
-            z-index: 2 !important;
+            z-index: 45 !important;
         }
 
-        /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (스크롤 시 사라짐 원천 방지) */
+        /* 크랙 순정 우측 서랍: 닫혔을 때는 터치 가로채기 완전 차단, 열렸을 때만 z-50 활성화 */
+        div[class*="border-outline_tertiary"][class*="w-[260px]"],
+        div[class*="z-[3]"] {
+            z-index: 0 !important;
+            pointer-events: none !important;
+        }
+        div[class*="border-outline_tertiary"][class*="w-[260px]"][class*="translate-x-0"],
+        div[class*="z-[3]"][class*="translate-x-0"] {
+            z-index: 50 !important;
+            pointer-events: auto !important;
+        }
+
+        /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (서랍보다 높은 z-60으로 최상단 고정) */
+        div[class*="z-docked"],
         .absolute.z-docked.left-0.w-full.h-12,
         .h-12.px-5.flex.justify-between.items-center {
             position: fixed !important;
@@ -125,7 +138,7 @@
             transform: none !important;
             opacity: 1 !important;
             visibility: visible !important;
-            z-index: 10000 !important;
+            z-index: 60 !important;
             background-color: var(--bg_screen, #ffffff) !important;
         }
         body[data-theme="dark"] .absolute.z-docked.left-0.w-full.h-12 {
@@ -155,7 +168,7 @@
             bottom: 180px !important;
             right: calc(50% - 380px + 16px) !important;
             transform: none !important;
-            z-index: 2 !important;
+            z-index: 25 !important;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
         }
         @media (max-width: 768px) {
@@ -574,7 +587,7 @@
             padding: 0 0 10px 0 !important;
             margin: 0 !important;
             background-color: var(--bg_screen, #ffffff) !important;
-            z-index: 1 !important;
+            z-index: 20 !important;
             overflow: visible !important;
         }
         body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
