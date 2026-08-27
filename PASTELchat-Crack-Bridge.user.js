@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.7.0
+// @version      1.7.1
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -195,7 +195,7 @@
             background-color: rgba(255, 255, 255, 0.08);
         }
 
-        /* 우측 서랍 컨테이너 (상단 헤더 아래부터 바닥까지 100% 밀착) */
+        /* 우측 서랍 컨테이너 (크랙 순정과 100% 동일한 300ms 슬라이딩 애니메이션) */
         .right-drawer-container {
             position: fixed !important;
             top: 104px;
@@ -208,11 +208,20 @@
             border-left: 1px solid #E6E6E6;
             box-sizing: border-box;
             z-index: 100000 !important;
-            display: none;
+            display: flex !important;
             flex-direction: column;
             user-select: none;
             box-shadow: -4px 4px 24px rgba(0, 0, 0, 0.08);
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+            transform: translateX(100%) !important;
+            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), visibility 0.3s !important;
+            pointer-events: none !important;
+            visibility: hidden;
+        }
+        .right-drawer-container.open {
+            transform: translateX(0) !important;
+            pointer-events: auto !important;
+            visibility: visible;
         }
         body[data-theme="dark"] .right-drawer-container {
             background-color: #141413 !important;
@@ -391,7 +400,7 @@
             background-color: #1f1e1d;
         }
 
-        /* 상단 헤더 아래 영역만 어둡게 만드는 서랍 전용 오버레이 */
+        /* 상단 헤더 아래 영역만 어둡게 만드는 서랍 전용 오버레이 (300ms 페이드 애니메이션) */
         .ep-chat-drawer-overlay {
             position: fixed !important;
             top: 104px;
@@ -401,7 +410,14 @@
             height: auto !important;
             background: rgba(0, 0, 0, 0.35);
             z-index: 99998 !important;
-            display: none;
+            display: block !important;
+            opacity: 0 !important;
+            pointer-events: none !important;
+            transition: opacity 0.3s ease-in-out !important;
+        }
+        .ep-chat-drawer-overlay.open {
+            opacity: 1 !important;
+            pointer-events: auto !important;
         }
 
         /* 에피소드 노트 및 공용 팝업 모달 */
@@ -1656,25 +1672,24 @@
                     <path d="M15.39 4.39a1 1 0 0 0 1.68-.474 2.5 2.5 0 1 1 3.014 3.015 1 1 0 0 0-.474 1.68l1.683 1.682a2.414 2.414 0 0 1 0 3.414L19.61 15.39a1 1 0 0 1-1.68-.474 2.5 2.5 0 1 0-3.014 3.015 1 1 0 0 1 .474 1.68l-1.683 1.682a2.414 2.414 0 0 1-3.414 0L8.61 19.61a1 1 0 0 0-1.68.474 2.5 2.5 0 1 1-3.014-3.015 1 1 0 0 0 .474-1.68l-1.683-1.682a2.414 2.414 0 0 1 0-3.414L4.39 8.61a1 1 0 0 1 1.68.474 2.5 2.5 0 1 0 3.014-3.015 1 1 0 0 1-.474-1.68l1.683-1.682a2.414 2.414 0 0 1 3.414 0z"></path>
                 </svg>
             `;
-            // 버튼 클릭 이벤트 직접 연결 (서랍과 암전 오버레이 모두 헤더 아래부터 바닥까지 100% 밀착 동기화)
+            // 버튼 클릭 이벤트 직접 연결 (슬라이딩 애니메이션 클래스 연동)
             menuBtn.onclick = (e) => {
                 e.stopPropagation();
                 const drawer = document.getElementById('ep-chat-right-drawer');
                 const overlay = document.getElementById('ep-chat-drawer-overlay');
                 if (drawer && overlay) {
-                    const isOpen = drawer.style.display !== 'flex';
-                    if (isOpen) {
+                    const isOpen = drawer.classList.contains('open');
+                    if (!isOpen) {
                         const subHeader = document.querySelector('.absolute.z-docked.left-0.w-full.h-12') || document.querySelector('.h-12.px-5.flex.justify-between');
                         const topOffset = subHeader ? subHeader.getBoundingClientRect().bottom : 104;
                         drawer.style.top = `${topOffset}px`;
-                        drawer.style.bottom = '0px';
-                        drawer.style.height = 'auto';
                         overlay.style.top = `${topOffset}px`;
-                        overlay.style.bottom = '0px';
-                        overlay.style.height = 'auto';
+                        drawer.classList.add('open');
+                        overlay.classList.add('open');
+                    } else {
+                        drawer.classList.remove('open');
+                        overlay.classList.remove('open');
                     }
-                    drawer.style.display = isOpen ? 'flex' : 'none';
-                    overlay.style.display = isOpen ? 'block' : 'none';
                 }
             };
         }
@@ -2585,21 +2600,20 @@
         const drawer = document.getElementById('ep-chat-right-drawer');
         const overlay = document.getElementById('ep-chat-drawer-overlay');
 
-        // 서랍 열기/닫기 (헤더 바로 아래부터 바닥까지 100% 완벽 밀착)
+        // 서랍 열기/닫기 (슬라이딩 & 페이드 애니메이션 연동)
         const toggleDrawer = (open) => {
-            const isOpen = (open !== undefined) ? open : (drawer.style.display !== 'flex');
+            const isOpen = (open !== undefined) ? open : !drawer.classList.contains('open');
             if (isOpen) {
                 const subHeader = document.querySelector('.absolute.z-docked.left-0.w-full.h-12') || document.querySelector('.h-12.px-5.flex.justify-between');
                 const topOffset = subHeader ? subHeader.getBoundingClientRect().bottom : 104;
                 drawer.style.top = `${topOffset}px`;
-                drawer.style.bottom = '0px';
-                drawer.style.height = 'auto';
                 overlay.style.top = `${topOffset}px`;
-                overlay.style.bottom = '0px';
-                overlay.style.height = 'auto';
+                drawer.classList.add('open');
+                overlay.classList.add('open');
+            } else {
+                drawer.classList.remove('open');
+                overlay.classList.remove('open');
             }
-            drawer.style.display = isOpen ? 'flex' : 'none';
-            overlay.style.display = isOpen ? 'block' : 'none';
         };
 
         if (menuBtn) menuBtn.onclick = () => toggleDrawer();
