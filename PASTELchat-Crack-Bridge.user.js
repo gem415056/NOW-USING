@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.8.8
+// @version      1.8.9
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -110,29 +110,36 @@
             z-index: -99999 !important;
         }
 
-        /* 크랙 순정 서랍(좌측/우측) 열림 시 입력창 직속 완벽 암전 딤 처리 */
+        /* 크랙 순정 서랍 열림 시 입력창 및 상하 여백 래퍼 전체 암전 딤 처리 */
+        .bg-bg_screen.pointer-events-auto::after,
         .chat-footer-control::after {
             content: "";
             position: absolute;
             inset: 0;
             background: rgba(0, 0, 0, 0.45);
-            border-radius: 12px;
             opacity: 0;
             pointer-events: none;
             transition: opacity 0.2s ease-in-out;
             z-index: 1000;
         }
+        .chat-footer-control::after {
+            border-radius: 12px;
+        }
+        body.crack-drawer-active .bg-bg_screen.pointer-events-auto::after,
         body.crack-drawer-active .chat-footer-control::after {
             opacity: 1;
             pointer-events: auto;
             cursor: pointer;
         }
+        body.crack-drawer-active .bg-bg_screen.pointer-events-auto {
+            background-color: transparent !important;
+        }
 
-        /* 크랙 순정 우측 서랍을 파스텔 서랍과 100% 동일하게 Fixed로 바닥까지 완벽 밀착 */
+        /* 크랙 순정 우측 서랍: 헤더 아래(top: 104px)부터 바닥까지 100% 꽉 차게 밀착 (헤더 침범 0%) */
         body.crack-drawer-active div[class*="border-outline_tertiary"][class*="w-[260px]"],
         body.crack-drawer-active div[class*="z-[3]"] {
             position: fixed !important;
-            top: 56px !important;
+            top: 104px !important;
             bottom: 0 !important;
             right: 0 !important;
             width: 260px !important;
@@ -193,7 +200,7 @@
         button:has(svg path[d^="m12 6.87"]),
         button:has(svg path[d^="M20.09 8.3"]) {
             position: fixed !important;
-            bottom: 185px !important;
+            bottom: 200px !important;
             right: calc(50% - 380px + 16px) !important;
             transform: none !important;
             z-index: 10005 !important;
