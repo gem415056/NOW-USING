@@ -181,17 +181,19 @@
             background-color: rgba(255, 255, 255, 0.08);
         }
 
-        /* 우측 서랍 컨테이너 (헤더 아래에서 시작) */
+        /* 우측 서랍 컨테이너 (상단 헤더 아래부터 바닥까지 100% 밀착) */
         .right-drawer-container {
-            position: fixed;
+            position: fixed !important;
             top: 104px;
-            right: 0;
-            width: 255px;
-            height: calc(100% - 104px);
+            bottom: 0 !important;
+            right: 0 !important;
+            width: 255px !important;
+            height: auto !important;
+            max-height: none !important;
             background-color: var(--bg_primary);
             border-left: 1px solid #E6E6E6;
             box-sizing: border-box;
-            z-index: 100000;
+            z-index: 100000 !important;
             display: none;
             flex-direction: column;
             user-select: none;
@@ -377,14 +379,14 @@
 
         /* 상단 헤더 아래 영역만 어둡게 만드는 서랍 전용 오버레이 */
         .ep-chat-drawer-overlay {
-            position: fixed;
+            position: fixed !important;
             top: 104px;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            height: calc(100% - 104px);
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            height: auto !important;
             background: rgba(0, 0, 0, 0.35);
-            z-index: 99998;
+            z-index: 99998 !important;
             display: none;
         }
 
@@ -507,20 +509,30 @@
             font-weight: bold !important;
         }
 
-        /* 크랙 순정 에디터 박스를 백그라운드에 보이지 않게 안전 격리 */
-        .flex.w-full.flex-col.rounded-lg.border.bg-background.transition-colors {
+        /* 크랙 순정 에디터 박스 및 폼 잔여 요소의 높이 점유 원천 박멸 */
+        .flex.w-full.flex-col.rounded-lg.border.bg-background.transition-colors,
+        form:has(.ProseMirror),
+        .relative.flex.w-full.flex-col:has(.ProseMirror) {
             position: absolute !important;
             height: 0 !important;
             min-height: 0 !important;
+            max-height: 0 !important;
             overflow: hidden !important;
             opacity: 0 !important;
             pointer-events: none !important;
             margin: 0 !important;
             padding: 0 !important;
             border: none !important;
+            visibility: hidden !important;
         }
 
-        /* 크랙 하단 부모 컨테이너 배경 복원 및 세로 마진 50% 축소 */
+        /* 크랙 순정 안내 문구 및 기타 불필요한 하단 잔여 레이아웃 격리 */
+        .bg-bg_screen.pointer-events-auto p.text-xs,
+        .bg-bg_screen.pointer-events-auto .text-text_tertiary {
+            display: none !important;
+        }
+
+        /* 크랙 하단 부모 컨테이너 완벽 바닥 고정 */
         .bg-bg_screen.pointer-events-auto,
         .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
             position: fixed !important;
@@ -529,13 +541,11 @@
             transform: translateX(-50%) !important;
             max-width: 760px !important;
             width: calc(100% - 64px) !important;
-            padding: 4px 0 4px 0 !important; /* 세로 마진/패딩을 반으로 대폭 슬림화 */
+            padding: 0 0 10px 0 !important;
+            margin: 0 !important;
             background-color: var(--bg_screen, #ffffff) !important;
             z-index: 10000 !important;
             overflow: visible !important;
-        }
-        body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
-            background-color: #141413 !important;
         }
         body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
             background-color: #141413 !important;
@@ -1633,7 +1643,7 @@
                     <path fill-rule="evenodd" d="M1.99 12c0 5.52 4.49 10.01 10.01S22.01 17.52 22.01 12 17.52 1.99 12 1.99 1.99 6.48 1.99 12m1.6 0c0-4.64 3.77-8.41 8.41-8.41s8.41 3.77 8.41 8.41-3.77 8.41-8.41 8.41S3.59 16.64 3.59 12" clip-rule="evenodd"></path>
                 </svg>
             `;
-            // 버튼 클릭 이벤트 직접 연결 (서랍과 암전 오버레이 모두 헤더 아래로 위치 동기화)
+            // 버튼 클릭 이벤트 직접 연결 (서랍과 암전 오버레이 모두 헤더 아래부터 바닥까지 100% 밀착 동기화)
             menuBtn.onclick = (e) => {
                 e.stopPropagation();
                 const drawer = document.getElementById('ep-chat-right-drawer');
@@ -1642,13 +1652,13 @@
                     const isOpen = drawer.style.display !== 'flex';
                     if (isOpen) {
                         const subHeader = document.querySelector('.absolute.z-docked.left-0.w-full.h-12') || document.querySelector('.h-12.px-5.flex.justify-between');
-                        if (subHeader) {
-                            const rect = subHeader.getBoundingClientRect();
-                            drawer.style.top = `${rect.bottom}px`;
-                            drawer.style.height = `calc(100% - ${rect.bottom}px)`;
-                            overlay.style.top = `${rect.bottom}px`;
-                            overlay.style.height = `calc(100% - ${rect.bottom}px)`;
-                        }
+                        const topOffset = subHeader ? subHeader.getBoundingClientRect().bottom : 104;
+                        drawer.style.top = `${topOffset}px`;
+                        drawer.style.bottom = '0px';
+                        drawer.style.height = 'auto';
+                        overlay.style.top = `${topOffset}px`;
+                        overlay.style.bottom = '0px';
+                        overlay.style.height = 'auto';
                     }
                     drawer.style.display = isOpen ? 'flex' : 'none';
                     overlay.style.display = isOpen ? 'block' : 'none';
@@ -1871,7 +1881,7 @@
         bindInputEvents();
     }
 
-    // 크랙 순정 전송 버튼을 파스텔 툴바 슬롯으로 이동
+    // 크랙 순정 전송 버튼을 파스텔 툴바 슬롯으로 이동 및 잔여 컨테이너 완벽 숨김
     function moveNativeSendButtonToSlot() {
         const slot = document.getElementById('ep-native-send-slot');
         if (!slot) return;
@@ -1885,6 +1895,8 @@
                     nativeBtn.style.position = 'relative';
                     nativeBtn.style.zIndex = '10';
                     nativeBtn.style.cursor = 'pointer';
+                    nativeBtn.style.margin = '0';
+                    nativeBtn.style.transform = 'none';
                     slot.appendChild(nativeBtn);
                     break;
                 }
@@ -2560,17 +2572,18 @@
         const drawer = document.getElementById('ep-chat-right-drawer');
         const overlay = document.getElementById('ep-chat-drawer-overlay');
 
-        // 서랍 열기/닫기 (헤더 바로 아래로 위치 자동 동기화)
+        // 서랍 열기/닫기 (헤더 바로 아래부터 바닥까지 100% 완벽 밀착)
         const toggleDrawer = (open) => {
             const isOpen = (open !== undefined) ? open : (drawer.style.display !== 'flex');
             if (isOpen) {
-                // 대화창 서브 헤더의 실제 위치를 실시간 측정하여 정확히 그 밑에 밀착
-                const subHeader = document.querySelector('.absolute.z-docked.left-0.w-full.h-12');
-                if (subHeader) {
-                    const rect = subHeader.getBoundingClientRect();
-                    drawer.style.top = `${rect.bottom}px`;
-                    drawer.style.height = `calc(100% - ${rect.bottom}px)`;
-                }
+                const subHeader = document.querySelector('.absolute.z-docked.left-0.w-full.h-12') || document.querySelector('.h-12.px-5.flex.justify-between');
+                const topOffset = subHeader ? subHeader.getBoundingClientRect().bottom : 104;
+                drawer.style.top = `${topOffset}px`;
+                drawer.style.bottom = '0px';
+                drawer.style.height = 'auto';
+                overlay.style.top = `${topOffset}px`;
+                overlay.style.bottom = '0px';
+                overlay.style.height = 'auto';
             }
             drawer.style.display = isOpen ? 'flex' : 'none';
             overlay.style.display = isOpen ? 'block' : 'none';
