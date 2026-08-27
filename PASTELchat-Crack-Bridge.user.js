@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.8.6
+// @version      1.8.7
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -126,6 +126,15 @@
             opacity: 1;
             pointer-events: auto;
             cursor: pointer;
+        }
+
+        /* 서랍이 열렸을 때만 서랍 본체를 입력창(10000) 위로 올려 화면 바닥까지 100% 완전 노출 */
+        body.crack-drawer-active div[class*="border-outline_tertiary"][class*="w-[260px]"],
+        body.crack-drawer-active .bg-sidebar,
+        body.crack-drawer-active aside:has(.py-4.overflow-y-auto),
+        body.crack-drawer-active div[class*="z-[3]"] {
+            z-index: 10010 !important;
+            pointer-events: auto !important;
         }
 
         /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (스크롤 시 사라짐 원천 방지) */
@@ -1371,7 +1380,11 @@
             }
 
             let title = document.title || '대화방';
+            // 크랙/뤼튼 사이트 접미사 및 특수 꼬리표 ('_ 크랙', '| 크랙', '- CRACK' 등) 정밀 제거
+            title = title.replace(/\s*[-_|·~/•]\s*(크랙|CRACK|wrtn|뤼튼)\s*$/i, '').trim();
+            title = title.replace(/^(크랙|CRACK|wrtn|뤼튼)\s*[-_|·~/•]\s*/i, '').trim();
             title = title.replace(/[\\/:*?"<>|]/g, '_').trim();
+            if (!title) title = '대화방';
             const nowStr = new Date().toISOString().slice(0, 10);
 
             // 2. index.html 순정 100% 동일한 소설형 뷰어 CSS 및 HTML 구조 생성
