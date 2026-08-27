@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.8.4
+// @version      1.8.5
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -108,6 +108,18 @@
             opacity: 0 !important;
             pointer-events: none !important;
             z-index: -99999 !important;
+        }
+
+        /* 크랙 순정 우측 서랍이 실제로 열렸을 때(opacity-100 켜짐)만 조건부 암전 및 서랍 승격 */
+        div[class*="bg-bg_dimmed"][class*="opacity-100"],
+        div[class*="bg-bg_dimmed"].opacity-100 {
+            z-index: 10005 !important;
+            pointer-events: auto !important;
+        }
+        body:has(div[class*="bg-bg_dimmed"][class*="opacity-100"]) div[class*="border-outline_tertiary"][class*="w-[260px]"],
+        body:has(div[class*="bg-bg_dimmed"].opacity-100) div[class*="border-outline_tertiary"][class*="w-[260px]"] {
+            z-index: 10010 !important;
+            pointer-events: auto !important;
         }
 
         /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (스크롤 시 사라짐 원천 방지) */
@@ -1225,74 +1237,114 @@
     }
 
     /* ==========================================================================
-     * 2.6 크랙 순정 1턴~전체 DOM 1:1 무손실 캡처 및 HTML 저장 엔진
+     * 2.6 크랙 순정 DOM 실시간 누적 수집(Accumulate) 무손실 HTML 저장 엔진
      * ========================================================================== */
     async function exportCrackChatToHtml() {
-        showToast("⏳ 1턴부터 전체 대화 DOM 동기화 중...");
+        showToast("⏳ 1턴까지 스크롤하며 크랙 순정 DOM 정밀 수집 시작...");
 
         try {
             // 1. 크랙 스크롤 컨테이너 탐색
-            const scrollContainer = document.querySelector('.overflow-y-auto') || 
-                                    document.querySelector('.flex-1.overflow-y-auto') || 
-                                    document.documentElement;
+            const allScrollables = Array.from(document.querySelectorAll('*')).filter(el => {
+                const s = window.getComputedStyle(el);
+                return (s.overflowY === 'auto' || s.overflowY === 'scroll') && el.scrollHeight > el.clientHeight;
+            });
+            const scrollEl = allScrollables[0] || document.documentElement || document.body;
 
             const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || 
                              document.querySelector('main') || 
                              document.querySelector('.flex-1.overflow-y-auto');
 
             if (!chatRoot) {
-                showToast("❌ 대화창 DOM을 찾을 수 없습니다.");
+                showToast("❌ 대화창을 찾을 수 없습니다.");
                 return;
             }
 
-            // 2. [초고속 백그라운드 1턴 자동 스캔]: 1턴 끝까지 스크롤을 올려 크랙이 전체 메시지 DOM을 렌더링하도록 유도
-            let lastCount = 0;
-            let sameCountStreak = 0;
-            const originalScrollTop = scrollContainer.scrollTop;
+            const originalScrollTop = scrollEl.scrollTop;
 
-            for (let i = 0; i < 40; i++) {
-                const currentBubbles = chatRoot.querySelectorAll('.whitespace-pre-wrap, .break-words, .prose, p').length;
-                if (currentBubbles === lastCount) {
-                    sameCountStreak++;
-                    if (sameCountStreak >= 3) break; // 더 이상 새 턴이 안 나오면 1턴 끝 도달로 판단
+            // 2. 크랙 순정 말풍선 DOM 수집기 Map (고유 텍스트 기반 중복 제거)
+            const collectedBubblesMap = new Map();
+
+            function harvestCurrentVisibleBubbles() {
+                // 크랙 말풍선 컨테이너들 탐색
+                const candidates = chatRoot.querySelectorAll('.flex.w-full, .whitespace-pre-wrap, .break-words, .prose');
+                candidates.forEach(el => {
+                    const row = el.closest('.flex.w-full.justify-end, .flex.w-full.justify-start, div[class*="items-end"], div[class*="items-start"]') || el.closest('.flex.w-full');
+                    if (!row) return;
+                    if (row.closest('.chat-footer-control') || row.closest('#ep-chat-right-drawer') || row.closest('.ep-prompt-overlay')) return;
+
+                    const rawText = (row.textContent || '').trim();
+                    if (rawText.length > 0) {
+                        // 중복 방지 고유 키: 텍스트 앞뒤 80자 + 길이
+                        const key = `${rawText.slice(0, 40)}_${rawText.slice(-40)}_${rawText.length}`;
+                        if (!collectedBubblesMap.has(key)) {
+                            const clone = row.cloneNode(true);
+                            collectedBubblesMap.set(key, clone);
+                        }
+                    }
+                });
+            }
+
+            // 현재 화면 먼저 수집
+            harvestCurrentVisibleBubbles();
+
+            // 3. [점진적 정밀 스크롤]: 1턴(과거) 끝까지 조금씩 스크롤을 올리며 나타나는 모든 순정 DOM을 실시간 수집
+            let sameCountRounds = 0;
+            let lastHarvestCount = collectedBubblesMap.size;
+
+            for (let step = 0; step < 120; step++) {
+                // 위로 스크롤 이동
+                scrollEl.scrollTop = scrollEl.scrollTop - 600;
+                await new Promise(r => setTimeout(r, 180)); // 크랙 프론트엔드가 마크다운 파싱/렌더링할 시간 부여
+
+                harvestCurrentVisibleBubbles();
+
+                if (collectedBubblesMap.size === lastHarvestCount) {
+                    sameCountRounds++;
+                    if (sameCountRounds >= 5) {
+                        // 맨 위 도달 확인을 위해 끝까지 한 번 더 강제 이동
+                        scrollEl.scrollTop = -999999;
+                        await new Promise(r => setTimeout(r, 250));
+                        harvestCurrentVisibleBubbles();
+                        break;
+                    }
                 } else {
-                    sameCountStreak = 0;
-                    lastCount = currentBubbles;
+                    sameCountRounds = 0;
+                    lastHarvestCount = collectedBubblesMap.size;
                 }
-
-                // 스크롤 상단 끝으로 이동 (과거 대화 렌더링 트리거)
-                scrollContainer.scrollTop = -999999;
-                if (scrollContainer.scrollTop === 0) scrollContainer.scrollTop = 0;
-                await new Promise(r => setTimeout(r, 120)); // 크랙 프론트엔드 렌더링 대기
             }
 
-            // 3. 크랙이 직접 마크다운을 파싱해서 렌더링해 둔 순정 DOM 100% 딥 클론(Deep Clone)
-            const clonedChat = chatRoot.cloneNode(true);
+            // 스크롤 원위치 복구
+            scrollEl.scrollTop = originalScrollTop;
 
-            // 스크롤 원위치 복원
-            scrollContainer.scrollTop = originalScrollTop;
+            if (collectedBubblesMap.size === 0) {
+                showToast("❌ 수집된 대화 DOM이 없습니다.");
+                return;
+            }
 
-            // 4. 복제본에서 불필요한 UI 제거 및 [LORE]만 정밀 삭제
-            // 4-1. 버튼, 툴바, 서랍 등 제거
-            clonedChat.querySelectorAll('button, svg, input, textarea, .chat-footer-control, #ep-chat-right-drawer, .ep-prompt-overlay').forEach(el => el.remove());
+            // 4. 수집된 크랙 순정 말풍선 조각들 조립 및 [LORE]만 정밀 삭제
+            const collectedNodes = Array.from(collectedBubblesMap.values());
+            // 과거 1턴부터 차례대로 정렬되도록 뒤집기
+            collectedNodes.reverse();
 
-            // 4-2. [LORE ...] 시스템 주입 블록만 정밀 삭제
-            clonedChat.querySelectorAll('p, div, span').forEach(el => {
-                const text = (el.textContent || '').trim();
-                if (/^\[LORE\s*\d*\]/i.test(text)) {
-                    el.remove();
-                } else if (el.innerHTML && el.innerHTML.includes('[LORE')) {
-                    el.innerHTML = el.innerHTML.replace(/^\[LORE[\s\S]*?(?=(?:<br\s*\/?>\s*<br\s*\/?>|\n\s*\n)|$)/i, '').trim();
-                }
+            const chatWrapper = document.createElement('div');
+            chatWrapper.className = 'flex flex-col w-full gap-4';
+
+            collectedNodes.forEach(row => {
+                // 불필요한 버튼/툴바 제거
+                row.querySelectorAll('button, svg, input, textarea').forEach(b => b.remove());
+
+                // [LORE ...] 시스템 주입 블록만 정밀 삭제
+                row.querySelectorAll('p, div, span').forEach(el => {
+                    const text = (el.textContent || '').trim();
+                    if (/^\[LORE\s*\d*\]/i.test(text)) {
+                        el.remove();
+                    } else if (el.innerHTML && el.innerHTML.includes('[LORE')) {
+                        el.innerHTML = el.innerHTML.replace(/^\[LORE[\s\S]*?(?=(?:<br\s*\/?>\s*<br\s*\/?>|\n\s*\n)|$)/i, '').trim();
+                    }
+                });
+
+                chatWrapper.appendChild(row);
             });
-
-            // 4-3. 크랙 역순(flex-col-reverse) 구조를 뷰어에서 1턴부터 읽히도록 정상(위->아래) 순서로 정렬
-            if (clonedChat.classList.contains('flex-col-reverse')) {
-                clonedChat.classList.remove('flex-col-reverse');
-                clonedChat.classList.add('flex-col');
-                const children = Array.from(clonedChat.children);
-                children.reverse().forEach(child => clonedChat.appendChild(child));
-            }
 
             // 5. 크랙 사이트 내의 모든 CSS 스타일시트(<style>, <link rel="stylesheet">) 통째로 추출
             let styleTagsHtml = '';
@@ -1306,7 +1358,7 @@
             const nowStr = new Date().toISOString().slice(0, 10);
             const themeAttr = document.body.getAttribute('data-theme') || 'dark';
 
-            // 7. 독립 실행형 완전체 HTML 파일 조립
+            // 7. 독립 실행형 완전체 HTML 조립
             const fullHtml = `<!DOCTYPE html>
 <html lang="ko" class="${document.documentElement.className}">
 <head>
@@ -1351,9 +1403,9 @@
     <div class="viewer-container">
         <div class="viewer-header">
             <h1>${title}</h1>
-            <div class="meta">저장 일시: ${new Date().toLocaleString()}</div>
+            <div class="meta">저장 일시: ${new Date().toLocaleString()} | 크랙 순정 ${collectedNodes.length}개 말풍선 저장됨</div>
         </div>
-        ${clonedChat.outerHTML}
+        ${chatWrapper.outerHTML}
     </div>
 </body>
 </html>`;
@@ -1363,13 +1415,13 @@
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${title}_전체대화_${nowStr}.html`;
+            a.download = `${title}_크랙순정_${nowStr}.html`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            showToast("✨ 크랙 순정 마크다운 그대로 전체 저장이 완료되었습니다!");
+            showToast(`✨ 크랙 순정 1턴~전체 ${collectedNodes.length}개 대화 저장이 완료되었습니다!`);
         } catch (err) {
             console.error("[대화 저장 오류]:", err);
             showToast("❌ 대화 저장 중 오류가 발생했습니다.");
