@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.8.7
+// @version      1.8.8
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -128,6 +128,25 @@
             cursor: pointer;
         }
 
+        /* 크랙 순정 우측 서랍을 파스텔 서랍과 100% 동일하게 Fixed로 바닥까지 완벽 밀착 */
+        body.crack-drawer-active div[class*="border-outline_tertiary"][class*="w-[260px]"],
+        body.crack-drawer-active div[class*="z-[3]"] {
+            position: fixed !important;
+            top: 56px !important;
+            bottom: 0 !important;
+            right: 0 !important;
+            width: 260px !important;
+            height: auto !important;
+            max-height: none !important;
+            z-index: 100050 !important;
+            pointer-events: auto !important;
+            background-color: var(--bg_primary, #ffffff) !important;
+            box-shadow: -4px 4px 24px rgba(0, 0, 0, 0.08) !important;
+        }
+        body.crack-drawer-active .bg-sidebar {
+            z-index: 100050 !important;
+        }
+
         /* 서랍이 열렸을 때만 서랍 본체를 입력창(10000) 위로 올려 화면 바닥까지 100% 완전 노출 */
         body.crack-drawer-active div[class*="border-outline_tertiary"][class*="w-[260px]"],
         body.crack-drawer-active .bg-sidebar,
@@ -147,7 +166,7 @@
             transform: none !important;
             opacity: 1 !important;
             visibility: visible !important;
-            z-index: 10000 !important;
+            z-index: 100060 !important;
             background-color: var(--bg_screen, #ffffff) !important;
         }
         body[data-theme="dark"] .absolute.z-docked.left-0.w-full.h-12 {
@@ -169,15 +188,15 @@
             padding-bottom: 0 !important;
         }
 
-        /* 3. 크랙 순정 스크롤 버튼 절대 불변 고정 (입력창 바로 위 우측에 완벽 안착) */
+        /* 3. 크랙 순정 스크롤 버튼 절대 불변 고정 (입력창 위로 또렷하게 상시 노출) */
         button[class*="size-[34px]"],
         button:has(svg path[d^="m12 6.87"]),
         button:has(svg path[d^="M20.09 8.3"]) {
             position: fixed !important;
-            bottom: 180px !important;
+            bottom: 185px !important;
             right: calc(50% - 380px + 16px) !important;
             transform: none !important;
-            z-index: 10001 !important;
+            z-index: 10005 !important;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
         }
         @media (max-width: 768px) {
