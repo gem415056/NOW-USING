@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.9.7
+// @version      1.9.8
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -3380,6 +3380,7 @@
     }
 ]`;
 
+    // 1) 텍스트 변환 전용 풀스펙 프롬프트 (crack.html 순정 100% 완전 일치)
     const PROMPT_TEMPLATE_TEXT = `You are an AI Lore Archivist.
 Convert the provided [Source Text to convert] into structured JSON lore entries for RP.
 Use the original language of the text (Korean).
@@ -3500,6 +3501,7 @@ ${SCHEMA_FORMAT}
 [Source Text to convert]:
 `;
 
+    // 2) 대화 로그 추출 전용 풀스펙 프롬프트 (crack.html 순정 100% 완전 일치)
     const PROMPT_TEMPLATE_CHAT = `You are an AI Lore Archivist.
 Convert the following conversation log into structured JSON lore entries for RP.
 Output ONLY a valid JSON array matching the schema. No markdown backticks, no trailing commas.
@@ -3616,6 +3618,8 @@ Existing Lore Database:
 Conversation Log:
 `;
 
+    const PROMPT_TEMPLATE = PROMPT_TEMPLATE_CHAT;
+
     // ==========================================
     // 로깅, 턴수 및 스냅샷 복원 엔진
     // ==========================================
@@ -3721,8 +3725,9 @@ Conversation Log:
         } catch (_) {}
     }
 
-    async function mergeAndSaveLoreEntry(e, packName, chatId) {
-        if (!e || !e.name || !loreDb) return null;
+async function mergeAndSaveLoreEntry(e, packName, chatId) {
+        if (!e || (!e.name && !e.title) || !loreDb) return null;
+        if (!e.name && e.title) e.name = e.title; // title로 반환된 event/promise 카드 유실 방지
         e = reorderLoreKeys(e);
         const ensureArray = (val) => Array.isArray(val) ? val.filter(x => typeof x === 'string' || typeof x === 'number').map(String) : (typeof val === 'string' && val.trim() ? [val.trim()] : []);
 
@@ -4374,7 +4379,7 @@ Conversation Log:
                 const customBlock = customInstruction.trim() ? `\n\n[USER DIRECTIVES - ADDITIONAL GUIDELINES (MANDATORY)]:\n- ${customInstruction.trim()}` : '';
 
                 const prompt = `아래 제공된 중복 로어 조각 리스트를 읽고, 중복된 개념들을 완벽히 단일화한 하나의 초정밀 병합 로어로 요약 가공하여 JSON 객체로만 출력하시오.
-
+    
 [작명 및 정합성 지침 (Name Synthesis Rule)]:
 1. 관계(relationship) 타입 병합 지침 (CRITICAL/MANDATORY):
    - 만약 병합 대상이 'relationship' 타입이라면, "name"은 반드시 '인물A ↔ 인물B' 형식(가운데 대칭 화살표 기호 '↔' 필수, 이름 순서는 가나다순/알파벳순 정렬)을 엄격히 고수하십시오. (예: "강하늘 ↔ 김도훈"). 절대로 일반 서술형 제목(예: "두 사람의 우정", "동맹 관계")으로 이름을 변경하거나 새로 짓지 마십시오.
@@ -4391,17 +4396,19 @@ Conversation Log:
    - 상태값(<상태>)은 병합 대상 카드들의 상태 중 가장 최근/최신의 실질적 상황을 고려하여 AI가 상황에 맞춰 동적으로 판단하여 기입하십시오 (예: [진행 상황: 완료], [진행 상황: 진행중] 등).
 
 [트리거 보존 지침 (Trigger Keyword Rule)]:
-- "triggers": 병합 대상인 모든 로어 카드들의 기존 트리거 단어들을 단 하나도 누락시키지 말고 전부 개별 스트링(Array element)으로 그대로 보존하여 합치십시오. 절대로 여러 키워드를 하나의 긴 문자열로 뭉개거나 합치지 마십시오.
+- "triggers": 병합 대상인 모든 로어 카드들의 기존 트리거 단어들을 단 하나도 누락시키지 말고 전부 개별 스트링(Array element)으로 그대로 보존하여 합치십시오. 절대로 여러 키워드를 하나의 긴 문자열로 뭉개거나 합치지 마십시오 (예: ["해리", "포터"]를 ["해리 포터"]처럼 마음대로 합쳐서 한 칸으로 축소하지 말고, ["해리", "포터"] 각각 분리 보존해야 함).
 
 [요약 고도화 지침 (Rich Summary Rule)]:
 - "summary.full": 줄거리 요약은 엄격하게 최대 700자 이하로 압축하여 작성하되, 절대로 기존 줄거리 정보들을 대충 생략하거나 요약해서 날려버리지 마십시오. 병합 대상 카드들이 가진 모든 역사적 사실, 관계 이정표, 주요 상태 등을 꼼꼼하게 전부 누적하여 디테일하고 풍부한 내용의 완성된 문단으로 기술하십시오.
 - Date/Period Merging (For "event" type cards): If the cards being merged are of type "event", handle dates in "summary.full" as follows:
   * Same/Single Date: If all merged events occurred on the exact same date, prepend the date at the very beginning: "yyyy. mm. dd | 사건 내용" (Example: "2025. 10. 15 | 해리와 론이 만나 다툼.")
-  * Different Dates: If merged events occurred on different dates, format as a single-line sequence without newlines, separating each dated event with ' | ': "<yyyy. mm. dd> 사건 내용 | <yyyy. mm. dd> 사건 내용"
+  * Different Dates: If merged events occurred on different dates, format as a single-line sequence without newlines, separating each dated event with ' | ': "<yyyy. mm. dd> 사건 내용 | <yyyy. mm. dd> 사건 내용" (Example: "<2025. 10. 15> 해리와 론이 다툼 | <2025. 10. 18> 두 사람이 화해함")
   * Unknown Date: Use "Relative Timeline | 사건 내용" or "<상대적 시점> 사건 내용 | <상대적 시점> 사건 내용"
+  * Do NOT alter, lose, or drop date information or formatting. Every dot, bracket, and space must be exact.
+  * Do NOT use raw newline characters (Enter) inside string values. Keep the merged summary formatted cleanly on a single line.
 
 [사건 및 대사 병합 규칙 (Event History & Quote Merging Rule)]:
-- "eventHistory": 병합 대상 카드들이 가진 모든 사건 기록을 연대순으로 정밀 통합하십시오. 중복되는 사건은 제거하되, 해당 사건의 "quote"가 있을 경우 절대 유실하지 말고 온전히 병합 보존하여 최종 JSON에 출력해야 합니다.
+- "eventHistory": 병합 대상 카드들이 가진 모든 사건 기록을 연대순으로 정밀 통합하십시오. 중복되는 사건(summary 내용이 90% 이상 겹침)은 제거하되, 해당 사건의 "quote"가 있을 경우 절대 유실하지 말고 온전히 병합 보존하여 최종 JSON에 출력해야 합니다.
 
 [TOKEN-SAVING & STYLE CONSTRAINT (명사형 개조식 필수)]:
 - EXCLUSION: Only the "text" field inside the "quote" array is allowed to use natural, colloquial speech (e.g. "Briefly 『...』", "「...」").
@@ -4409,10 +4416,15 @@ Conversation Log:
 - NEVER use polite, formal, or plain prose endings (e.g., "~합니다", "~이다", "~했다" 등 평서문/설명조 문체 영구 금지).
 
 [summary.full BUDGET]:
-- "summary.full" 줄거리 요약은 설정된 최대 700자 이하를 꽉 채워 최대한 구체적으로 작성하십시오.
+- "summary.full" 줄거리 요약은 설정된 최대 700자 이하를 꽉 채워 최대한 구체적으로 작성하십시오. (전체 카드 수납 메타를 포함한 물리적 세이브 상한선은 ${maxChars}자입니다).
+
+[MEMORABLE QUOTE (명대사 및 어록 보존 규칙)]
+  * When extracting a key narrative event (eventHistory) representing emotional shifts, relationship milestones, or contract execution, always record the most influential and memorable dialogue or inner thoughts representing that event inside the quote object of that event.
+  * CRITICAL JSON SAFETY: Inside any JSON string values, you MUST NEVER use double quotes (") for dialogue or emphasis. Use single quotes (') or bracket-quotes instead to prevent JSON parsing syntax crashes.
 
 [출력 규칙]:
 - Markdown 백틱(\`\`\`) 기호 없이 단일 JSON 오브젝트 구조 { ... } 로만 출력하시오.
+- 텍스트 내의 모든 큰따옴표(")는 역슬래시(\\")로 안전하게 이스케이프해야 합니다.
 
 병합 대상 데이터:
 ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
