@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.9.9
+// @version      2.0.0
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -2052,11 +2052,14 @@
         // API 수급 성공: 과거 1턴부터 순서대로 reverse() 정렬 및 [crack.html 순정] 유저 턴수 카운팅
         if (loadedMessages.length > 0) {
             loadedMessages.reverse();
-            // [crack.html 순정 100%] 백엔드 대화 배열 중 유저 메시지(role === 'user')의 개수로 실시간 턴수 산출
-            const userTurns = loadedMessages.filter(m => (m.role === 'user' || m.type === 'user')).length;
+            // [crack.html 순정 100%] 백엔드 대화 배열 중 유저 메시지(role/type/sender 판별) 정밀 카운팅
+            const userTurns = loadedMessages.filter(m => {
+                const r = String(m.role || m.type || m.sender || '').toLowerCase();
+                return r === 'user';
+            }).length;
             localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(userTurns));
 
-            console.log(`📥 [PASTEL:수급] contents-api에서 총 ${loadedMessages.length}개 메시지 수급 완료! (현재 ${userTurns}턴)`);
+            console.log(`📥 [PASTEL:수급] contents-api에서 총 ${loadedMessages.length}개 메시지 수급 완료! (현재 유저 ${userTurns}턴)`);
             return loadedMessages;
         }
 
@@ -2076,11 +2079,9 @@
         if (document.querySelector('.flex-col-reverse')) domTurns.reverse();
 
         const domUserTurns = domTurns.filter(m => m.role === 'user').length;
-        if (domUserTurns > 0) {
-            localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(domUserTurns));
-        }
+        localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(domUserTurns));
 
-        console.log(`📥 [PASTEL:수급] DOM 파서에서 ${domTurns.length}개 메시지 수급 완료! (현재 ${domUserTurns}턴)`);
+        console.log(`📥 [PASTEL:수급] DOM 파서에서 ${domTurns.length}개 메시지 수급 완료! (현재 유저 ${domUserTurns}턴)`);
         return domTurns;
     }
 
@@ -2092,14 +2093,17 @@
         try {
             const msgs = await fetchCrackMessagesPure(targetId, -1);
             if (Array.isArray(msgs) && msgs.length > 0) {
-                const userCount = msgs.filter(m => (m.role === 'user' || m.type === 'user')).length;
+                const userCount = msgs.filter(m => {
+                    const r = String(m.role || m.type || m.sender || '').toLowerCase();
+                    return r === 'user';
+                }).length;
                 localStorage.setItem(`pastel_crack_chat_turns_${targetId}`, String(userCount));
                 return userCount;
             }
         } catch (_) {}
 
         const saved = parseInt(localStorage.getItem(`pastel_crack_chat_turns_${targetId}`) || '0', 10);
-        return saved || 0;
+        return isNaN(saved) ? 0 : saved;
     }
 
     // 동기식 간이 턴수 조회기 (기존 UI 및 로그용)
@@ -2821,6 +2825,7 @@
                     const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${chatId}`), 10) || 6;
                     const currentTurns = getCrackChatTurns(chatId);
                     const lastAutoTurnKey = `pastel_crack_last_auto_ext_turn_${chatId}`;
+                    const lastAutoTurn = parseInt(localStorage.getItem(lastAutoTurnKey) || '-1', 10);
 
                     if (currentTurns > 0 && currentTurns % extTurns === 0 && currentTurns !== lastAutoTurn) {
                         localStorage.setItem(lastAutoTurnKey, String(currentTurns));
@@ -4684,11 +4689,14 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 .join(' ');
             const query = (lastContext + " " + userRawText).toLowerCase();
 
-            // 2. crack.html 순정 트리거 매칭 (0.5 가중치)
+            // 2. RAG 트리거 매칭 (타입별 최적화 가중치 적용)
             const matchedByTrigger = [];
             allEntries.forEach(e => {
                 if (!e.triggers || e.triggers.length === 0) return;
                 let maxScore = 0;
+                const typeLow = String(e.type || '').toLowerCase().trim();
+                const isProfileType = (typeLow === 'character' || typeLow === 'relationship');
+
                 e.triggers.forEach(t => {
                     const triggerStr = t.trim().toLowerCase();
                     if (!triggerStr) return;
@@ -4709,20 +4717,26 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                     const currentScore = partsScore / andParts.length;
                     if (currentScore > maxScore) maxScore = currentScore;
                 });
-                if (maxScore > 0) matchedByTrigger.push({ entry: e, score: maxScore });
+
+                if (maxScore > 0) {
+                    // 캐릭터/관계 카드의 단순 이름 상시 매칭 독점을 방지하기 위해 기본 트리거 점수 상한을 0.65로 조율
+                    const adjustedScore = isProfileType ? Math.min(0.65, maxScore * 0.7) : maxScore;
+                    matchedByTrigger.push({ entry: e, score: adjustedScore });
+                }
             });
 
-            // 3. crack.html 순정 Gemini 임베딩 코사인 유사도 매칭 (0.5 가중치)
+            // 3. Gemini 임베딩 코사인 유사도 매칭 (전체 맥락 융합)
             const matchedByEmbedding = [];
             const embedKey = localStorage.getItem('pastel_crack_lore_embed_key') || localStorage.getItem('pastel_lore_embed_key') || localStorage.getItem('pastel_api_gemini') || '';
             const embedModel = localStorage.getItem('pastel_crack_lore_embed_model') || 'gemini-embedding-001';
 
-            if (embedKey.trim() && userRawText.trim()) {
+            if (embedKey.trim() && (userRawText.trim() || lastContext.trim())) {
                 try {
+                    const embedQueryText = (lastContext.slice(-300) + "\n" + userRawText).trim().slice(0, 1000);
                     const embedUrl = `https://generativelanguage.googleapis.com/v1beta/models/${embedModel}:embedContent?key=${embedKey.trim()}`;
                     const embedRes = await fetch(embedUrl, {
                         method: "POST", headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ content: { parts: [{ text: userRawText.slice(0, 1000) }] } })
+                        body: JSON.stringify({ content: { parts: [{ text: embedQueryText }] } })
                     }).then(r => r.ok ? r.json() : null);
 
                     if (embedRes && embedRes.embedding && embedRes.embedding.values) {
@@ -4741,7 +4755,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                                 }
                                 const denom = Math.sqrt(na) * Math.sqrt(nb);
                                 const sim = denom === 0 ? 0 : dot / denom;
-                                if (sim >= 0.27) {
+                                if (sim >= 0.25) {
                                     const ent = allEntries.find(x => x.id === eb.entryId);
                                     if (ent) matchedByEmbedding.push({ entry: ent, score: sim });
                                 }
@@ -4751,7 +4765,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 } catch (_) {}
             }
 
-            // 4. 스코어 융합 & 타입 부스트 (1.3배)
+            // 4. 스코어 융합 & 서사 엔진(event/promise/concept) 1.8배 강력 부스트
             const scoreMap = {};
             const addToMap = (row, w) => {
                 const id = row.entry.id;
@@ -4761,12 +4775,13 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
             matchedByTrigger.forEach(r => addToMap(r, 0.5));
             matchedByEmbedding.forEach(r => addToMap(r, 0.5));
 
-            const BOOST_TYPES = new Set(['event', 'promise', 'concept']);
+            const NARRATIVE_BOOST_TYPES = new Set(['event', 'promise', 'concept', 'item', 'location', 'setting']);
             Object.values(scoreMap).forEach(row => {
                 const typeLow = String(row.entry.type || '').toLowerCase().trim();
-                if (BOOST_TYPES.has(typeLow)) row.score *= 1.3;
+                if (NARRATIVE_BOOST_TYPES.has(typeLow)) {
+                    row.score *= 1.8; // 사건/약속/컨셉 카드에 강력한 1.8배 가중치를 부여하여 최우선 주입 보장
+                }
             });
-
             // 5. 슬롯 우선순위 배정 알고리즘 (API 실시간 유저 턴수 직접 동기화)
             const currentTurn = await getCrackUserTurnsRealtime(chatId);
             const selectedLores = [];
