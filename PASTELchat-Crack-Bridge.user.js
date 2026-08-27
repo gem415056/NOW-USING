@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.6.6
+// @version      1.6.7
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -127,28 +127,37 @@
             background-color: #141413 !important;
         }
 
-        /* 2. 대화 목록 끝 여백 완전 초기화 (대화 끝 팽창 방지) */
+        /* 2. 크랙 순정 가변 패딩 및 대화 스크롤 유령 공백 완전 초기화 */
+        .flex.flex-col.w-full.px-5,
+        .flex.flex-col.w-full.max-w-\[768px\],
+        .flex.flex-col-reverse.w-full,
         .flex.flex-col-reverse.w-full.gap-10 {
             padding-bottom: 0 !important;
             margin-bottom: 0 !important;
+            min-height: 0 !important;
+        }
+        /* 메시지 목록 최하단(역방향 기준 첫 번째) 요소의 유령 마진/패딩 강제 차단 */
+        .flex.flex-col-reverse.w-full > div:first-child {
+            margin-bottom: 0 !important;
+            padding-bottom: 0 !important;
         }
 
-        /* 3. 크랙 순정 스크롤 버튼 절대 불변 고정 (위로 붕 뜨는 현상 100% 차단) */
+        /* 3. 크랙 순정 스크롤 버튼 절대 불변 고정 (입력창 바로 위 우측에 완벽 안착) */
         button[class*="size-[34px]"],
         button:has(svg path[d^="m12 6.87"]),
         button:has(svg path[d^="M20.09 8.3"]) {
             position: fixed !important;
-            bottom: 195px !important;
-            right: calc(50% - 380px + 10px) !important;
-            transform: none !important; /* 크랙 스크립트가 위로 들어 올리는 현상 강제 차단 */
-            z-index: 10005 !important;
+            bottom: 180px !important;
+            right: calc(50% - 380px + 16px) !important;
+            transform: none !important;
+            z-index: 35 !important;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
         }
         @media (max-width: 768px) {
             button[class*="size-[34px]"],
             button:has(svg path[d^="m12 6.87"]),
             button:has(svg path[d^="M20.09 8.3"]) {
-                right: 20px !important;
+                right: 16px !important;
             }
         }
 
@@ -544,7 +553,7 @@
             padding: 0 0 10px 0 !important;
             margin: 0 !important;
             background-color: var(--bg_screen, #ffffff) !important;
-            z-index: 10000 !important;
+            z-index: 30 !important;
             overflow: visible !important;
         }
         body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
