@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.8.1
+// @version      1.8.2
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -110,24 +110,19 @@
             z-index: -99999 !important;
         }
 
+        /* 크랙 순정 좌/우측 서랍 본체 레이어 (입력창 위로 바닥까지 완벽 노출) */
+        .bg-sidebar,
+        div[class*="border-outline_tertiary"][class*="w-[260px]"],
+        aside:has(.py-4.overflow-y-auto) {
+            z-index: 10001 !important;
+        }
+
         /* 크랙 순정 암전 딤 오버레이 (서랍 열림 시 입력창까지 완벽 암전) */
         div[class*="bg-bg_dimmed"] {
-            z-index: 45 !important;
+            z-index: 9999 !important;
         }
 
-        /* 크랙 순정 우측 서랍: 닫혔을 때는 터치 가로채기 완전 차단, 열렸을 때만 z-50 활성화 */
-        div[class*="border-outline_tertiary"][class*="w-[260px]"],
-        div[class*="z-[3]"] {
-            z-index: 0 !important;
-            pointer-events: none !important;
-        }
-        div[class*="border-outline_tertiary"][class*="w-[260px]"][class*="translate-x-0"],
-        div[class*="z-[3]"][class*="translate-x-0"] {
-            z-index: 50 !important;
-            pointer-events: auto !important;
-        }
-
-        /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (서랍보다 높은 z-60으로 최상단 고정) */
+        /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (서랍보다 높은 z-10002로 최상단 완벽 고정) */
         div[class*="z-docked"],
         .absolute.z-docked.left-0.w-full.h-12,
         .h-12.px-5.flex.justify-between.items-center {
@@ -138,7 +133,7 @@
             transform: none !important;
             opacity: 1 !important;
             visibility: visible !important;
-            z-index: 60 !important;
+            z-index: 10002 !important;
             background-color: var(--bg_screen, #ffffff) !important;
         }
         body[data-theme="dark"] .absolute.z-docked.left-0.w-full.h-12 {
@@ -168,7 +163,7 @@
             bottom: 180px !important;
             right: calc(50% - 380px + 16px) !important;
             transform: none !important;
-            z-index: 25 !important;
+            z-index: 9998 !important;
             box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15) !important;
         }
         @media (max-width: 768px) {
@@ -587,7 +582,7 @@
             padding: 0 0 10px 0 !important;
             margin: 0 !important;
             background-color: var(--bg_screen, #ffffff) !important;
-            z-index: 20 !important;
+            z-index: 9998 !important;
             overflow: visible !important;
         }
         body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
@@ -1243,149 +1238,112 @@
     }
 
     /* ==========================================================================
-     * 2.6 크랙 순정 무손실 HTML 대화 백업/내보내기 엔진
+     * 2.6 크랙 순정 화면 DOM & CSS 1:1 캡처 무손실 HTML 저장 엔진
      * ========================================================================== */
     async function exportCrackChatToHtml() {
-        const chatId = getChatId();
-        showToast("📥 대화 데이터를 수급하는 중...");
+        showToast("📥 화면 대화창 캡처 중...");
 
         try {
-            const messages = await fetchCrackMessagesPure(chatId, -1);
-            if (!messages || messages.length === 0) {
-                showToast("❌ 저장할 대화 내역이 없습니다.");
+            // 1. 크랙 대화창 루트 DOM 탐색
+            const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || 
+                             document.querySelector('main') || 
+                             document.querySelector('.flex-1.overflow-y-auto');
+
+            if (!chatRoot) {
+                showToast("❌ 화면에서 대화창을 찾을 수 없습니다.");
                 return;
             }
 
-            // 캐릭터/대화방 타이틀 추출
+            // 2. 화면 DOM 전체 복제 (Deep Clone)
+            const clonedChat = chatRoot.cloneNode(true);
+
+            // 3. 복제본에서 불필요한 UI 및 [LORE] 주입 블록 정밀 제거
+            // 3-1. 버튼, 아이콘, 팝업, 툴바 등 불필요 요소 제거
+            clonedChat.querySelectorAll('button, svg, input, textarea, .chat-footer-control, #ep-chat-right-drawer, .ep-prompt-overlay').forEach(el => el.remove());
+
+            // 3-2. [LORE ...] 로 시작하는 시스템 주입 단락 완전 삭제
+            clonedChat.querySelectorAll('p, div').forEach(el => {
+                const text = (el.textContent || '').trim();
+                if (/^\[LORE\s*\d*\]/i.test(text)) {
+                    el.remove();
+                } else if (el.innerHTML && el.innerHTML.includes('[LORE')) {
+                    el.innerHTML = el.innerHTML.replace(/^\[LORE[\s\S]*?(?=(?:<br\s*\/?>\s*<br\s*\/?>|\n\s*\n)|$)/i, '').trim();
+                }
+            });
+
+            // 3-3. 크랙의 flex-col-reverse(역순 스크롤) 구조를 독립 뷰어에서 정상(위->아래) 순서로 정렬
+            if (clonedChat.classList.contains('flex-col-reverse')) {
+                clonedChat.classList.remove('flex-col-reverse');
+                clonedChat.classList.add('flex-col');
+                const children = Array.from(clonedChat.children);
+                children.reverse().forEach(child => clonedChat.appendChild(child));
+            }
+
+            // 4. 크랙 사이트 내의 모든 CSS 스타일시트(<style>, <link rel="stylesheet">) 통째로 추출
+            let styleTagsHtml = '';
+            document.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => {
+                styleTagsHtml += el.outerHTML + '\n';
+            });
+
+            // 5. 타이틀 및 메타 정보
             let title = document.title || 'CRACK_Chat_Backup';
             title = title.replace(/[\\/:*?"<>|]/g, '_').trim();
             const nowStr = new Date().toISOString().slice(0, 10);
+            const themeAttr = document.body.getAttribute('data-theme') || 'dark';
 
-            // 메시지 HTML 블록 조립 (크랙 고유 말풍선 렌더링 스타일)
-            const chatItemsHtml = messages.map(msg => {
-                const isUser = (msg.role === 'user' || msg.type === 'user');
-                const rawContent = msg.content || msg.message || msg.text || '';
-                const cleanContent = stripLoreInjectionBlock(rawContent);
-                if (!cleanContent.trim()) return '';
-
-                // 줄바꿈 보존 및 특수문자 이스케이프
-                const safeContent = cleanContent
-                    .replace(/&/g, '&amp;')
-                    .replace(/</g, '&lt;')
-                    .replace(/>/g, '&gt;');
-
-                return `
-                <div class="chat-row ${isUser ? 'user-row' : 'assistant-row'}">
-                    <div class="bubble ${isUser ? 'user-bubble' : 'assistant-bubble'}">
-                        <div class="bubble-content">${safeContent}</div>
-                    </div>
-                </div>`;
-            }).filter(Boolean).join('\n');
-
+            // 6. 독립 실행형 완전체 HTML 파일 조립 (크랙 고유 CSS + 캡처된 순정 DOM)
             const fullHtml = `<!DOCTYPE html>
-<html lang="ko">
+<html lang="ko" class="${document.documentElement.className}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${title} (${nowStr})</title>
+    ${styleTagsHtml}
     <style>
-        :root {
-            --bg-color: #141413;
-            --text-color: #F0EFEB;
-            --user-bg: #2b2a27;
-            --user-text: #F0EFEB;
-            --assistant-bg: transparent;
-            --assistant-text: #F0EFEB;
-            --border-color: #33322e;
-        }
-        @media (prefers-color-scheme: light) {
-            :root {
-                --bg-color: #ffffff;
-                --text-color: #222222;
-                --user-bg: #f2f2ee;
-                --user-text: #222222;
-                --assistant-bg: transparent;
-                --assistant-text: #222222;
-                --border-color: #e5e5e5;
-            }
-        }
         body {
-            background-color: var(--bg-color);
-            color: var(--text-color);
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
-            margin: 0;
-            padding: 24px 16px 80px 16px;
-            display: flex;
-            justify-content: center;
+            margin: 0 !important;
+            padding: 32px 16px 80px 16px !important;
+            display: flex !important;
+            justify-content: center !important;
+            background-color: var(--bg_screen, ${themeAttr === 'dark' ? '#141413' : '#ffffff'}) !important;
+            color: var(--text_primary, ${themeAttr === 'dark' ? '#F0EFEB' : '#222222'}) !important;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif !important;
         }
-        .container {
+        .viewer-container {
             width: 100%;
             max-width: 768px;
             display: flex;
             flex-direction: column;
-            gap: 20px;
+            gap: 16px;
         }
-        .header {
+        .viewer-header {
             padding-bottom: 16px;
-            border-bottom: 1px solid var(--border-color);
-            margin-bottom: 10px;
+            border-bottom: 1px solid rgba(128, 128, 128, 0.2);
+            margin-bottom: 24px;
         }
-        .header h1 {
-            font-size: 18px;
+        .viewer-header h1 {
+            font-size: 20px;
+            font-weight: bold;
             margin: 0 0 6px 0;
         }
-        .header .meta {
+        .viewer-header .meta {
             font-size: 12px;
             color: #888888;
         }
-        .chat-row {
-            display: flex;
-            width: 100%;
-        }
-        .chat-row.user-row {
-            justify-content: flex-end;
-        }
-        .chat-row.assistant-row {
-            justify-content: flex-start;
-        }
-        .bubble {
-            max-width: 85%;
-            padding: 12px 16px;
-            border-radius: 16px;
-            box-sizing: border-box;
-        }
-        .user-bubble {
-            background-color: var(--user-bg);
-            color: var(--user-text);
-            border-bottom-right-radius: 4px;
-        }
-        .assistant-bubble {
-            background-color: var(--assistant-bg);
-            color: var(--assistant-text);
-            padding-left: 0;
-            padding-right: 0;
-            width: 100%;
-            max-width: 100%;
-        }
-        .bubble-content {
-            font-size: 15px;
-            line-height: 1.65;
-            white-space: pre-wrap;
-            word-break: break-word;
-        }
     </style>
 </head>
-<body>
-    <div class="container">
-        <div class="header">
+<body data-theme="${themeAttr}">
+    <div class="viewer-container">
+        <div class="viewer-header">
             <h1>${title}</h1>
-            <div class="meta">저장 일시: ${new Date().toLocaleString()} | 총 ${messages.length}개 메시지</div>
+            <div class="meta">저장 일시: ${new Date().toLocaleString()}</div>
         </div>
-        ${chatItemsHtml}
+        ${clonedChat.outerHTML}
     </div>
 </body>
 </html>`;
 
+            // 7. 파일 다운로드 실행
             const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1396,7 +1354,7 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            showToast("✨ 대화 저장이 완료되었습니다!");
+            showToast("✨ 화면 그대로 대화 저장이 완료되었습니다!");
         } catch (err) {
             console.error("[대화 저장 오류]:", err);
             showToast("❌ 대화 저장 중 오류가 발생했습니다.");
@@ -2465,10 +2423,18 @@
         const tplBtn = document.getElementById('ep-chat-tpl-popup-btn');
         const tplPanel = document.getElementById('ep-tpl-quick-panel');
 
+        const footerCtrl = document.querySelector('.chat-footer-control');
+        if (footerCtrl) {
+            footerCtrl.addEventListener('click', (e) => e.stopPropagation());
+            footerCtrl.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
+        }
+
         if (textarea) {
             textarea.addEventListener('keydown', (e) => e.stopPropagation());
             textarea.addEventListener('keyup', (e) => e.stopPropagation());
-            // blur 시 무한 루프를 유발하던 syncTextToNativeEditor 완전 제거
+            textarea.addEventListener('click', (e) => e.stopPropagation());
+            textarea.addEventListener('focus', (e) => e.stopPropagation());
+            textarea.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
         }
 
         // 1. 단축어 선택 팝업 바인딩
