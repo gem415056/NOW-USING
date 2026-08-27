@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.8.5
+// @version      1.8.6
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -110,16 +110,22 @@
             z-index: -99999 !important;
         }
 
-        /* 크랙 순정 우측 서랍이 실제로 열렸을 때(opacity-100 켜짐)만 조건부 암전 및 서랍 승격 */
-        div[class*="bg-bg_dimmed"][class*="opacity-100"],
-        div[class*="bg-bg_dimmed"].opacity-100 {
-            z-index: 10005 !important;
-            pointer-events: auto !important;
+        /* 크랙 순정 서랍(좌측/우측) 열림 시 입력창 직속 완벽 암전 딤 처리 */
+        .chat-footer-control::after {
+            content: "";
+            position: absolute;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.45);
+            border-radius: 12px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.2s ease-in-out;
+            z-index: 1000;
         }
-        body:has(div[class*="bg-bg_dimmed"][class*="opacity-100"]) div[class*="border-outline_tertiary"][class*="w-[260px]"],
-        body:has(div[class*="bg-bg_dimmed"].opacity-100) div[class*="border-outline_tertiary"][class*="w-[260px]"] {
-            z-index: 10010 !important;
-            pointer-events: auto !important;
+        body.crack-drawer-active .chat-footer-control::after {
+            opacity: 1;
+            pointer-events: auto;
+            cursor: pointer;
         }
 
         /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (스크롤 시 사라짐 원천 방지) */
@@ -1222,206 +1228,230 @@
     }
 
     /* ==========================================================================
-     * 2.5 로어 블록 화면 은닉 필터 (마크다운 파서 제거 완료)
+     * 2.5 로어 블록 화면 은닉 필터 (index.html 순정 100% 일치)
      * ========================================================================== */
     function stripLoreInjectionBlock(text) {
         if (!text) return "";
         let str = String(text).replace(/\r\n/g, '\n').trimStart();
         if (!str.startsWith('[LORE')) return str;
 
+        // 1. 메시지 시작부의 [LORE 1]부터 유저 본문 경계(\n\n) 직전까지의 모든 줄바꿈 포함 블록을 통째로 적출
         str = str.replace(/^\[LORE[\s\S]*?(?=(?:\n\s*\n(?!\s*\[LORE))|$)/i, '').trimStart();
+
+        // 2. 만약 단일 개행으로 유저 텍스트와 붙어있는 잔여 [LORE ...] 태그가 남아있다면 2차 정리
         while (/^\[LORE\s*\d*\]/i.test(str)) {
             str = str.replace(/^\[LORE\s*\d*\][^\n]*(?:\n|$)/i, '').trimStart();
         }
         return str;
     }
 
+    // [HTML 저장 전용] index.html 순정 100% 완전 일치 마크다운 파서 (화면 비간섭 / 저장 시에만 동작)
+    function parseChatMarkdownForExport(text, msgType = 'model') {
+        if (!text) return "";
+
+        const isUser = (msgType === 'user');
+
+        // 1. 주입된 로어 블록 은닉 및 과도한 개행만 정리 (일반 문단 빈 줄은 100% 보존)
+        let cleanedText = stripLoreInjectionBlock(text).replace(/\n{3,}/g, '\n\n').trim();
+
+        // 2. 크랙 에디터가 대사카드/문자 사이에 강제로 끼워넣은 빈 줄만 스마트 결합
+        cleanedText = cleanedText
+            .replace(/([—―][^\n]+)\n+(?=▎)/g, '$1\n')
+            .replace(/(▎[^\n]*)\n+(?=▎)/g, '$1\n')
+            .replace(/([—―][^\n]+)\n+(?=`)/g, '$1\n')
+            .replace(/(`[^`\n]+`)\n+(?=`)/g, '$1\n');
+
+        let html = cleanedText
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;");
+
+        // 0. HUD 전용 ❴ ❵ 파싱
+        html = html.replace(/❴\n?([\s\S]*?)\n?❵(\r?\n)?/g, function(match, hudContent) {
+            return `<div class="ep-hud-box">${hudContent.trim()}</div>`;
+        });
+
+        // 0.2 대사 카드 파싱 (사이에 빈 줄이 있어도 완벽 결합)
+        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*▎[^\n\r]*)+)(\r?\n)?/g, function(match, leadNL, name, lines) {
+            const cleanName = name.trim();
+            const contentList = lines.split('\n')
+                .map(l => l.trim())
+                .filter(l => l.startsWith('▎'))
+                .map(l => l.replace(/^▎\s*/, ''));
+            const cleanContent = contentList.join('\n');
+            return `${leadNL}<div class="ep-dialogue-card-wrapper ${isUser ? 'user-side' : ''}"><div class="ep-dialogue-badge-row"><div class="ep-dialogue-badge">${cleanName}</div></div><div class="ep-dialogue-card-box">${cleanContent}</div></div>`;
+        });
+
+        // 0.3 메신저 문자 말풍선 파싱 (사이에 빈 줄이 있어도 완벽 결합)
+        html = html.replace(/(^|\r?\n)[—―]\s*([^\n\r]+)(?:\r?\n\s*)*((?:\r?\n\s*`[^`\n\r]+`)+)(\r?\n)?/g, function(match, leadNL, name, lines) {
+            const cleanName = name.trim();
+            const bubbleList = lines.split('\n')
+                .map(l => l.trim())
+                .filter(l => l.startsWith('`') && l.endsWith('`'))
+                .map(l => l.slice(1, -1).trim());
+            if (bubbleList.length === 0) return match;
+
+            const userSvg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"><path d="M17.925 20.056a6 6 0 0 0-11.851.001"/><circle cx="12" cy="11" r="4"/><circle cx="12" cy="12" r="10"/></svg>`;
+            const bubblesHtml = bubbleList.map(b => `<div class="ep-sms-bubble">${b}</div>`).join('');
+            return `${leadNL}<div class="ep-sms-container ${isUser ? 'user-side' : ''}"><div class="ep-sms-avatar-icon">${userSvg}</div><div class="ep-sms-content-col"><span class="ep-sms-name">${cleanName}</span>${bubblesHtml}</div></div>`;
+        });
+
+        // 1. 코드블록 치환
+        html = html.replace(/`{3}([^\n]*?)(?:\r?\n([\s\S]*?))?`{3}(\r?\n)?/g, function(match, title, content) {
+            const trimmedTitle = title.trim();
+            if (content === undefined) return `<div class="ep-code-block-wrapper"><div class="ep-code-block-body no-header">${trimmedTitle}</div></div>`;
+            const cleanedContent = content.trim();
+            return trimmedTitle 
+                ? `<div class="ep-code-block-wrapper"><div class="ep-code-block-header">${trimmedTitle}</div><div class="ep-code-block-body">${cleanedContent}</div></div>`
+                : `<div class="ep-code-block-wrapper"><div class="ep-code-block-body no-header">${cleanedContent}</div></div>`;
+        });
+
+        // 2. 인라인 백틱
+        html = html.replace(/`([^`\n]+)`/g, '<span class="ep-inline-code">$1</span>');
+
+        // 2.5 단축어 전송 토큰 치환 (!단축어 뱃지 렌더링)
+        html = html.replace(/(![a-zA-Z0-9가-힣/]+)/g, '<span class="ep-chat-shortcut-token">$1</span>');
+
+        // 2.8 점선 구분선
+        html = html.replace(/(^\s*([\*_=~+─━═┈┉┄┅―—–‒·•-]\s*){3,}\s*$|\*{3,}|={3,}|─{2,}|━{2,}|═{2,})(\r?\n)?/gm, '<hr class="ep-chat-hr">');
+
+        // 3. 볼드
+        html = html.replace(/\*\*([^*]+)\*\*/g, '<strong class="ep-chat-bold">$1</strong>');
+
+        // 4. 행동 지문
+        html = html.replace(/\*([^*\n]+)\*/g, '<span class="ep-chat-action">$1</span>');
+
+        // 5. 연속 인용구 그룹핑 알고리즘 (> 로 시작하는 줄 연속 묶음 처리)
+        const lines = html.split('\n');
+        const processedLines = [];
+        let inQuoteBlock = false;
+        let quoteBuffer = [];
+
+        for (let i = 0; i < lines.length; i++) {
+            const line = lines[i];
+            const trimmed = line.trim();
+
+            if (trimmed.startsWith('&gt;')) {
+                const content = line.replace(/^\s*&gt;\s?/, '');
+                if (!inQuoteBlock) inQuoteBlock = true;
+                quoteBuffer.push(content);
+            } else {
+                if (inQuoteBlock) {
+                    processedLines.push(`<span class="quote-block">${quoteBuffer.join('\n')}</span><!--qb-end-->`);
+                    quoteBuffer = [];
+                    inQuoteBlock = false;
+                }
+                processedLines.push(line);
+            }
+        }
+
+        if (inQuoteBlock) {
+            processedLines.push(`<span class="quote-block">${quoteBuffer.join('\n')}</span><!--qb-end-->`);
+        }
+
+        let result = processedLines.join('\n');
+        result = result.replace(/(<!--qb-end-->)\n/g, '$1');
+        result = result.replace(/<!--qb-end-->/g, '');
+        return result;
+    }
+
     /* ==========================================================================
-     * 2.6 크랙 순정 DOM 실시간 누적 수집(Accumulate) 무손실 HTML 저장 엔진
+     * 2.6 index.html 순정 100% 완전 일치 소설형 HTML 대화 저장 엔진
      * ========================================================================== */
     async function exportCrackChatToHtml() {
-        showToast("⏳ 1턴까지 스크롤하며 크랙 순정 DOM 정밀 수집 시작...");
+        const chatId = getChatId();
+        showToast("📥 1턴부터 전체 대화 내역 수급 중...");
 
         try {
-            // 1. 크랙 스크롤 컨테이너 탐색
-            const allScrollables = Array.from(document.querySelectorAll('*')).filter(el => {
-                const s = window.getComputedStyle(el);
-                return (s.overflowY === 'auto' || s.overflowY === 'scroll') && el.scrollHeight > el.clientHeight;
-            });
-            const scrollEl = allScrollables[0] || document.documentElement || document.body;
-
-            const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || 
-                             document.querySelector('main') || 
-                             document.querySelector('.flex-1.overflow-y-auto');
-
-            if (!chatRoot) {
-                showToast("❌ 대화창을 찾을 수 없습니다.");
+            // 1. contents-api 커서 순회로 1턴부터 끝까지의 전체 대화 배열 수급
+            const messages = await fetchCrackMessagesPure(chatId, -1);
+            if (!messages || messages.length === 0) {
+                showToast("❌ 저장할 대화 내역이 없습니다.");
                 return;
             }
 
-            const originalScrollTop = scrollEl.scrollTop;
-
-            // 2. 크랙 순정 말풍선 DOM 수집기 Map (고유 텍스트 기반 중복 제거)
-            const collectedBubblesMap = new Map();
-
-            function harvestCurrentVisibleBubbles() {
-                // 크랙 말풍선 컨테이너들 탐색
-                const candidates = chatRoot.querySelectorAll('.flex.w-full, .whitespace-pre-wrap, .break-words, .prose');
-                candidates.forEach(el => {
-                    const row = el.closest('.flex.w-full.justify-end, .flex.w-full.justify-start, div[class*="items-end"], div[class*="items-start"]') || el.closest('.flex.w-full');
-                    if (!row) return;
-                    if (row.closest('.chat-footer-control') || row.closest('#ep-chat-right-drawer') || row.closest('.ep-prompt-overlay')) return;
-
-                    const rawText = (row.textContent || '').trim();
-                    if (rawText.length > 0) {
-                        // 중복 방지 고유 키: 텍스트 앞뒤 80자 + 길이
-                        const key = `${rawText.slice(0, 40)}_${rawText.slice(-40)}_${rawText.length}`;
-                        if (!collectedBubblesMap.has(key)) {
-                            const clone = row.cloneNode(true);
-                            collectedBubblesMap.set(key, clone);
-                        }
-                    }
-                });
-            }
-
-            // 현재 화면 먼저 수집
-            harvestCurrentVisibleBubbles();
-
-            // 3. [점진적 정밀 스크롤]: 1턴(과거) 끝까지 조금씩 스크롤을 올리며 나타나는 모든 순정 DOM을 실시간 수집
-            let sameCountRounds = 0;
-            let lastHarvestCount = collectedBubblesMap.size;
-
-            for (let step = 0; step < 120; step++) {
-                // 위로 스크롤 이동
-                scrollEl.scrollTop = scrollEl.scrollTop - 600;
-                await new Promise(r => setTimeout(r, 180)); // 크랙 프론트엔드가 마크다운 파싱/렌더링할 시간 부여
-
-                harvestCurrentVisibleBubbles();
-
-                if (collectedBubblesMap.size === lastHarvestCount) {
-                    sameCountRounds++;
-                    if (sameCountRounds >= 5) {
-                        // 맨 위 도달 확인을 위해 끝까지 한 번 더 강제 이동
-                        scrollEl.scrollTop = -999999;
-                        await new Promise(r => setTimeout(r, 250));
-                        harvestCurrentVisibleBubbles();
-                        break;
-                    }
-                } else {
-                    sameCountRounds = 0;
-                    lastHarvestCount = collectedBubblesMap.size;
-                }
-            }
-
-            // 스크롤 원위치 복구
-            scrollEl.scrollTop = originalScrollTop;
-
-            if (collectedBubblesMap.size === 0) {
-                showToast("❌ 수집된 대화 DOM이 없습니다.");
-                return;
-            }
-
-            // 4. 수집된 크랙 순정 말풍선 조각들 조립 및 [LORE]만 정밀 삭제
-            const collectedNodes = Array.from(collectedBubblesMap.values());
-            // 과거 1턴부터 차례대로 정렬되도록 뒤집기
-            collectedNodes.reverse();
-
-            const chatWrapper = document.createElement('div');
-            chatWrapper.className = 'flex flex-col w-full gap-4';
-
-            collectedNodes.forEach(row => {
-                // 불필요한 버튼/툴바 제거
-                row.querySelectorAll('button, svg, input, textarea').forEach(b => b.remove());
-
-                // [LORE ...] 시스템 주입 블록만 정밀 삭제
-                row.querySelectorAll('p, div, span').forEach(el => {
-                    const text = (el.textContent || '').trim();
-                    if (/^\[LORE\s*\d*\]/i.test(text)) {
-                        el.remove();
-                    } else if (el.innerHTML && el.innerHTML.includes('[LORE')) {
-                        el.innerHTML = el.innerHTML.replace(/^\[LORE[\s\S]*?(?=(?:<br\s*\/?>\s*<br\s*\/?>|\n\s*\n)|$)/i, '').trim();
-                    }
-                });
-
-                chatWrapper.appendChild(row);
-            });
-
-            // 5. 크랙 사이트 내의 모든 CSS 스타일시트(<style>, <link rel="stylesheet">) 통째로 추출
-            let styleTagsHtml = '';
-            document.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => {
-                styleTagsHtml += el.outerHTML + '\n';
-            });
-
-            // 6. 타이틀 및 메타 정보
-            let title = document.title || 'CRACK_Chat_Backup';
+            let title = document.title || '대화방';
             title = title.replace(/[\\/:*?"<>|]/g, '_').trim();
             const nowStr = new Date().toISOString().slice(0, 10);
-            const themeAttr = document.body.getAttribute('data-theme') || 'dark';
 
-            // 7. 독립 실행형 완전체 HTML 조립
-            const fullHtml = `<!DOCTYPE html>
-<html lang="ko" class="${document.documentElement.className}">
+            // 2. index.html 순정 100% 동일한 소설형 뷰어 CSS 및 HTML 구조 생성
+            let htmlContent = `<!DOCTYPE html>
+<html lang="ko">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${title} (${nowStr})</title>
-    ${styleTagsHtml}
-    <style>
-        body {
-            margin: 0 !important;
-            padding: 32px 16px 80px 16px !important;
-            display: flex !important;
-            justify-content: center !important;
-            background-color: var(--bg_screen, ${themeAttr === 'dark' ? '#141413' : '#ffffff'}) !important;
-            color: var(--text_primary, ${themeAttr === 'dark' ? '#F0EFEB' : '#222222'}) !important;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif !important;
-        }
-        .viewer-container {
-            width: 100%;
-            max-width: 768px;
-            display: flex;
-            flex-direction: column;
-            gap: 16px;
-        }
-        .viewer-header {
-            padding-bottom: 16px;
-            border-bottom: 1px solid rgba(128, 128, 128, 0.2);
-            margin-bottom: 24px;
-        }
-        .viewer-header h1 {
-            font-size: 20px;
-            font-weight: bold;
-            margin: 0 0 6px 0;
-        }
-        .viewer-header .meta {
-            font-size: 12px;
-            color: #888888;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${title}</title>
+<style>
+    :root { --text_primary: #222222; --bg_primary: #ffffff; }
+    * { box-sizing: border-box; }
+    body {
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", sans-serif;
+        background: #ffffff; color: var(--text_primary);
+        max-width: 780px; margin: 0 auto; padding: 40px 24px;
+        line-height: 1.7; font-size: 16px; word-break: break-all;
+    }
+    h1.novel-title {
+        font-size: 22px; font-weight: 800; text-align: center;
+        margin: 0 0 24px 0; padding-bottom: 16px; border-bottom: 2px solid #333;
+    }
+    .msg-card { padding: 22px 0; border-bottom: 1px solid #f0f0f0; line-height: 1.6; text-align: left; }
+    .msg-text { white-space: pre-wrap !important; }
+    .ep-chat-bold { font-weight: 800 !important; }
+    .ep-chat-action { color: #666666 !important; font-weight: normal; }
+    .quote-block { border-left: 4px solid #888888; padding-left: 12px; margin: 8px 0 8px 8px; display: block; color: var(--text_primary); white-space: pre-wrap; }
+    .ep-inline-code { background-color: #F8F2F4; color: #6E5960; border: 1px solid #bfa5a6; border-radius: 4px; padding: 1.5px 4px; font-size: 15px !important; margin: 0 2px; display: inline; }
+    .ep-code-block-wrapper { border-radius: 8px; overflow: hidden; margin: 10px 0; box-sizing: border-box; border: 1px solid #e2d5d8; }
+    .ep-code-block-header { background-color: #f2e5e9; color: #6E5960; font-weight: 800; font-size: 14px; padding: 8px 16px; text-align: left; }
+    .ep-code-block-body { background-color: #F8F2F4; color: #6E5960 !important; padding: 14px 16px !important; white-space: pre-wrap; font-size: 14.5px !important; line-height: 1.6; }
+    .ep-code-block-body.no-header { border-radius: 8px; }
+    .ep-hud-box { position: relative; margin: 0 0 0 auto; width: fit-content; padding: 2px 0 0 0; text-align: right; font-size: 14px !important; font-weight: 300; letter-spacing: 1.4px; line-height: 1.6; }
+    .ep-hud-box::after { content: ""; display: block; width: 100%; margin-top: 6px; border-bottom: 6px double #D2C0C0; }
+    .ep-dialogue-card-wrapper { position: relative; display: flex; flex-direction: column; width: fit-content; max-width: 100%; margin: 12px 0; box-sizing: border-box; }
+    .ep-dialogue-card-wrapper.user-side { margin-left: auto; }
+    .ep-dialogue-badge-row { display: flex; width: 100%; padding: 0 16px; box-sizing: border-box; margin-top: -11px; margin-bottom: -11px; z-index: 2; pointer-events: none; }
+    .ep-dialogue-card-wrapper.user-side .ep-dialogue-badge-row { justify-content: flex-end; }
+    .ep-dialogue-badge { background-color: #bfa5a6; color: #FDFBFC; font-size: 13px; font-weight: 600; padding: 3px 12px; border-radius: 9999px; width: fit-content; display: inline-flex; align-items: center; white-space: nowrap; }
+    .ep-dialogue-card-box { background-color: #F8F2F4; border: 0.7px solid #bfa5a6; border-radius: 0 16px 0 16px; color: #9a868d; font-weight: 700; padding: 14px 16px 12px 16px; font-size: 15px; line-height: 1.6; white-space: pre-wrap; width: 100%; box-sizing: border-box; }
+    .ep-dialogue-card-wrapper.user-side .ep-dialogue-card-box { border-radius: 16px 0 16px 0; }
+    .ep-sms-container { display: flex; gap: 10px; margin: 12px 0; align-items: flex-start; width: 100%; box-sizing: border-box; }
+    .ep-sms-container.user-side { flex-direction: row-reverse; }
+    .ep-sms-avatar-icon { width: 28px; height: 28px; flex-shrink: 0; }
+    .ep-sms-avatar-icon svg { width: 100%; height: 100%; stroke: #bfa5a6; }
+    .ep-sms-content-col { display: flex; flex-direction: column; gap: 6px; max-width: 75%; align-items: flex-start; }
+    .ep-sms-container.user-side .ep-sms-content-col { align-items: flex-end; }
+    .ep-sms-name { font-size: 13px; font-weight: 700; color: #bfa5a6; line-height: 1; }
+    .ep-sms-bubble { background-color: #F8F2F4; border: 1px solid #bfa5a6; border-radius: 16px; color: #9a868d; font-size: 15px; font-weight: 700; line-height: 1.5; padding: 10px 14px; width: fit-content; max-width: 100%; box-sizing: border-box; }
+    hr.ep-chat-hr { border: none; border-top: 1.5px dashed #ccc; margin: 25px 0; }
+    .ep-chat-shortcut-token { background-color: #f2e5e9; color: #6E5960; border: 1px solid #bfa5a6; border-radius: 4px; padding: 1.5px; font-size: 14px; margin: 0 2px; display: inline; }
+</style>
 </head>
-<body data-theme="${themeAttr}">
-    <div class="viewer-container">
-        <div class="viewer-header">
-            <h1>${title}</h1>
-            <div class="meta">저장 일시: ${new Date().toLocaleString()} | 크랙 순정 ${collectedNodes.length}개 말풍선 저장됨</div>
-        </div>
-        ${chatWrapper.outerHTML}
-    </div>
-</body>
-</html>`;
+<body>
+<h1 class="novel-title">${title}</h1>
+`;
 
-            // 8. 파일 다운로드 실행
-            const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8;' });
+            messages.forEach(m => {
+                const role = (m.role === 'user' || m.type === 'user') ? 'user' : 'model';
+                const rawTxt = m.content || m.text || m.message || '';
+                const parsedHtml = parseChatMarkdownForExport(rawTxt, role);
+                if (parsedHtml.trim()) {
+                    htmlContent += `<div class="msg-card"><div class="msg-text">${parsedHtml}</div></div>\n`;
+                }
+            });
+
+            htmlContent += `</body></html>`;
+
+            // 3. 파일 다운로드 트리거
+            const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
             a.href = url;
-            a.download = `${title}_크랙순정_${nowStr}.html`;
+            a.download = `${title}_${nowStr}.html`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            showToast(`✨ 크랙 순정 1턴~전체 ${collectedNodes.length}개 대화 저장이 완료되었습니다!`);
+            showToast(`📄 총 ${messages.length}개 턴 대화 저장이 완료되었습니다.`);
         } catch (err) {
             console.error("[대화 저장 오류]:", err);
             showToast("❌ 대화 저장 중 오류가 발생했습니다.");
@@ -5395,9 +5425,41 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
      * ========================================================================== */
     initializeFirebaseDynamically();
 
+    // 크랙 순정 좌/우측 서랍 상태 실시간 감지 및 암전 동기화
+    function syncCrackDrawerState() {
+        // 우측 서랍 열림 감지 (opacity-100 또는 딤 활성화)
+        const rightDim = document.querySelector('.bg-bg_dimmed');
+        let isRightOpen = false;
+        if (rightDim) {
+            if (rightDim.classList.contains('opacity-100')) isRightOpen = true;
+            else {
+                const op = parseFloat(window.getComputedStyle(rightDim).opacity || '0');
+                if (op > 0.3) isRightOpen = true;
+            }
+        }
+
+        // 좌측 서랍 열림 감지
+        const isLeftOpen = !!document.querySelector('[data-state="open"]:has(.bg-sidebar)') ||
+                           !!document.querySelector('[role="dialog"]:has(.bg-sidebar)');
+
+        const isActive = isRightOpen || isLeftOpen;
+        document.body.classList.toggle('crack-drawer-active', !!isActive);
+    }
+
+    // 암전된 입력창 터치 시 서랍 닫기
+    document.addEventListener('click', (e) => {
+        if (document.body.classList.contains('crack-drawer-active') && e.target.closest('.chat-footer-control')) {
+            const rightDim = document.querySelector('.bg-bg_dimmed');
+            if (rightDim) rightDim.click();
+            const leftOverlay = document.querySelector('[data-state="open"][class*="fixed"]');
+            if (leftOverlay) leftOverlay.click();
+        }
+    }, true);
+
     function checkAndInject() {
         injectBaseDOM();
         stripLoreOnlyFromView();
+        syncCrackDrawerState();
     }
 
     if (document.readyState === 'loading') {
