@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.8.3
+// @version      1.8.4
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -110,20 +110,7 @@
             z-index: -99999 !important;
         }
 
-        /* 크랙 순정 암전 딤 오버레이 (서랍 열릴 때 입력창 위를 덮으며 완벽 암전) */
-        div[class*="bg-bg_dimmed"] {
-            z-index: 10019 !important;
-        }
-
-        /* 크랙 순정 좌/우측 서랍 본체 (열렸을 때 입력창 위로 바닥까지 100% 표시) */
-        .bg-sidebar,
-        div[class*="border-outline_tertiary"][class*="w-[260px]"],
-        aside:has(.py-4.overflow-y-auto) {
-            z-index: 10020 !important;
-        }
-
-        /* 1. 대화방 상단 헤더 (서랍보다 높은 z-10030으로 최상단 고정 및 침범 차단) */
-        div[class*="z-docked"],
+        /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (스크롤 시 사라짐 원천 방지) */
         .absolute.z-docked.left-0.w-full.h-12,
         .h-12.px-5.flex.justify-between.items-center {
             position: fixed !important;
@@ -133,7 +120,7 @@
             transform: none !important;
             opacity: 1 !important;
             visibility: visible !important;
-            z-index: 10030 !important;
+            z-index: 10000 !important;
             background-color: var(--bg_screen, #ffffff) !important;
         }
         body[data-theme="dark"] .absolute.z-docked.left-0.w-full.h-12 {
@@ -1238,115 +1225,88 @@
     }
 
     /* ==========================================================================
-     * 2.6 크랙 순정 1턴~전체 대화 수급 & 고유 마크다운 렌더링 무손실 HTML 저장 엔진
+     * 2.6 크랙 순정 1턴~전체 DOM 1:1 무손실 캡처 및 HTML 저장 엔진
      * ========================================================================== */
     async function exportCrackChatToHtml() {
-        const chatId = getChatId();
-        showToast("📥 1턴부터 전체 대화 내역 수급 중...");
+        showToast("⏳ 1턴부터 전체 대화 DOM 동기화 중...");
 
         try {
-            // 1. contents-api 커서 순회 방식으로 1턴부터 끝까지의 전체 메시지 수급
-            const messages = await fetchCrackMessagesPure(chatId, -1);
-            if (!messages || messages.length === 0) {
-                showToast("❌ 수급할 대화 내역이 없습니다.");
+            // 1. 크랙 스크롤 컨테이너 탐색
+            const scrollContainer = document.querySelector('.overflow-y-auto') || 
+                                    document.querySelector('.flex-1.overflow-y-auto') || 
+                                    document.documentElement;
+
+            const chatRoot = document.querySelector('.flex.flex-col-reverse.w-full') || 
+                             document.querySelector('main') || 
+                             document.querySelector('.flex-1.overflow-y-auto');
+
+            if (!chatRoot) {
+                showToast("❌ 대화창 DOM을 찾을 수 없습니다.");
                 return;
             }
 
-            // 2. 크랙 사이트 내의 모든 순정 CSS 스타일시트(<style>, <link rel="stylesheet">) 추출
+            // 2. [초고속 백그라운드 1턴 자동 스캔]: 1턴 끝까지 스크롤을 올려 크랙이 전체 메시지 DOM을 렌더링하도록 유도
+            let lastCount = 0;
+            let sameCountStreak = 0;
+            const originalScrollTop = scrollContainer.scrollTop;
+
+            for (let i = 0; i < 40; i++) {
+                const currentBubbles = chatRoot.querySelectorAll('.whitespace-pre-wrap, .break-words, .prose, p').length;
+                if (currentBubbles === lastCount) {
+                    sameCountStreak++;
+                    if (sameCountStreak >= 3) break; // 더 이상 새 턴이 안 나오면 1턴 끝 도달로 판단
+                } else {
+                    sameCountStreak = 0;
+                    lastCount = currentBubbles;
+                }
+
+                // 스크롤 상단 끝으로 이동 (과거 대화 렌더링 트리거)
+                scrollContainer.scrollTop = -999999;
+                if (scrollContainer.scrollTop === 0) scrollContainer.scrollTop = 0;
+                await new Promise(r => setTimeout(r, 120)); // 크랙 프론트엔드 렌더링 대기
+            }
+
+            // 3. 크랙이 직접 마크다운을 파싱해서 렌더링해 둔 순정 DOM 100% 딥 클론(Deep Clone)
+            const clonedChat = chatRoot.cloneNode(true);
+
+            // 스크롤 원위치 복원
+            scrollContainer.scrollTop = originalScrollTop;
+
+            // 4. 복제본에서 불필요한 UI 제거 및 [LORE]만 정밀 삭제
+            // 4-1. 버튼, 툴바, 서랍 등 제거
+            clonedChat.querySelectorAll('button, svg, input, textarea, .chat-footer-control, #ep-chat-right-drawer, .ep-prompt-overlay').forEach(el => el.remove());
+
+            // 4-2. [LORE ...] 시스템 주입 블록만 정밀 삭제
+            clonedChat.querySelectorAll('p, div, span').forEach(el => {
+                const text = (el.textContent || '').trim();
+                if (/^\[LORE\s*\d*\]/i.test(text)) {
+                    el.remove();
+                } else if (el.innerHTML && el.innerHTML.includes('[LORE')) {
+                    el.innerHTML = el.innerHTML.replace(/^\[LORE[\s\S]*?(?=(?:<br\s*\/?>\s*<br\s*\/?>|\n\s*\n)|$)/i, '').trim();
+                }
+            });
+
+            // 4-3. 크랙 역순(flex-col-reverse) 구조를 뷰어에서 1턴부터 읽히도록 정상(위->아래) 순서로 정렬
+            if (clonedChat.classList.contains('flex-col-reverse')) {
+                clonedChat.classList.remove('flex-col-reverse');
+                clonedChat.classList.add('flex-col');
+                const children = Array.from(clonedChat.children);
+                children.reverse().forEach(child => clonedChat.appendChild(child));
+            }
+
+            // 5. 크랙 사이트 내의 모든 CSS 스타일시트(<style>, <link rel="stylesheet">) 통째로 추출
             let styleTagsHtml = '';
             document.querySelectorAll('style, link[rel="stylesheet"]').forEach(el => {
                 styleTagsHtml += el.outerHTML + '\n';
             });
 
-            // 3. 타이틀 및 메타 정보
+            // 6. 타이틀 및 메타 정보
             let title = document.title || 'CRACK_Chat_Backup';
             title = title.replace(/[\\/:*?"<>|]/g, '_').trim();
             const nowStr = new Date().toISOString().slice(0, 10);
             const themeAttr = document.body.getAttribute('data-theme') || 'dark';
 
-            // 4. [크랙 고유 마크다운 순정 렌더러] (굵게, 기울임, 인용구, 코드블록, 단락, 줄바꿈)
-            function renderCrackMarkdown(raw) {
-                if (!raw) return '';
-                let text = stripLoreInjectionBlock(raw);
-                if (!text.trim()) return '';
-
-                // HTML 특수문자 기본 이스케이프
-                text = text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-
-                // 코드 블록 (```lang ... ```)
-                text = text.replace(/```([a-zA-Z0-9_-]*)\n([\s\S]*?)```/g, (_, lang, code) => {
-                    return `<pre class="bg-bg_secondary p-3 rounded-lg my-2 overflow-x-auto text-xs font-mono"><code>${code.trim()}</code></pre>`;
-                });
-
-                // 인라인 코드 (`code`)
-                text = text.replace(/`([^`]+)`/g, '<code class="bg-bg_secondary px-1.5 py-0.5 rounded text-xs font-mono">$1</code>');
-
-                // 볼드 & 이탤릭 (***text***, **text**, *text*, _text_)
-                text = text.replace(/\*\*\*([^*]+)\*\*\*/g, '<strong><em>$1</em></strong>');
-                text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-                text = text.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-                text = text.replace(/_([^_]+)_/g, '<em>$1</em>');
-
-                // 취소선 (~~text~~)
-                text = text.replace(/~~([^~]+)~~/g, '<del>$1</del>');
-
-                // 인용구 (> text)
-                const lines = text.split('\n');
-                const processedLines = [];
-                let inQuote = false;
-                let quoteBuffer = [];
-
-                for (let line of lines) {
-                    if (line.startsWith('&gt; ') || line.startsWith('&gt;')) {
-                        inQuote = true;
-                        quoteBuffer.push(line.replace(/^&gt;\s?/, ''));
-                    } else {
-                        if (inQuote) {
-                            processedLines.push(`<blockquote class="border-l-4 border-accent pl-3 my-2 opacity-80 italic">${quoteBuffer.join('<br>')}</blockquote>`);
-                            quoteBuffer = [];
-                            inQuote = false;
-                        }
-                        processedLines.push(line);
-                    }
-                }
-                if (inQuote) {
-                    processedLines.push(`<blockquote class="border-l-4 border-accent pl-3 my-2 opacity-80 italic">${quoteBuffer.join('<br>')}</blockquote>`);
-                }
-
-                text = processedLines.join('\n');
-
-                // 단락 줄바꿈 (<p> 태그 및 <br> 처리)
-                return text.split(/\n\s*\n/).map(para => {
-                    para = para.trim().replace(/\n/g, '<br>');
-                    return para ? `<p class="leading-relaxed mb-2">${para}</p>` : '';
-                }).filter(Boolean).join('');
-            }
-
-            // 5. 전체 메시지를 크랙 순정 말풍선 DOM 구조로 조립
-            const chatItemsHtml = messages.map(msg => {
-                const isUser = (msg.role === 'user' || msg.type === 'user');
-                const rawContent = msg.content || msg.message || msg.text || '';
-                const renderedHtml = renderCrackMarkdown(rawContent);
-                if (!renderedHtml) return '';
-
-                if (isUser) {
-                    return `
-                    <div class="flex w-full justify-end mb-4">
-                        <div class="max-w-[80%] rounded-2xl px-4 py-2.5 bg-accent_translucent text-text_primary border border-border_translucent">
-                            <div class="prose prose-sm break-words whitespace-normal">${renderedHtml}</div>
-                        </div>
-                    </div>`;
-                } else {
-                    return `
-                    <div class="flex w-full justify-start mb-6">
-                        <div class="w-full text-text_primary">
-                            <div class="prose prose-sm break-words whitespace-normal">${renderedHtml}</div>
-                        </div>
-                    </div>`;
-                }
-            }).filter(Boolean).join('\n');
-
-            // 6. 독립 실행형 완전체 HTML 파일 조립
+            // 7. 독립 실행형 완전체 HTML 파일 조립
             const fullHtml = `<!DOCTYPE html>
 <html lang="ko" class="${document.documentElement.className}">
 <head>
@@ -1391,16 +1351,14 @@
     <div class="viewer-container">
         <div class="viewer-header">
             <h1>${title}</h1>
-            <div class="meta">저장 일시: ${new Date().toLocaleString()} | 총 ${messages.length}개 턴 전수 저장됨</div>
+            <div class="meta">저장 일시: ${new Date().toLocaleString()}</div>
         </div>
-        <div class="flex flex-col w-full">
-            ${chatItemsHtml}
-        </div>
+        ${clonedChat.outerHTML}
     </div>
 </body>
 </html>`;
 
-            // 7. 파일 다운로드 실행
+            // 8. 파일 다운로드 실행
             const blob = new Blob([fullHtml], { type: 'text/html;charset=utf-8;' });
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
@@ -1411,7 +1369,7 @@
             document.body.removeChild(a);
             URL.revokeObjectURL(url);
 
-            showToast(`✨ 전체 ${messages.length}개 대화 저장이 완료되었습니다!`);
+            showToast("✨ 크랙 순정 마크다운 그대로 전체 저장이 완료되었습니다!");
         } catch (err) {
             console.error("[대화 저장 오류]:", err);
             showToast("❌ 대화 저장 중 오류가 발생했습니다.");
@@ -2480,18 +2438,9 @@
         const tplBtn = document.getElementById('ep-chat-tpl-popup-btn');
         const tplPanel = document.getElementById('ep-tpl-quick-panel');
 
-        const footerCtrl = document.querySelector('.chat-footer-control');
-        if (footerCtrl) {
-            footerCtrl.addEventListener('click', (e) => e.stopPropagation());
-            footerCtrl.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
-        }
-
         if (textarea) {
             textarea.addEventListener('keydown', (e) => e.stopPropagation());
             textarea.addEventListener('keyup', (e) => e.stopPropagation());
-            textarea.addEventListener('click', (e) => e.stopPropagation());
-            textarea.addEventListener('focus', (e) => e.stopPropagation());
-            textarea.addEventListener('touchstart', (e) => e.stopPropagation(), { passive: true });
         }
 
         // 1. 단축어 선택 팝업 바인딩
