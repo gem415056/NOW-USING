@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.9.2
+// @version      1.9.3
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -108,19 +108,6 @@
             opacity: 0 !important;
             pointer-events: none !important;
             z-index: -99999 !important;
-        }
-
-        /* 크랙 순정 암전 딤: 입력창(30)을 자연스럽게 덮어 암전시키도록 z-index 50 배치 */
-        .bg-bg_dimmed {
-            z-index: 50 !important;
-        }
-
-        /* 크랙 순정 우측 서랍 본체: 암전 딤(50)과 입력창(30) 위로 올라와 바닥까지 깔끔하게 덮이도록 z-index 60 배치 */
-        div[class*="w-[260px]"],
-        aside:has(.py-4.overflow-y-auto),
-        div:has(> .w-\[260px\]) {
-            z-index: 60 !important;
-            position: relative;
         }
 
         /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (스크롤 시 사라짐 원천 방지) */
@@ -582,7 +569,7 @@
             padding: 0 0 10px 0 !important;
             margin: 0 !important;
             background-color: var(--bg_screen, #ffffff) !important;
-            z-index: 30 !important;
+            z-index: 2 !important;
             overflow: visible !important;
         }
         body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
