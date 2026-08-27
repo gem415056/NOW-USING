@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.9.0
+// @version      1.9.1
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -110,49 +110,21 @@
             z-index: -99999 !important;
         }
 
-        /* 크랙 순정 서랍 열림 시 입력창 단일 암전 딤 처리 (0.3s 완전 동기화 & 균일 농도) */
-        .bg-bg_screen.pointer-events-auto::after {
-            content: "";
-            position: absolute;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.45);
-            opacity: 0;
-            pointer-events: none;
-            transition: opacity 0.3s ease-in-out;
-            z-index: 1000;
-        }
-        body.crack-drawer-active .bg-bg_screen.pointer-events-auto::after {
-            opacity: 1;
-            pointer-events: auto;
-            cursor: pointer;
-        }
-
-        /* 크랙 순정 우측 서랍: 상시 Fixed 고정 및 0.3s 슬라이딩 트랜지션 (닫힘 깜빡임 0%) */
-        div[class*="border-outline_tertiary"][class*="w-[260px]"],
-        div[class*="z-[3]"] {
-            position: fixed !important;
-            top: 104px !important;
-            bottom: 0 !important;
-            right: 0 !important;
-            width: 260px !important;
-            height: auto !important;
-            max-height: none !important;
-            z-index: 100050 !important;
-            background-color: var(--bg_primary, #ffffff) !important;
-            box-shadow: -4px 4px 24px rgba(0, 0, 0, 0.08) !important;
-            transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
-        }
-        body.crack-drawer-active .bg-sidebar {
-            z-index: 100050 !important;
-        }
-
-        /* 서랍이 열렸을 때만 서랍 본체를 입력창(10000) 위로 올려 화면 바닥까지 100% 완전 노출 */
-        body.crack-drawer-active div[class*="border-outline_tertiary"][class*="w-[260px]"],
-        body.crack-drawer-active .bg-sidebar,
-        body.crack-drawer-active aside:has(.py-4.overflow-y-auto),
-        body.crack-drawer-active div[class*="z-[3]"] {
-            z-index: 10010 !important;
+        /* 크랙 순정 서랍 열림 시: 파스텔 전체 딤 오버레이를 통해 헤더 아래 화면 전체(입력창 포함)를 일체감 있게 암전 */
+        body.crack-drawer-active #ep-chat-drawer-overlay {
+            opacity: 1 !important;
             pointer-events: auto !important;
+            cursor: pointer !important;
+        }
+
+        /* 크랙 순정 서랍이 열렸을 때만 서랍 컨테이너를 딤 오버레이 및 입력창 위로 올려 바닥까지 깔끔하게 노출 */
+        body.crack-drawer-active div:has(> .w-\[260px\]),
+        body.crack-drawer-active aside:has(.w-\[260px\]),
+        body.crack-drawer-active aside:has(.py-4.overflow-y-auto),
+        body.crack-drawer-active .bg-sidebar,
+        body.crack-drawer-active div[class*="border-outline_tertiary"] {
+            z-index: 100050 !important;
+            position: relative;
         }
 
         /* 1. 대화방 상단 헤더 화면 상단 영구 고정 (스크롤 시 사라짐 원천 방지) */
@@ -5458,12 +5430,13 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
 
     // 크랙 순정 좌/우측 서랍 상태 실시간 감지 및 암전 동기화
     function syncCrackDrawerState() {
-        // 우측 서랍 열림 감지 (opacity-100 또는 딤 활성화)
+        // 우측 서랍 열림 감지 (순정 딤의 opacity-100 및 서랍 노출 여부)
         const rightDim = document.querySelector('.bg-bg_dimmed');
         let isRightOpen = false;
         if (rightDim) {
-            if (rightDim.classList.contains('opacity-100')) isRightOpen = true;
-            else {
+            if (rightDim.classList.contains('opacity-100')) {
+                isRightOpen = true;
+            } else {
                 const op = parseFloat(window.getComputedStyle(rightDim).opacity || '0');
                 if (op > 0.3) isRightOpen = true;
             }
@@ -5477,13 +5450,16 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         document.body.classList.toggle('crack-drawer-active', !!isActive);
     }
 
-    // 암전된 입력창 터치 시 서랍 닫기
+    // 암전 오버레이 또는 암전된 입력창 터치 시 크랙 순정 서랍 닫기
     document.addEventListener('click', (e) => {
-        if (document.body.classList.contains('crack-drawer-active') && e.target.closest('.chat-footer-control')) {
-            const rightDim = document.querySelector('.bg-bg_dimmed');
-            if (rightDim) rightDim.click();
-            const leftOverlay = document.querySelector('[data-state="open"][class*="fixed"]');
-            if (leftOverlay) leftOverlay.click();
+        if (document.body.classList.contains('crack-drawer-active')) {
+            // 암전 오버레이 자체를 누르거나, 암전된 입력창 영역을 터치했을 때 순정 서랍 닫기 트리거
+            if (e.target.id === 'ep-chat-drawer-overlay' || e.target.closest('.chat-footer-control') || e.target.closest('.bg-bg_screen')) {
+                const rightDim = document.querySelector('.bg-bg_dimmed');
+                if (rightDim) rightDim.click();
+                const leftOverlay = document.querySelector('[data-state="open"][class*="fixed"]');
+                if (leftOverlay) leftOverlay.click();
+            }
         }
     }, true);
 
