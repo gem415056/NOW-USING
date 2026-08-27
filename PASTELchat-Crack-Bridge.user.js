@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      1.9.3
+// @version      1.9.4
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -557,7 +557,7 @@
             display: none !important;
         }
 
-        /* 크랙 하단 부모 컨테이너 완벽 바닥 고정 */
+        /* 크랙 하단 부모 컨테이너 완벽 바닥 고정 (평상시 z-index 30) */
         .bg-bg_screen.pointer-events-auto,
         .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
             position: fixed !important;
@@ -569,8 +569,14 @@
             padding: 0 0 10px 0 !important;
             margin: 0 !important;
             background-color: var(--bg_screen, #ffffff) !important;
-            z-index: 2 !important;
+            z-index: 30 !important;
             overflow: visible !important;
+        }
+
+        /* 크랙 순정 서랍 딤 활성화 시(opacity-100 감지): 입력창을 0보다 작은 -1로 내려 순정 딤 및 서랍 아래로 자동 격하 */
+        body:has(.bg-bg_dimmed.opacity-100) .bg-bg_screen.pointer-events-auto,
+        body:has(.bg-bg_dimmed.opacity-100) .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
+            z-index: -1 !important;
         }
         body[data-theme="dark"] .bg-bg_screen.pointer-events-auto {
             background-color: #141413 !important;
