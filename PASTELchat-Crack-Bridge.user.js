@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.1.5
+// @version      2.1.6
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -4880,8 +4880,8 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 });
 
                 if (maxScore > 0) {
-                    // 캐릭터/관계 카드의 단순 이름 상시 매칭 독점을 방지하기 위해 기본 트리거 점수 상한을 0.65로 조율
-                    const adjustedScore = isProfileType ? Math.min(0.65, maxScore * 0.7) : maxScore;
+                    // 인물/관계 카드는 0.85 완충 가중치 적용, 기타 카드는 1.0 순수 점수 적용
+                    const adjustedScore = isProfileType ? (maxScore * 0.85) : maxScore;
                     matchedByTrigger.push({ entry: e, score: adjustedScore });
                 }
             });
@@ -4931,7 +4931,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 } catch (_) {}
             }
 
-            // 4. 스코어 융합 & 서사 엔진(event/promise/concept) 1.8배 강력 부스트
+            // 4. 트리거 및 임베딩 스코어 융합 (기타 카드 인위적 부스트 없이 순수 점수 산출)
             const scoreMap = {};
             const addToMap = (row, w) => {
                 const id = row.entry.id;
@@ -4940,14 +4940,6 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
             };
             matchedByTrigger.forEach(r => addToMap(r, 0.5));
             matchedByEmbedding.forEach(r => addToMap(r, 0.5));
-
-            const NARRATIVE_BOOST_TYPES = new Set(['event', 'promise', 'concept', 'item', 'location', 'setting']);
-            Object.values(scoreMap).forEach(row => {
-                const typeLow = String(row.entry.type || '').toLowerCase().trim();
-                if (NARRATIVE_BOOST_TYPES.has(typeLow)) {
-                    row.score *= 1.8; // 사건/약속/컨셉 카드에 강력한 1.8배 가중치를 부여하여 최우선 주입 보장
-                }
-            });
             // 5. 슬롯 우선순위 배정 알고리즘 (API 실시간 유저 턴수 직접 동기화)
             const currentTurn = await getCrackUserTurnsRealtime(chatId);
             const selectedLores = [];
@@ -4972,10 +4964,13 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 if (selectedLores.length >= 3) break;
                 if (usedIds.has(e.id)) continue;
 
+                const typeLow = String(e.type || '').toLowerCase().trim();
+                const isProfile = (typeLow === 'character' || typeLow === 'relationship');
+                const coolLimit = isProfile ? 5 : 3; // 인물/관계는 5턴 쿨타임, 기타 카드는 3턴 쿨타임
+
                 const lastTurn = parseInt(localStorage.getItem(`pastel_crack_lore_last_turn_${chatId}_${e.id}`) || '-999', 10);
-                // 쿨타임: 최근 3턴 이내에 이미 주입된 적이 있는 경우만 스킵 (단, 처음이거나 4턴 이상 지났으면 즉시 주입)
-                if (lastTurn !== -999 && currentTurn > 0 && (currentTurn - lastTurn) >= 0 && (currentTurn - lastTurn) <= 3) {
-                    injectReport.push({ name: e.name, status: 'failed', reason: `(쿨타임: ${currentTurn - lastTurn}/3턴)` });
+                if (lastTurn !== -999 && currentTurn > 0 && (currentTurn - lastTurn) >= 0 && (currentTurn - lastTurn) <= coolLimit) {
+                    injectReport.push({ name: e.name, status: 'failed', reason: `(쿨타임: ${currentTurn - lastTurn}/${coolLimit}턴)` });
                     continue;
                 }
 
@@ -4988,9 +4983,13 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 const remainingPool = allEntries
                     .filter(e => !usedIds.has(e.id) && e.enabled !== true)
                     .map(e => {
+                        const typeLow = String(e.type || '').toLowerCase().trim();
+                        const isProfile = (typeLow === 'character' || typeLow === 'relationship');
+                        const coolLimit = isProfile ? 5 : 3;
+
                         const lastTurn = parseInt(localStorage.getItem(`pastel_crack_lore_last_turn_${chatId}_${e.id}`) || '-999', 10);
                         const injCount = parseInt(localStorage.getItem(`pastel_crack_lore_inj_cnt_${chatId}_${e.id}`) || '0', 10);
-                        const isCooling = (lastTurn !== -999 && currentTurn > 0 && (currentTurn - lastTurn) <= 3);
+                        const isCooling = (lastTurn !== -999 && currentTurn > 0 && (currentTurn - lastTurn) <= coolLimit);
                         return { entry: e, injCount, isCooling };
                     })
                     .filter(item => !item.isCooling)
