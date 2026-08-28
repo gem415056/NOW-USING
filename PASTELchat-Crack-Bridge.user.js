@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.1.4
+// @version      2.1.5
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1991,25 +1991,27 @@
         return (inTok * (0.75 / 1000000)) + (outTok * (3.75 / 1000000));
     }
 
-    // 3. 방별(ChatId) 최종 누적 USD 비용 UI 실시간 원화(KRW) 동기화
-    function updateCrackLoreCostUI() {
+    // 3. 방별(ChatId) 최종 누적 USD 비용 UI 실시간 원화(KRW) 동기화 (0초 즉각 렌더링)
+    function updateCrackLoreCostUI(targetChatId) {
         const costEl = document.getElementById('ep-lore-cost-val');
-        const chatId = getChatId();
-        if (costEl && chatId && chatId !== 'global') {
-            const totalUsd = parseFloat(localStorage.getItem(`pastel_crack_lore_cost_${chatId}`) || '0');
-            const krw = Math.round(totalUsd * usdToKrwRate);
+        const chatId = targetChatId || getChatId();
+        if (costEl) {
+            const key = (chatId && chatId !== 'global') ? `pastel_crack_lore_cost_${chatId}` : 'pastel_crack_lore_cost_global';
+            const totalUsd = parseFloat(localStorage.getItem(key) || '0');
+            const rate = (usdToKrwRate && usdToKrwRate > 0) ? usdToKrwRate : 1500.0;
+            const krw = Math.round(totalUsd * rate);
             costEl.textContent = krw.toLocaleString();
         }
     }
 
-    // 4. 방별(ChatId) 최종 누적 USD 비용 캐시 가산 및 저장
-    function accumulateCrackLoreCost(usd) {
-        const chatId = getChatId();
-        if (!chatId || chatId === 'global') return;
-        const current = parseFloat(localStorage.getItem(`pastel_crack_lore_cost_${chatId}`) || '0');
-        const next = current + usd;
-        localStorage.setItem(`pastel_crack_lore_cost_${chatId}`, next.toFixed(8));
-        updateCrackLoreCostUI();
+    // 4. 방별(ChatId) 최종 누적 USD 비용 캐시 가산 및 즉각 UI 갱신
+    function accumulateCrackLoreCost(usd, targetChatId) {
+        const chatId = targetChatId || getChatId();
+        const key = (chatId && chatId !== 'global') ? `pastel_crack_lore_cost_${chatId}` : 'pastel_crack_lore_cost_global';
+        const current = parseFloat(localStorage.getItem(key) || '0');
+        const next = current + (usd || 0);
+        localStorage.setItem(key, next.toFixed(8));
+        updateCrackLoreCostUI(chatId);
     }
 
     // 5. 크랙 캐시 JSON 응답 파서
@@ -2291,6 +2293,8 @@
 
         moveNativeSendButtonToSlot();
         bindInputEvents();
+        updateCrackLoreCostUI();
+        fetchCrackCash();
     }
 
     // 크랙 순정 전송 버튼을 파스텔 툴바 슬롯으로 이동 및 잔여 컨테이너 완벽 숨김
@@ -4005,7 +4009,7 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
             const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
             const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
             const cost = calcGeminiApiCost(selectedModel, inTok, outTok);
-            accumulateCrackLoreCost(cost);
+            accumulateCrackLoreCost(cost, chatId);
 
             const rawJsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
             if (!rawJsonText.trim()) throw new Error("AI가 로어 데이터를 반환하지 않았습니다.");
@@ -4147,7 +4151,7 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
         const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
         const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
         const cost = calcGeminiApiCost(selectedModel, inTok, outTok);
-        accumulateCrackLoreCost(cost);
+        accumulateCrackLoreCost(cost, episodeId);
 
         const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!rawText.trim()) throw new Error("AI가 로어 데이터를 반환하지 않았습니다.");
@@ -4268,7 +4272,7 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
             const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
             const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
             const cost = calcGeminiApiCost(selectedModel, inTok, outTok);
-            accumulateCrackLoreCost(cost);
+            accumulateCrackLoreCost(cost, episodeId);
 
             const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
             if (!rawText.trim()) return;
@@ -4385,7 +4389,7 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
         const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
         const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
         const cost = calcGeminiApiCost(selectedModel, inTok, outTok);
-        accumulateCrackLoreCost(cost);
+        accumulateCrackLoreCost(cost, episodeId);
 
         const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!rawText.trim()) return;
@@ -4628,7 +4632,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(prompt.length * 1.2);
                 const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
                 const cost = calcGeminiApiCost(selectedModel, inTok, outTok);
-                accumulateCrackLoreCost(cost);
+                accumulateCrackLoreCost(cost, chatId);
 
                 let txt = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
                 let raw = txt.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
@@ -4900,7 +4904,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                         // 임베딩 소모 비용 (1M당 $0.15 = 1k당 $0.00015) 누적 연산
                         const inTok = Math.ceil(embedQueryText.length * 1.2);
                         const embedCost = inTok * (0.15 / 1000000);
-                        accumulateCrackLoreCost(embedCost);
+                        accumulateCrackLoreCost(embedCost, chatId);
 
                         const qVec = embedRes.embedding.values;
                         const entryIds = allEntries.map(e => e.id);
@@ -5581,16 +5585,53 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
     fetchCrackCash();
 
     let lastCheckedChatId = '';
+    let isAiGeneratingState = false;
+
+    // [전송 버튼 아이콘 실시간 감시 엔진]: 중지(M6 6...) ➔ 전송(M18.77...) 복귀 시 3대 크래커 실시간 자동 갱신
+    function monitorSendButtonState() {
+        const pathList = document.querySelectorAll('#ep-native-send-slot svg path, .chat-footer-control svg path');
+        let currentHasStop = false;
+        let currentHasSend = false;
+
+        for (const p of pathList) {
+            const d = p.getAttribute('d') || '';
+            if (d.startsWith('M6 6') || d.includes('6h12v12H6')) {
+                currentHasStop = true;
+                break;
+            }
+            if (d.startsWith('M18.77 11.13')) {
+                currentHasSend = true;
+            }
+        }
+
+        // 1. AI 생성 중으로 진입
+        if (currentHasStop) {
+            isAiGeneratingState = true;
+        } 
+        // 2. AI 생성이 완료되어 전송 버튼으로 복귀한 순간 포착
+        else if (isAiGeneratingState && currentHasSend) {
+            isAiGeneratingState = false;
+            console.log("⚡ [PASTEL] AI 응답 완료 감지 ➔ 크래커 수치 실시간 갱신 실행");
+            updateCrackLoreCostUI();
+            fetchCrackCash();
+            setTimeout(() => {
+                updateCrackLoreCostUI();
+                fetchCrackCash();
+            }, 800); // 크랙 서버 DB 차감 지연 대비 2차 확정 갱신
+        }
+    }
+
     function checkAndInject() {
         injectBaseDOM();
         stripLoreOnlyFromView();
+        monitorSendButtonState();
 
         // 대화방 진입 또는 변경 감지 시 백엔드 API에서 실제 유저 턴 수 수급 및 해당 방의 누적 비용/크래커 UI 갱신
         const currentChatId = getChatId();
         if (currentChatId && currentChatId !== 'global' && currentChatId !== lastCheckedChatId) {
             lastCheckedChatId = currentChatId;
             getCrackUserTurnsRealtime(currentChatId);
-            updateCrackLoreCostUI();
+            updateCrackLoreCostUI(currentChatId);
             fetchCrackCash();
         }
     }
