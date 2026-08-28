@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.1.1
+// @version      2.1.2
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -534,27 +534,15 @@
             font-weight: bold !important;
         }
 
-        /* 크랙 하단 입력바 내부의 순정 에디터만 정밀 은닉 (대화 목록 내 말풍선 수정 에디터는 정상 노출 보존) */
-        .bg-bg_screen.pointer-events-auto .flex.w-full.flex-col.rounded-lg.border.bg-background.transition-colors,
-        .bg-bg_screen.pointer-events-auto form:has(.ProseMirror),
-        .bg-bg_screen.pointer-events-auto .relative.flex.w-full.flex-col:has(.ProseMirror) {
-            position: absolute !important;
+        /* 크랙 하단 입력바 내부의 순정 폼 및 상단 잔여 래퍼 완전 소거 */
+        .bg-bg_screen.pointer-events-auto form,
+        .bg-bg_screen.pointer-events-auto p.text-xs,
+        .bg-bg_screen.pointer-events-auto .text-text_tertiary,
+        .bg-bg_screen.pointer-events-auto > div:not(.chat-footer-control) {
+            display: none !important;
             height: 0 !important;
-            min-height: 0 !important;
-            max-height: 0 !important;
-            overflow: hidden !important;
-            opacity: 0 !important;
-            pointer-events: none !important;
             margin: 0 !important;
             padding: 0 !important;
-            border: none !important;
-            visibility: hidden !important;
-        }
-
-        /* 크랙 순정 안내 문구 및 기타 불필요한 하단 잔여 레이아웃 격리 */
-        .bg-bg_screen.pointer-events-auto p.text-xs,
-        .bg-bg_screen.pointer-events-auto .text-text_tertiary {
-            display: none !important;
         }
 
         /* 크랙 하단 부모 컨테이너 완벽 바닥 고정 (상단 패딩 0 강제) */
@@ -584,7 +572,7 @@
             background-color: #141413 !important;
         }
 
-        /* 3대 크래커 지표 헤더 스타일 (순수 상하 6px 칼각 대칭화) */
+        /* 3대 크래커 지표 헤더 스타일 (상단 4px, 하단 6px 초밀착 정렬) */
         .chat-info-header {
             height: auto;
             border-bottom: none !important;
@@ -592,7 +580,7 @@
             align-items: center;
             justify-content: flex-start;
             padding: 0 0 0 4px !important;
-            margin: 6px 0 !important;
+            margin: 4px 0 6px 0 !important;
             line-height: 1 !important;
             user-select: none;
             font-size: 12px;
