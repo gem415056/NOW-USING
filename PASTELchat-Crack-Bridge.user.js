@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.0.4
+// @version      2.0.5
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -582,12 +582,39 @@
             background-color: #141413 !important;
         }
 
+        /* 3대 크래커 지표 헤더 스타일 */
+        .chat-info-header {
+            height: auto;
+            border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+            display: flex;
+            align-items: center;
+            justify-content: flex-start;
+            padding: 0 0 6px 4px;
+            margin: 0;
+            user-select: none;
+            font-size: 12px;
+            color: var(--text_primary);
+        }
+        .chat-info-header .header-left {
+            display: flex;
+            gap: 12px;
+            align-items: center;
+        }
+        #ep-lore-cost-val, #ep-crack-total-cash, #ep-crack-recent-cash {
+            margin-right: -1.5px;
+            font-weight: 700;
+        }
+        body[data-theme="dark"] .chat-info-header {
+            border-bottom-color: rgba(255, 255, 255, 0.08);
+            color: #F0EFEB;
+        }
+
         /* 하단 입력바 & 특수문자 구슬 툴바 (crack.html 순정 100% 복원) */
         .chat-footer-control {
             width: 100%;
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            gap: 6px;
             box-sizing: border-box;
             background: transparent;
             position: relative;
@@ -1932,6 +1959,120 @@
     let isSendConfirmed = false;
     let sendHoldTimer = null;
 
+    /* ==========================================================================
+     * [3대 크래커 지표 코어 상태 및 실시간 연산 엔진]
+     * ========================================================================== */
+    let usdToKrwRate = 1500.0;
+    let crackCashBalance = 0;
+    let recentCashUsed = 0;
+
+    // 1. 실시간 달러/원화 환율 수급 엔진
+    function fetchRealTimeExchangeRate() {
+        fetch("https://open.er-api.com/v6/latest/USD")
+            .then(res => res.json())
+            .then(data => {
+                if (data && data.rates && data.rates.KRW) {
+                    usdToKrwRate = parseFloat(data.rates.KRW);
+                    updateCrackLoreCostUI();
+                }
+            }).catch(() => {});
+    }
+
+    // 2. 모델별 정밀 요율 계산기 (사용자 제공 스크린샷 100% 반영)
+    function calcGeminiApiCost(modelName, inTokens, outTokens) {
+        const inTok = inTokens || 0;
+        const outTok = outTokens || 0;
+        const m = String(modelName || '').toLowerCase().trim();
+
+        // 1) Gemini 3.1 Pro Preview (<= 200k 토큰: In $2.00 / Out $12.00 per 1M)
+        if (m.includes('3.1-pro') || m.includes('pro')) {
+            return (inTok * (2.00 / 1000000)) + (outTok * (12.00 / 1000000));
+        }
+        // 2) Gemini 3.5 Flash Lite (In $0.30 / Out $2.50 per 1M)
+        if (m.includes('flash-lite') || m.includes('lite')) {
+            return (inTok * (0.30 / 1000000)) + (outTok * (2.50 / 1000000));
+        }
+        // 3) Gemini 3.7 Flash / 3.6 Flash / 3.5 Flash (In $0.75 / Out $3.75 per 1M)
+        if (m.includes('flash')) {
+            return (inTok * (0.75 / 1000000)) + (outTok * (3.75 / 1000000));
+        }
+        // 기본 폴백: Flash 요율 적용
+        return (inTok * (0.75 / 1000000)) + (outTok * (3.75 / 1000000));
+    }
+
+    // 3. 방별(ChatId) 최종 누적 USD 비용 UI 실시간 원화(KRW) 동기화
+    function updateCrackLoreCostUI() {
+        const costEl = document.getElementById('ep-lore-cost-val');
+        const chatId = getChatId();
+        if (costEl && chatId && chatId !== 'global') {
+            const totalUsd = parseFloat(localStorage.getItem(`pastel_crack_lore_cost_${chatId}`) || '0');
+            const krw = Math.round(totalUsd * usdToKrwRate);
+            costEl.textContent = krw.toLocaleString();
+        }
+    }
+
+    // 4. 방별(ChatId) 최종 누적 USD 비용 캐시 가산 및 저장
+    function accumulateCrackLoreCost(usd) {
+        const chatId = getChatId();
+        if (!chatId || chatId === 'global') return;
+        const current = parseFloat(localStorage.getItem(`pastel_crack_lore_cost_${chatId}`) || '0');
+        const next = current + usd;
+        localStorage.setItem(`pastel_crack_lore_cost_${chatId}`, next.toFixed(8));
+        updateCrackLoreCostUI();
+    }
+
+    // 5. 크랙 캐시 JSON 응답 파서
+    function extractCashNumber(obj) {
+        if (typeof obj === 'number') return obj;
+        if (!obj || typeof obj !== 'object') return null;
+        if (typeof obj.quantity === 'number') return obj.quantity;
+        if (obj.data && typeof obj.data.quantity === 'number') return obj.data.quantity;
+        if (typeof obj.totalCash === 'number') return obj.totalCash;
+        if (typeof obj.freeCash === 'number' && typeof obj.paidCash === 'number') return obj.freeCash + obj.paidCash;
+        if (typeof obj.freeCash === 'number') return obj.freeCash;
+        if (typeof obj.cash === 'number') return obj.cash;
+        if (typeof obj.balance === 'number') return obj.balance;
+        if (obj.data) { const d = extractCashNumber(obj.data); if (d !== null) return d; }
+        if (obj.result) { const r = extractCashNumber(obj.result); if (r !== null) return r; }
+        return null;
+    }
+
+    // 6. 크랙 공식 크래커 잔액 및 최근 소모량(Margin) 자동 수급
+    async function fetchCrackCash() {
+        const savedRecent = localStorage.getItem('pastel_crack_recent_used_cash') || '0';
+        const recentCashEl = document.getElementById('ep-crack-recent-cash');
+        if (recentCashEl) recentCashEl.textContent = parseInt(savedRecent, 10).toLocaleString();
+
+        const token = getCrackAuthToken();
+        const headers = { 'accept': 'application/json, text/plain, */*' };
+        if (token) headers['Authorization'] = `Bearer ${token}`;
+
+        try {
+            const res = await fetch('https://crack-api.wrtn.ai/crack-cash/cash', {
+                method: 'GET', headers, credentials: 'include'
+            });
+            if (!res.ok) return;
+            const dataObj = await res.json();
+            const cashVal = extractCashNumber(dataObj);
+            if (cashVal !== null && !isNaN(cashVal)) {
+                crackCashBalance = cashVal;
+                const cashEl = document.getElementById('ep-crack-total-cash');
+                if (cashEl) cashEl.textContent = crackCashBalance.toLocaleString();
+
+                const lastKnownStr = localStorage.getItem('pastel_crack_last_known_cash');
+                if (lastKnownStr !== null) {
+                    const lastKnown = parseInt(lastKnownStr, 10);
+                    if (!isNaN(lastKnown) && lastKnown > crackCashBalance) {
+                        recentCashUsed = lastKnown - crackCashBalance;
+                        localStorage.setItem('pastel_crack_recent_used_cash', String(recentCashUsed));
+                        if (recentCashEl) recentCashEl.textContent = recentCashUsed.toLocaleString();
+                    }
+                }
+                localStorage.setItem('pastel_crack_last_known_cash', String(crackCashBalance));
+            }
+        } catch (_) {}
+    }
+
     // [오리지널 순정 _CrackCookieApi] 네트워크 캡처 토큰 1순위 추출
     function getCrackAuthToken() {
         // 1. 크랙 웹앱의 진짜 활성 세션 토큰 1순위 탐색 (auth-storage Zustand 스토리지)
@@ -2096,6 +2237,27 @@
         const footerControl = document.createElement('div');
         footerControl.className = 'chat-footer-control';
         footerControl.innerHTML = `
+            <!-- 3대 크래커 지표 헤더 -->
+            <div class="chat-info-header">
+                <div class="header-left">
+                    <!-- 1. 로어 소모 비용 (파스텔 블루 크래커) -->
+                    <span style="display: inline-flex; align-items: center; gap: 3px;" title="로어 RAG/임베딩 소모 비용 (원화)">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" width="14px" height="14px"><path fill="#88B9C8" d="M21.17 12.01c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21l.17-.21q0-.01.02-.02l.14-.21q0-.02.03-.05.06-.1.1-.2l.05-.08.09-.2q.01-.05.04-.11l.06-.18q0-.08.04-.14.01-.07.04-.16l.03-.19q0-.06.02-.13v-.33a3.37 3.37 0 0 0-3.36-3.37l-.33.01q-.06 0-.12.02-.1 0-.2.03-.07 0-.15.04l-.14.04-.18.06-.11.04-.2.09-.07.04-.2.11q-.03 0-.05.03l-.21.14-.02.02-.21.17a3.4 3.4 0 0 0-4.42 0 3.3 3.3 0 0 0-2.21-.83c-.85 0-1.62.31-2.21.83l-.21-.17-.02-.02-.21-.14q-.02 0-.05-.03l-.2-.11-.08-.04-.2-.09-.11-.04-.18-.06-.14-.04-.16-.04-.2-.03-.12-.02-.33-.01a3.37 3.37 0 0 0-3.34 3.82q0 .1.03.19 0 .07.04.16 0 .08.04.14l.06.18q0 .05.04.11.03.1.09.19l.04.08.1.2q.01.02.04.05l.16.23q.07.1.17.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21l-.17.21-.02.02-.14.21q0 .02-.03.05l-.11.2-.04.08-.1.2-.03.11-.06.18-.04.14-.04.16-.03.19-.02.13-.01.33A3.4 3.4 0 0 0 3.02 21c.6.61 1.45.99 2.38.99l.33-.01q.06 0 .12-.02.1 0 .19-.03.07 0 .16-.04l.14-.04.18-.06.1-.04.2-.09.08-.04.2-.11q.03 0 .05-.03l.2-.14.03-.02.2-.17a3.4 3.4 0 0 0 4.43 0 3.32 3.32 0 0 0 4.42 0 3 3 0 0 0 .44.33q.03 0 .05.03l.2.11.08.04.2.09.1.04.19.06.14.04.16.04.19.03.13.02.33.01c.92 0 1.75-.37 2.36-.97l.02-.02c.6-.61.99-1.45.99-2.38l-.01-.33q0-.06-.02-.12 0-.1-.03-.19 0-.07-.04-.16l-.04-.14-.06-.18-.04-.11-.1-.19-.03-.08-.11-.2q0-.02-.03-.05l-.14-.21-.02-.02-.17-.21c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21M7.5 13.5 6 12l1.5-1.5L9 12zM12 6l1.5 1.5L12 9l-1.5-1.5zm0 12-1.5-1.5L12 15l1.5 1.5zm4.5-4.5L15 12l1.5-1.5L18 12z"></path></svg>
+                        <strong id="ep-lore-cost-val">0</strong>원
+                    </span>
+                    <!-- 2. 실시간 잔여 크래커 (골드 크래커) -->
+                    <span style="display: inline-flex; align-items: center; gap: 3px;" title="크랙 잔여 크래커">
+                        <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" width="14px" height="14px"><path fill="#FFA600" d="M21.17 12.01c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21l.17-.21q0-.01.02-.02l.14-.21q0-.02.03-.05.06-.1.1-.2l.05-.08.09-.2q.01-.05.04-.11l.06-.18q0-.08.04-.14.01-.07.04-.16l.03-.19q0-.06.02-.13v-.33a3.37 3.37 0 0 0-3.36-3.37l-.33.01q-.06 0-.12.02-.1 0-.2.03-.07 0-.15.04l-.14.04-.18.06-.11.04-.2.09-.07.04-.2.11q-.03 0-.05.03l-.21.14-.02.02-.21.17a3.4 3.4 0 0 0-4.42 0 3.3 3.3 0 0 0-2.21-.83c-.85 0-1.62.31-2.21.83l-.21-.17-.02-.02-.21-.14q-.02 0-.05-.03l-.2-.11-.08-.04-.2-.09-.11-.04-.18-.06-.14-.04-.16-.04-.2-.03-.12-.02-.33-.01a3.37 3.37 0 0 0-3.34 3.82q0 .1.03.19 0 .07.04.16 0 .08.04.14l.06.18q0 .05.04.11.03.1.09.19l.04.08.1.2q.01.02.04.05l.16.23q.07.1.17.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21l-.17.21-.02.02-.14.21q0 .02-.03.05l-.11.2-.04.08-.1.2-.03.11-.06.18-.04.14-.04.16-.03.19-.02.13-.01.33A3.4 3.4 0 0 0 3.02 21c.6.61 1.45.99 2.38.99l.33-.01q.06 0 .12-.02.1 0 .19-.03.07 0 .16-.04l.14-.04.18-.06.1-.04.2-.09.08-.04.2-.11q.03 0 .05-.03l.2-.14.03-.02.2-.17a3.4 3.4 0 0 0 4.43 0 3.32 3.32 0 0 0 4.42 0 3 3 0 0 0 .44.33q.03 0 .05.03l.2.11.08.04.2.09.1.04.19.06.14.04.16.04.19.03.13.02.33.01c.92 0 1.75-.37 2.36-.97l.02-.02c.6-.61.99-1.45.99-2.38l-.01-.33q0-.06-.02-.12 0-.1-.03-.19 0-.07-.04-.16l-.04-.14-.06-.18-.04-.11-.1-.19-.03-.08-.11-.2q0-.02-.03-.05l-.14-.21-.02-.02-.17-.21c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21M7.5 13.5 6 12l1.5-1.5L9 12zM12 6l1.5 1.5L12 9l-1.5-1.5zm0 12-1.5-1.5L12 15l1.5 1.5zm4.5-4.5L15 12l1.5-1.5L18 12z"></path></svg>
+                        <strong id="ep-crack-total-cash">0</strong>개
+                    </span>
+                    <!-- 3. 최근 턴 사용 크래커 (핑크 크래커) -->
+                    <span style="display: inline-flex; align-items: center; gap: 3px;" title="최근 턴 소모 크래커">
+                        <svg width="14px" height="14px" viewBox="0 0 24 24" fill="none"><defs><mask id="ep-chat-bite-mask"><rect width="24" height="24" fill="#ffffff"/><circle cx="24" cy="0" r="10" fill="#000000"/></mask></defs><path fill="#ff9b9b" mask="url(#ep-chat-bite-mask)" d="M21.17 12.01c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21l.17-.21q0-.01.02-.02l.14-.21q0-.02.03-.05.06-.1.1-.2l.05-.08.09-.2q.01-.05.04-.11l.06-.18q0-.08.04-.14.01-.07.04-.16l.03-.19q0-.06.02-.13v-.33a3.37 3.37 0 0 0-3.36-3.37l-.33.01q-.06 0-.12.02-.1 0-.2.03-.07 0-.15.04l-.14.04-.18.06-.11.04-.2.09-.07.04-.2.11q-.03 0-.05.03l-.21.14-.02.02-.21.17a3.4 3.4 0 0 0-4.42 0 3.3 3.3 0 0 0-2.21-.83c-.85 0-1.62.31-2.21.83l-.21-.17-.02-.02-.21-.14q-.02 0-.05-.03l-.2-.11-.08-.04-.2-.09-.11-.04-.18-.06-.14-.04-.16-.04-.2-.03-.12-.02-.33-.01a3.37 3.37 0 0 0-3.34 3.82q0 .1.03.19 0 .07.04.16 0 .08.04.14l.06.18q0 .05.04.11.03.1.09.19l.04.08.1.2q.01.02.04.05l.16.23q.07.1.17.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21a3.3 3.3 0 0 0-.83 2.21c0 .85.3 1.62.83 2.21l-.17.21-.02.02-.14.21q0 .02-.03.05l-.11.2-.04.08-.1.2-.03.11-.06.18-.04.14-.04.16-.03.19-.02.13-.01.33A3.4 3.4 0 0 0 3.02 21c.6.61 1.45.99 2.38.99l.33-.01q.06 0 .12-.02.1 0 .19-.03.07 0 .16-.04l.14-.04.18-.06.1-.04.2-.09.08-.04.2-.11q.03 0 .05-.03l.2-.14.03-.02.2-.17a3.4 3.4 0 0 0 4.43 0 3.32 3.32 0 0 0 4.42 0 3 3 0 0 0 .44.33q.03 0 .05.03l.2.11.08.04.2.09.1.04.19.06.14.04.16.04.19.03.13.02.33.01c.92 0 1.75-.37 2.36-.97l.02-.02c.6-.61.99-1.45.99-2.38l-.01-.33q0-.06-.02-.12 0-.1-.03-.19 0-.07-.04-.16l-.04-.14-.06-.18-.04-.11-.1-.19-.03-.08-.11-.2q0-.02-.03-.05l-.14-.21-.02-.02-.17-.21c.52-.59.83-1.36.83-2.21s-.31-1.62-.83-2.21M7.5 13.5 6 12l1.5-1.5L9 12zM12 6l1.5 1.5L12 9l-1.5-1.5zm0 12-1.5-1.5L12 15l1.5 1.5zm4.5-4.5L15 12l1.5-1.5L18 12z"></path></svg>
+                        <strong id="ep-crack-recent-cash">0</strong>개
+                    </span>
+                </div>
+            </div>
+
             <div class="input-area">
                 <textarea class="chat-textarea" id="ep-chat-input-textarea" placeholder="메시지를 입력하세요..."></textarea>
                 <div class="input-toolbar">
@@ -3838,6 +4000,12 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
             }
             const resData = await res.json();
 
+            // Gemini API 비용 정밀 누적 연산
+            const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
+            const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
+            const cost = calcGeminiApiCost(selectedModel, inTok, outTok);
+            accumulateCrackLoreCost(cost);
+
             const rawJsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
             if (!rawJsonText.trim()) throw new Error("AI가 로어 데이터를 반환하지 않았습니다.");
             let raw = rawJsonText.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
@@ -3974,6 +4142,12 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
         if (!res.ok) throw new Error(`API 통신 실패 (HTTP ${res.status})`);
         const resData = await res.json();
 
+        // Gemini API 비용 정밀 누적 연산
+        const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
+        const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
+        const cost = calcGeminiApiCost(selectedModel, inTok, outTok);
+        accumulateCrackLoreCost(cost);
+
         const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!rawText.trim()) throw new Error("AI가 로어 데이터를 반환하지 않았습니다.");
         let raw = rawText.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
@@ -4089,6 +4263,12 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
             if (!res.ok) return;
             const resData = await res.json();
 
+            // Gemini API 비용 정밀 누적 연산
+            const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
+            const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
+            const cost = calcGeminiApiCost(selectedModel, inTok, outTok);
+            accumulateCrackLoreCost(cost);
+
             const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
             if (!rawText.trim()) return;
 
@@ -4199,6 +4379,12 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
             throw new Error(`API 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
         }
         const resData = await res.json();
+
+        // Gemini API 비용 정밀 누적 연산
+        const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(finalPrompt.length * 1.2);
+        const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
+        const cost = calcGeminiApiCost(selectedModel, inTok, outTok);
+        accumulateCrackLoreCost(cost);
 
         const rawText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
         if (!rawText.trim()) return;
@@ -4436,6 +4622,12 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                     throw new Error(`AI 병합 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
                 }
                 const resData = await res.json();
+
+                // Gemini API 비용 정밀 누적 연산
+                const inTok = resData.usageMetadata?.promptTokenCount || Math.ceil(prompt.length * 1.2);
+                const outTok = resData.usageMetadata?.candidatesTokenCount || 0;
+                const cost = calcGeminiApiCost(selectedModel, inTok, outTok);
+                accumulateCrackLoreCost(cost);
 
                 let txt = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
                 let raw = txt.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
@@ -4704,6 +4896,11 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                     }).then(r => r.ok ? r.json() : null);
 
                     if (embedRes && embedRes.embedding && embedRes.embedding.values) {
+                        // 임베딩 소모 비용 (1M당 $0.15 = 1k당 $0.00015) 누적 연산
+                        const inTok = Math.ceil(embedQueryText.length * 1.2);
+                        const embedCost = inTok * (0.15 / 1000000);
+                        accumulateCrackLoreCost(embedCost);
+
                         const qVec = embedRes.embedding.values;
                         const entryIds = allEntries.map(e => e.id);
                         const embs = await loreDb.embeddings.where('entryId').anyOf(entryIds).toArray();
@@ -5379,17 +5576,21 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
      * 6. SPA 라우팅 대응 상시 주입 감시 (무거운 감시 없음 / 가벼운 확인 루프)
      * ========================================================================== */
     initializeFirebaseDynamically();
+    fetchRealTimeExchangeRate();
+    fetchCrackCash();
 
     let lastCheckedChatId = '';
     function checkAndInject() {
         injectBaseDOM();
         stripLoreOnlyFromView();
 
-        // 대화방 진입 또는 변경 감지 시 백엔드 API에서 실제 유저 턴 수를 즉시 전수 수급하여 캐시 오염 리셋
+        // 대화방 진입 또는 변경 감지 시 백엔드 API에서 실제 유저 턴 수 수급 및 해당 방의 누적 비용/크래커 UI 갱신
         const currentChatId = getChatId();
         if (currentChatId && currentChatId !== 'global' && currentChatId !== lastCheckedChatId) {
             lastCheckedChatId = currentChatId;
             getCrackUserTurnsRealtime(currentChatId);
+            updateCrackLoreCostUI();
+            fetchCrackCash();
         }
     }
 
