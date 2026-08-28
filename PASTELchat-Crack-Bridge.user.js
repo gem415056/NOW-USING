@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.1.2
+// @version      2.1.3
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -572,7 +572,7 @@
             background-color: #141413 !important;
         }
 
-        /* 3대 크래커 지표 헤더 스타일 (상단 4px, 하단 6px 초밀착 정렬) */
+        /* 3대 크래커 지표 헤더 스타일 */
         .chat-info-header {
             height: auto;
             border-bottom: none !important;
@@ -580,7 +580,7 @@
             align-items: center;
             justify-content: flex-start;
             padding: 0 0 0 4px !important;
-            margin: 4px 0 6px 0 !important;
+            margin: 10px 0 6px 0 !important;
             line-height: 1 !important;
             user-select: none;
             font-size: 12px;
@@ -588,7 +588,7 @@
         }
         .chat-info-header .header-left {
             display: flex;
-            gap: 12px;
+            gap: 8px;
             align-items: center;
         }
         #ep-lore-cost-val, #ep-crack-total-cash, #ep-crack-recent-cash {
