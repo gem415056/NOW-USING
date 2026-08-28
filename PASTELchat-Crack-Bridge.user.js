@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.1.7
+// @version      2.1.8
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -3985,7 +3985,7 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
             const cost = calcGeminiApiCost(selectedModel, inTok, outTok);
             accumulateCrackLoreCost(cost, chatId);
 
-            const rawJsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
+           const rawJsonText = resData.candidates?.[0]?.content?.parts?.[0]?.text || "";
             if (!rawJsonText.trim()) throw new Error("AI가 로어 데이터를 반환하지 않았습니다.");
             let raw = rawJsonText.trim().replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim().replace(/,(\s*[\]\}])/g, "$1");
             const fb = raw.indexOf("["), fc = raw.indexOf("{"), first = fb === -1 ? fc : fc === -1 ? fb : Math.min(fb, fc);
@@ -4001,17 +4001,12 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
                 else parsedArray = [];
             }
 
-            if (Array.isArray(parsedArray)) {
+            if (Array.isArray(parsedArray) && parsedArray.length > 0) {
                 accumulatedLore = parsedArray;
             }
         }
 
         const currentTurn = getCrackChatTurns(chatId);
-            if (Array.isArray(parsedArray)) accumulatedLore = parsedArray;
-        }
-
-        const currentTurn = getCrackChatTurns();
-
         if (Array.isArray(accumulatedLore) && accumulatedLore.length > 0) {
             for (let e of accumulatedLore) {
                 const tid = await mergeAndSaveLoreEntry(e, packName, chatId);
