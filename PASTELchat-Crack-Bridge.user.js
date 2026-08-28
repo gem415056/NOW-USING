@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.1.0
+// @version      2.1.1
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -557,16 +557,18 @@
             display: none !important;
         }
 
-        /* 크랙 하단 부모 컨테이너 완벽 바닥 고정 (평상시 z-index 30) */
+        /* 크랙 하단 부모 컨테이너 완벽 바닥 고정 (상단 패딩 0 강제) */
         .bg-bg_screen.pointer-events-auto,
-        .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\] {
+        .flex.flex-col.w-\\[calc\\(100\\%-40px\\)\\],
+        .max-w-\\[768px\\].py-4 {
             position: fixed !important;
             bottom: 0 !important;
             left: 50% !important;
             transform: translateX(-50%) !important;
             max-width: 760px !important;
             width: calc(100% - 64px) !important;
-            padding: 0 0 10px 0 !important;
+            padding-top: 0 !important;
+            padding-bottom: 10px !important;
             margin: 0 !important;
             background-color: var(--bg_screen, #ffffff) !important;
             z-index: 30 !important;
@@ -582,15 +584,16 @@
             background-color: #141413 !important;
         }
 
-        /* 3대 크래커 지표 헤더 스타일 (실선 제거 및 상하 6px 대칭 마진) */
+        /* 3대 크래커 지표 헤더 스타일 (순수 상하 6px 칼각 대칭화) */
         .chat-info-header {
             height: auto;
             border-bottom: none !important;
             display: flex;
             align-items: center;
             justify-content: flex-start;
-            padding: 6px 0 6px 4px;
-            margin: 0;
+            padding: 0 0 0 4px !important;
+            margin: 6px 0 !important;
+            line-height: 1 !important;
             user-select: none;
             font-size: 12px;
             color: var(--text_primary);
@@ -609,12 +612,12 @@
             color: #F0EFEB;
         }
 
-        /* 하단 입력바 & 특수문자 구슬 툴바 (crack.html 순정 100% 복원) */
+        /* 하단 입력바 & 특수문자 구슬 툴바 (중복 gap 간섭 제거) */
         .chat-footer-control {
             width: 100%;
             display: flex;
             flex-direction: column;
-            gap: 6px;
+            gap: 0 !important;
             box-sizing: border-box;
             background: transparent;
             position: relative;
