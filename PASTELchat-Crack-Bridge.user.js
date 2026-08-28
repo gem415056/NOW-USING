@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.1.6
+// @version      2.1.7
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1238,17 +1238,15 @@
      * ========================================================================== */
     function stripLoreInjectionBlock(text) {
         if (!text) return "";
-        let str = String(text).replace(/\r\n/g, '\n').trimStart();
-        if (!str.startsWith('[LORE')) return str;
-
-        // 1. 메시지 시작부의 [LORE 1]부터 유저 본문 경계(\n\n) 직전까지의 모든 줄바꿈 포함 블록을 통째로 적출
-        str = str.replace(/^\[LORE[\s\S]*?(?=(?:\n\s*\n(?!\s*\[LORE))|$)/i, '').trimStart();
-
-        // 2. 만약 단일 개행으로 유저 텍스트와 붙어있는 잔여 [LORE ...] 태그가 남아있다면 2차 정리
-        while (/^\[LORE\s*\d*\]/i.test(str)) {
-            str = str.replace(/^\[LORE\s*\d*\][^\n]*(?:\n|$)/i, '').trimStart();
-        }
-        return str;
+        let str = String(text).replace(/\r\n/g, '\n');
+        
+        // 1. [LORE 1] ... [LORE n] 형태의 모든 로어 주입 라인/블록 전수 제거
+        str = str.replace(/\[LORE\s*\d*\][\s\S]*?(?=(?:\n\s*\n(?!\s*\[LORE))|$)/gi, '');
+        
+        // 2. 개별 라인에 남아있는 단일 [LORE ...] 잔여 태그 줄 단위 2차 제거
+        str = str.replace(/^\[LORE\s*\d*\].*$/gmi, '');
+        
+        return str.replace(/\n{3,}/g, '\n\n').trim();
     }
 
     // [HTML 저장 전용] index.html 순정 100% 완전 일치 마크다운 파서 (화면 비간섭 / 저장 시에만 동작)
@@ -2950,30 +2948,6 @@
                     }
                     isInternalSending = false;
                 }, 80);
-
-                // 7. N턴 주기 백그라운드 자동 로어 추출 검사 및 실행 (100% API 실시간 턴 수 직결)
-                setTimeout(async () => {
-                    const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${chatId}`), 10) || 6;
-                    const currentTurns = await getCrackUserTurnsRealtime(chatId);
-                    const lastAutoTurnKey = `pastel_crack_last_auto_ext_turn_${chatId}`;
-                    const lastAutoTurn = parseInt(localStorage.getItem(lastAutoTurnKey) || '-1', 10);
-
-                    if (currentTurns > 0 && currentTurns % extTurns === 0 && currentTurns !== lastAutoTurn) {
-                        localStorage.setItem(lastAutoTurnKey, String(currentTurns));
-                        (async () => {
-                            try {
-                                showLoreExtPersistentToast("🔮 로어 자동 생성 중...");
-                                await executeBackgroundAutoExtraction(chatId);
-                                showToast("✨ 로어 생성 완료!");
-                                renderCrackActiveLores();
-                            } catch (_) {
-                                showToast("❌ 로어 자동 생성 실패");
-                            } finally {
-                                hideLoreExtPersistentToast();
-                            }
-                        })();
-                    }
-                }, 800);
             }, true); // Capture phase로 이벤트 최우선 가로채기
         }
     }
@@ -4019,7 +3993,20 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
             const lastB = Math.max(raw.lastIndexOf("]"), raw.lastIndexOf("}"));
             if (lastB !== -1 && lastB < raw.length - 1) raw = raw.slice(0, lastB + 1);
 
-            const currentTurn = getCrackChatTurns(chatId);
+            let parsedArray = JSON.parse(raw);
+            if (parsedArray && !Array.isArray(parsedArray)) {
+                if (Array.isArray(parsedArray.entries)) parsedArray = parsedArray.entries;
+                else if (Array.isArray(parsedArray.lore)) parsedArray = parsedArray.lore;
+                else if (parsedArray.name) parsedArray = [parsedArray];
+                else parsedArray = [];
+            }
+
+            if (Array.isArray(parsedArray)) {
+                accumulatedLore = parsedArray;
+            }
+        }
+
+        const currentTurn = getCrackChatTurns(chatId);
             if (Array.isArray(parsedArray)) accumulatedLore = parsedArray;
         }
 
@@ -4940,8 +4927,9 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
             };
             matchedByTrigger.forEach(r => addToMap(r, 0.5));
             matchedByEmbedding.forEach(r => addToMap(r, 0.5));
-            // 5. 슬롯 우선순위 배정 알고리즘 (API 실시간 유저 턴수 직접 동기화)
-            const currentTurn = await getCrackUserTurnsRealtime(chatId);
+            // 5. 슬롯 우선순위 배정 알고리즘 (API 실시간 유저 턴수 직접 동기화 + 이번 전송 발화 1턴 포함)
+            const baseTurn = await getCrackUserTurnsRealtime(chatId);
+            const currentTurn = baseTurn + 1;
             const selectedLores = [];
             const injectReport = [];
             const usedIds = new Set();
@@ -5610,13 +5598,38 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         // 2. AI 생성이 완료되어 전송 버튼으로 복귀한 순간 포착
         else if (isAiGeneratingState && currentHasSend) {
             isAiGeneratingState = false;
-            console.log("⚡ [PASTEL] AI 응답 완료 감지 ➔ 크래커 수치 실시간 갱신 실행");
+            console.log("⚡ [PASTEL] AI 응답 완료 감지 ➔ 크래커 수치 갱신 및 자동 로어 추출 검사 실행");
             updateCrackLoreCostUI();
             fetchCrackCash();
             setTimeout(() => {
                 updateCrackLoreCostUI();
                 fetchCrackCash();
             }, 800); // 크랙 서버 DB 차감 지연 대비 2차 확정 갱신
+
+            // AI 답변 완결 시점 백그라운드 자동 로어 추출 실행
+            const targetChatId = getChatId();
+            if (targetChatId && targetChatId !== 'global') {
+                setTimeout(async () => {
+                    const extTurns = parseInt(localStorage.getItem(`pastel_crack_lore_auto_ext_turns_ep_${targetChatId}`), 10) || 6;
+                    const currentTurns = await getCrackUserTurnsRealtime(targetChatId);
+                    const lastAutoTurnKey = `pastel_crack_last_auto_ext_turn_${targetChatId}`;
+                    const lastAutoTurn = parseInt(localStorage.getItem(lastAutoTurnKey) || '-1', 10);
+
+                    if (currentTurns > 0 && currentTurns % extTurns === 0 && currentTurns !== lastAutoTurn) {
+                        localStorage.setItem(lastAutoTurnKey, String(currentTurns));
+                        try {
+                            showLoreExtPersistentToast("🔮 로어 자동 생성 중...");
+                            await executeBackgroundAutoExtraction(targetChatId);
+                            showToast("✨ 로어 생성 완료!");
+                            renderCrackActiveLores();
+                        } catch (_) {
+                            showToast("❌ 로어 자동 생성 실패");
+                        } finally {
+                            hideLoreExtPersistentToast();
+                        }
+                    }
+                }, 500);
+            }
         }
     }
 
