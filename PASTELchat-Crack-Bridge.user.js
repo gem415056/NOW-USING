@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.0.0
+// @version      2.0.1
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -2003,7 +2003,9 @@
         let loadedMessages = [];
         let cursor = undefined;
 
-        // [1계층]: 오리지널 contents-api.wrtn.ai 커서 반복 순회 (1턴부터 최대 maxCount까지 완벽 수급)
+        const seenMessageIds = new Set();
+
+        // [1계층]: 오리지널 contents-api.wrtn.ai 커서 반복 순회 (1턴부터 끝까지 고유 ID 검증 수급)
         try {
             while (maxCount === -1 || loadedMessages.length < maxCount) {
                 const itemPerPage = Math.min(20, (maxCount === -1 ? 20 : maxCount - loadedMessages.length));
@@ -2021,6 +2023,11 @@
                 for (const msg of messages) {
                     const rawContent = msg.content || msg.message || msg.text || '';
                     if (!rawContent || rawContent.length === 0) continue;
+
+                    const msgId = msg.id || msg._id || `${msg.createdAt || ''}_${rawContent.slice(0, 20)}`;
+                    if (seenMessageIds.has(msgId)) continue;
+                    seenMessageIds.add(msgId);
+
                     loadedMessages.push(msg);
                     if (maxCount !== -1 && loadedMessages.length >= maxCount) break;
                 }
@@ -2038,51 +2045,45 @@
         // [2계층 폴백]: crack-api 단일 호출
         if (loadedMessages.length === 0) {
             try {
-                const res2 = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=${maxCount}`, {
+                const limitParam = maxCount === -1 ? 300 : maxCount;
+                const res2 = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=${limitParam}`, {
                     method: 'GET', headers: headers, credentials: 'include'
                 });
                 if (res2.ok) {
                     const p2 = await res2.json();
                     const arr = p2?.data?.messages || p2?.data || p2?.messages || [];
-                    if (Array.isArray(arr) && arr.length > 0) loadedMessages = arr;
+                    if (Array.isArray(arr) && arr.length > 0) {
+                        for (const msg of arr) {
+                            const rawContent = msg.content || msg.message || msg.text || '';
+                            if (!rawContent) continue;
+                            const msgId = msg.id || msg._id || `${msg.createdAt || ''}_${rawContent.slice(0, 20)}`;
+                            if (seenMessageIds.has(msgId)) continue;
+                            seenMessageIds.add(msgId);
+                            loadedMessages.push(msg);
+                        }
+                    }
                 }
             } catch (_) {}
         }
 
-        // API 수급 성공: 과거 1턴부터 순서대로 reverse() 정렬 및 [crack.html 순정] 유저 턴수 카운팅
+        // API 수급 성공: 과거 1턴부터 시간순 정렬
         if (loadedMessages.length > 0) {
             loadedMessages.reverse();
-            // [crack.html 순정 100%] 백엔드 대화 배열 중 유저 메시지(role/type/sender 판별) 정밀 카운팅
-            const userTurns = loadedMessages.filter(m => {
-                const r = String(m.role || m.type || m.sender || '').toLowerCase();
-                return r === 'user';
-            }).length;
-            localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(userTurns));
 
-            console.log(`📥 [PASTEL:수급] contents-api에서 총 ${loadedMessages.length}개 메시지 수급 완료! (현재 유저 ${userTurns}턴)`);
+            // [안전 잠금]: 오직 1턴부터 끝까지 '전체 수급(maxCount === -1)'을 수행했을 때만 전체 턴 수를 갱신
+            if (maxCount === -1) {
+                const userTurns = loadedMessages.filter(m => {
+                    const r = String(m.role || m.type || m.sender || '').toLowerCase();
+                    return r === 'user';
+                }).length;
+                localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(userTurns));
+                console.log(`📥 [PASTEL:수급] 백엔드 API에서 총 ${loadedMessages.length}개 메시지 수급 완료! (순수 유저 발화: ${userTurns}턴)`);
+            }
             return loadedMessages;
         }
 
-        // [3계층 폴백]: 화면 DOM 파서
-        console.warn("⚠️ [PASTEL:수급] API 수급 불가로 화면 DOM 파서를 가동합니다.");
-        const domTurns = [];
-        const allNodes = document.querySelectorAll('p, .whitespace-pre-wrap, .break-words, .prose');
-        allNodes.forEach(el => {
-            if (el.closest('#ep-chat-right-drawer') || el.closest('#ep-lore-storage-modal-overlay') || el.closest('.ep-prompt-overlay') || el.closest('.chat-footer-control') || el.closest('.ProseMirror')) return;
-            let txt = (el.getAttribute('data-pastel-raw') || el.innerText || el.textContent || '').trim();
-            let clean = stripLoreInjectionBlock(txt).trim();
-            if (clean.length > 0) {
-                const isUser = !!el.closest('.justify-end, [class*="items-end"], .bg-accent_translucent') || el.classList.contains('bg-accent_translucent');
-                domTurns.push({ role: isUser ? 'user' : 'assistant', content: clean, message: clean, text: clean });
-            }
-        });
-        if (document.querySelector('.flex-col-reverse')) domTurns.reverse();
-
-        const domUserTurns = domTurns.filter(m => m.role === 'user').length;
-        localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(domUserTurns));
-
-        console.log(`📥 [PASTEL:수급] DOM 파서에서 ${domTurns.length}개 메시지 수급 완료! (현재 유저 ${domUserTurns}턴)`);
-        return domTurns;
+        // DOM 파서는 화면 렌더링 한계 및 중복 카운팅 오류를 유발하므로 영구 폐기하고 빈 배열 반환
+        return [];
     }
 
     // [crack.html 순정 100%] API 커서 기반 실시간 유저 턴 수 비동기 전수 집계 엔진
@@ -2091,6 +2092,7 @@
         if (!targetId || targetId === 'global') return 0;
 
         try {
+            // -1로 전체 커서를 순회하여 1턴부터 현재까지의 정확한 유저 발화 턴 수 집계
             const msgs = await fetchCrackMessagesPure(targetId, -1);
             if (Array.isArray(msgs) && msgs.length > 0) {
                 const userCount = msgs.filter(m => {
