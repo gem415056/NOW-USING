@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.0.2
+// @version      2.0.3
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1992,6 +1992,7 @@
     }
 
     // [crack.html 순정 100% 이식] crack-api 10,000턴 단일 전수 수급 엔진 (과거 1턴부터 현재까지 완벽 수급)
+    // [crack.html 순정 100% 이식] crack-api 10,000턴 단일 전수 수급 엔진 (오직 순수 유저 발화수만 정밀 카운트)
     async function fetchCrackMessagesPure(targetChatId, maxCount = -1) {
         const chatId = targetChatId || getChatId();
         if (!chatId || chatId === 'global') return [];
@@ -2002,7 +2003,7 @@
 
         let loadedMessages = [];
 
-        // 1단계: crack-api messages 엔드포인트에서 10,000턴 단일 전수 조회
+        // 1단계: crack-api messages 엔드포인트에서 10,000턴 단일 전수 조회 (crack.html 순정)
         try {
             const msgRes = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=10000`, {
                 method: 'GET',
@@ -2019,11 +2020,9 @@
                     else if (Array.isArray(parsedMsgData)) loadedMessages = parsedMsgData;
                 }
             }
-        } catch (e) {
-            console.warn("[PASTEL:수급] 1단계 messages 엔드포인트 예외:", e);
-        }
+        } catch (_) {}
 
-        // 2단계: 폴백 검증 (messages가 비어있을 경우 chats 마스터에서 전수 수급)
+        // 2단계: 폴백 검증 (messages가 비어있을 경우 chats 엔드포인트에서 수급)
         if (loadedMessages.length === 0) {
             try {
                 const chatRes = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}?limit=10000`, {
@@ -2039,22 +2038,17 @@
                         else if (Array.isArray(parsedChatData.messages)) loadedMessages = parsedChatData.messages;
                     }
                 }
-            } catch (e) {
-                console.warn("[PASTEL:수급] 2단계 chats 엔드포인트 예외:", e);
-            }
+            } catch (_) {}
         }
 
         if (loadedMessages.length > 0) {
-            // 크랙 서버가 최신순(역순)으로 반환하므로 과거 1턴 -> 최신 턴 순서로 반전
             loadedMessages.reverse();
 
-            // [crack.html 순정 100% 동일] 순수 유저 메시지(role === 'user' || type === 'user') 개수로 실시간 턴수 계산 및 캐시 갱신
+            // [대화 삭제/롤백 완벽 대응]: 백엔드 대화 배열 중 오직 유저 메시지만 직접 세어서 턴 수 동기화
             const pureUserTurns = loadedMessages.filter(m => (m.role === 'user' || m.type === 'user')).length;
             localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(pureUserTurns));
+            console.log(`📥 [PASTEL:수급] 총 ${loadedMessages.length}개 메시지 수급 완료! (순수 유저 발화: ${pureUserTurns}턴)`);
 
-            console.log(`📥 [PASTEL:수급] crack-api에서 총 ${loadedMessages.length}개 메시지 수급 완료! (순수 유저 턴수: ${pureUserTurns}턴)`);
-
-            // 필요한 개수(maxCount)만큼만 슬라이스 반환 (기본값 -1이면 전체 반환)
             if (maxCount > 0 && loadedMessages.length > maxCount) {
                 return loadedMessages.slice(-maxCount);
             }
@@ -2784,9 +2778,8 @@
                     if (nativeBtn) {
                         nativeBtn.removeAttribute('disabled');
                         nativeBtn.click();
-                        // 전송 클릭 완료 시 턴수 +1 즉시 반영
-                        const prevTurns = parseInt(localStorage.getItem(`pastel_crack_chat_turns_${chatId}`) || '0', 10);
-                        localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(prevTurns + 1));
+                        // 전송 후 실제 유저 발화수만 정밀하게 재집계하여 동기화 (수동 +1 가산 영구 제거)
+                        setTimeout(() => getCrackUserTurnsRealtime(chatId), 500);
 
                         textarea.value = '';
                         updateSendButtonColor();
@@ -5392,9 +5385,17 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
      * ========================================================================== */
     initializeFirebaseDynamically();
 
+    let lastCheckedChatId = '';
     function checkAndInject() {
         injectBaseDOM();
         stripLoreOnlyFromView();
+
+        // 대화방 진입 또는 변경 감지 시 백엔드 API에서 실제 유저 턴 수를 즉시 전수 수급하여 캐시 오염 리셋
+        const currentChatId = getChatId();
+        if (currentChatId && currentChatId !== 'global' && currentChatId !== lastCheckedChatId) {
+            lastCheckedChatId = currentChatId;
+            getCrackUserTurnsRealtime(currentChatId);
+        }
     }
 
     if (document.readyState === 'loading') {
