@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.0.1
+// @version      2.0.2
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -1991,8 +1991,8 @@
         return 'global';
     }
 
-    // [오리지널 순정 contents-api 커서 기반 300턴 전수 수급 엔진]
-    async function fetchCrackMessagesPure(targetChatId, maxCount = 300) {
+    // [crack.html 순정 100% 이식] crack-api 10,000턴 단일 전수 수급 엔진 (과거 1턴부터 현재까지 완벽 수급)
+    async function fetchCrackMessagesPure(targetChatId, maxCount = -1) {
         const chatId = targetChatId || getChatId();
         if (!chatId || chatId === 'global') return [];
 
@@ -2001,104 +2001,78 @@
         if (token) headers['Authorization'] = `Bearer ${token}`;
 
         let loadedMessages = [];
-        let cursor = undefined;
 
-        const seenMessageIds = new Set();
-
-        // [1계층]: 오리지널 contents-api.wrtn.ai 커서 반복 순회 (1턴부터 끝까지 고유 ID 검증 수급)
+        // 1단계: crack-api messages 엔드포인트에서 10,000턴 단일 전수 조회
         try {
-            while (maxCount === -1 || loadedMessages.length < maxCount) {
-                const itemPerPage = Math.min(20, (maxCount === -1 ? 20 : maxCount - loadedMessages.length));
-                const nextUrl = cursor === undefined
-                    ? `https://contents-api.wrtn.ai/character-chat/v3/chats/${chatId}/messages?limit=${itemPerPage}`
-                    : `https://contents-api.wrtn.ai/character-chat/v3/chats/${chatId}/messages?limit=${itemPerPage}&cursor=${encodeURIComponent(cursor)}`;
+            const msgRes = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=10000`, {
+                method: 'GET',
+                headers: headers,
+                credentials: 'include'
+            });
 
-                const res = await fetch(nextUrl, { method: 'GET', headers: headers, credentials: 'include' });
-                if (!res.ok) break;
-
-                const result = await res.json();
-                const messages = result?.data?.messages || result?.messages || [];
-                if (!Array.isArray(messages) || messages.length === 0) break;
-
-                for (const msg of messages) {
-                    const rawContent = msg.content || msg.message || msg.text || '';
-                    if (!rawContent || rawContent.length === 0) continue;
-
-                    const msgId = msg.id || msg._id || `${msg.createdAt || ''}_${rawContent.slice(0, 20)}`;
-                    if (seenMessageIds.has(msgId)) continue;
-                    seenMessageIds.add(msgId);
-
-                    loadedMessages.push(msg);
-                    if (maxCount !== -1 && loadedMessages.length >= maxCount) break;
-                }
-
-                if (result?.data?.nextCursor) {
-                    cursor = result.data.nextCursor;
-                } else {
-                    break;
+            if (msgRes.ok) {
+                const parsedMsgData = await msgRes.json();
+                if (parsedMsgData) {
+                    if (Array.isArray(parsedMsgData.data)) loadedMessages = parsedMsgData.data;
+                    else if (parsedMsgData.data && Array.isArray(parsedMsgData.data.messages)) loadedMessages = parsedMsgData.data.messages;
+                    else if (Array.isArray(parsedMsgData.messages)) loadedMessages = parsedMsgData.messages;
+                    else if (Array.isArray(parsedMsgData)) loadedMessages = parsedMsgData;
                 }
             }
-        } catch (err) {
-            console.warn("[contents-api 수급 예외]:", err);
+        } catch (e) {
+            console.warn("[PASTEL:수급] 1단계 messages 엔드포인트 예외:", e);
         }
 
-        // [2계층 폴백]: crack-api 단일 호출
+        // 2단계: 폴백 검증 (messages가 비어있을 경우 chats 마스터에서 전수 수급)
         if (loadedMessages.length === 0) {
             try {
-                const limitParam = maxCount === -1 ? 300 : maxCount;
-                const res2 = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}/messages?limit=${limitParam}`, {
-                    method: 'GET', headers: headers, credentials: 'include'
+                const chatRes = await fetch(`https://crack-api.wrtn.ai/crack-gen/v3/chats/${chatId}?limit=10000`, {
+                    method: 'GET',
+                    headers: headers,
+                    credentials: 'include'
                 });
-                if (res2.ok) {
-                    const p2 = await res2.json();
-                    const arr = p2?.data?.messages || p2?.data || p2?.messages || [];
-                    if (Array.isArray(arr) && arr.length > 0) {
-                        for (const msg of arr) {
-                            const rawContent = msg.content || msg.message || msg.text || '';
-                            if (!rawContent) continue;
-                            const msgId = msg.id || msg._id || `${msg.createdAt || ''}_${rawContent.slice(0, 20)}`;
-                            if (seenMessageIds.has(msgId)) continue;
-                            seenMessageIds.add(msgId);
-                            loadedMessages.push(msg);
-                        }
+
+                if (chatRes.ok) {
+                    const parsedChatData = await chatRes.json();
+                    if (parsedChatData) {
+                        if (parsedChatData.data && Array.isArray(parsedChatData.data.messages)) loadedMessages = parsedChatData.data.messages;
+                        else if (Array.isArray(parsedChatData.messages)) loadedMessages = parsedChatData.messages;
                     }
                 }
-            } catch (_) {}
+            } catch (e) {
+                console.warn("[PASTEL:수급] 2단계 chats 엔드포인트 예외:", e);
+            }
         }
 
-        // API 수급 성공: 과거 1턴부터 시간순 정렬
         if (loadedMessages.length > 0) {
+            // 크랙 서버가 최신순(역순)으로 반환하므로 과거 1턴 -> 최신 턴 순서로 반전
             loadedMessages.reverse();
 
-            // [안전 잠금]: 오직 1턴부터 끝까지 '전체 수급(maxCount === -1)'을 수행했을 때만 전체 턴 수를 갱신
-            if (maxCount === -1) {
-                const userTurns = loadedMessages.filter(m => {
-                    const r = String(m.role || m.type || m.sender || '').toLowerCase();
-                    return r === 'user';
-                }).length;
-                localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(userTurns));
-                console.log(`📥 [PASTEL:수급] 백엔드 API에서 총 ${loadedMessages.length}개 메시지 수급 완료! (순수 유저 발화: ${userTurns}턴)`);
+            // [crack.html 순정 100% 동일] 순수 유저 메시지(role === 'user' || type === 'user') 개수로 실시간 턴수 계산 및 캐시 갱신
+            const pureUserTurns = loadedMessages.filter(m => (m.role === 'user' || m.type === 'user')).length;
+            localStorage.setItem(`pastel_crack_chat_turns_${chatId}`, String(pureUserTurns));
+
+            console.log(`📥 [PASTEL:수급] crack-api에서 총 ${loadedMessages.length}개 메시지 수급 완료! (순수 유저 턴수: ${pureUserTurns}턴)`);
+
+            // 필요한 개수(maxCount)만큼만 슬라이스 반환 (기본값 -1이면 전체 반환)
+            if (maxCount > 0 && loadedMessages.length > maxCount) {
+                return loadedMessages.slice(-maxCount);
             }
             return loadedMessages;
         }
 
-        // DOM 파서는 화면 렌더링 한계 및 중복 카운팅 오류를 유발하므로 영구 폐기하고 빈 배열 반환
         return [];
     }
 
-    // [crack.html 순정 100%] API 커서 기반 실시간 유저 턴 수 비동기 전수 집계 엔진
+    // [crack.html 순정 100%] API 기반 실시간 유저 턴 수 비동기 전수 집계 엔진
     async function getCrackUserTurnsRealtime(chatId) {
         const targetId = chatId || getChatId();
         if (!targetId || targetId === 'global') return 0;
 
         try {
-            // -1로 전체 커서를 순회하여 1턴부터 현재까지의 정확한 유저 발화 턴 수 집계
             const msgs = await fetchCrackMessagesPure(targetId, -1);
             if (Array.isArray(msgs) && msgs.length > 0) {
-                const userCount = msgs.filter(m => {
-                    const r = String(m.role || m.type || m.sender || '').toLowerCase();
-                    return r === 'user';
-                }).length;
+                const userCount = msgs.filter(m => (m.role === 'user' || m.type === 'user')).length;
                 localStorage.setItem(`pastel_crack_chat_turns_${targetId}`, String(userCount));
                 return userCount;
             }
