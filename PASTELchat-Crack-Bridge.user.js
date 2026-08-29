@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.1.8
+// @version      2.1.9
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -3537,7 +3537,9 @@ Task 2. SCENE EVENTS (사건 기록) & LARGE PROMISES (대형 약속/계약):
 
 =========================================
 [ADVANCED DEDUPLICATION & INTEGRITY RULES]
-- DIRECT UPDATE ONLY (APPLIES TO ALL CARD TYPES: character, rel, location, item, event, concept, setting): If any card of any type already exists in the provided Lore Database, DO NOT create a new duplicate card under an altered, shortened, or differently formatted name. You must directly update the fields of the existing card and output it.
+- DIRECT UPDATE ONLY FOR PROFILES & SETTINGS (EXCLUDING 'event'):
+  * EXCLUSION (CRITICAL): This direct update rule NEVER applies to 'type': 'event'. Events must always be created as fresh, independent cards (see Task 2).
+  * ENTITY UPDATES: For all other types (character, relationship, location, item, concept, setting, promise), you must ONLY update an existing card if it represents the EXACT same entity. Preserve the existing baseline narrative and append the latest developments chronologically. If the total text approaches the 700-character budget, intellectually compress only the older, less critical details while keeping all sacred turning points verbatim. Do NOT create duplicate profile cards under altered or shortened names.
   * NO RECENT CHANGES? OMIT OUTPUT: If there is no new narrative progress, emotional shift, or factual change for an existing card (of any type), do NOT output it at all. Omit it from the output array to save tokens.
   * UPDATE COMPLIANCE (FOR ALL CARD TYPES): When updating the fields (especially "summary.full") of any existing card, you MUST strictly adhere to the [PROPORTIONAL NARRATIVE CONDENSING RULE] and [TOKEN-SAVING & STYLE CONSTRAINT] below to maintain style consistency and prevent narrative fragmentation.
   * CHARACTER NAME MATCHING: Specifically for characters, if they are referred to by a shortened name or nickname in the log (e.g., "하늘"), but their full name card (e.g., "강하늘") exists in the database, you MUST directly update the existing full name card ("강하늘"). Never output a new separate card under "하늘".
@@ -3561,7 +3563,7 @@ Task 2. SCENE EVENTS (사건 기록) & LARGE PROMISES (대형 약속/계약):
 =========================================
 [STRICT EVENT CARD RULES (사건 카드 수호 규칙)]
 - EVENT NAMING RULE: Never include turn markers (e.g. t12, turn 12), dates, or time indicators in the event "name" or "title". Keep it strictly as a clean, thematic title in the conversation language (e.g., '비밀의 방에서의 야간 비밀 회동', '헤르미온느의 약점 고백', '칼잡이의 습격과 대처').
-- EVENT DEDUPLICATION & REUSE: If the event being extracted is a continuation, update, or similar occurrence of an event that already exists in the provided Lore Database, you MUST reuse the EXACT same "name" of that existing event card so it merges cleanly, instead of inventing a new name.
+- EVENT INDEPENDENCE & IMMUTABILITY (NEVER OVERWRITE): Every scene event milestone MUST be created as a separate, distinct NEW card with its own unique descriptive title representing that specific scene. NEVER reuse, overwrite, or recycle the name of an existing event card, even if the scene takes place in the same setting or involves the same characters. Every event card is a permanent, immutable chronological snapshot.
 - EVENT SIGNIFICANCE CRITERIA (사건 추출의 실질성 원칙):
   * Focus on the SUBSTANCE of the interaction, not just the setting.
   * Even if the scene is set in a casual, daily-life environment (e.g., eating dinner, taking a walk, resting), if a significant emotional shift, a critical agreement, a major confession, or a narrative reveal actually occurs, you MUST extract it as an "event" card.
@@ -3654,7 +3656,9 @@ Task 2. SCENE EVENTS (사건 기록) & LARGE PROMISES (대형 약속/계약):
 
 =========================================
 [ADVANCED DEDUPLICATION & INTEGRITY RULES]
-- DIRECT UPDATE ONLY (APPLIES TO ALL CARD TYPES: character, rel, location, item, event, concept, setting): If any card of any type already exists in the provided Lore Database, DO NOT create a new duplicate card under an altered, shortened, or differently formatted name. You must directly update the fields of the existing card and output it.
+- DIRECT UPDATE ONLY FOR PROFILES & SETTINGS (EXCLUDING 'event'):
+  * EXCLUSION (CRITICAL): This direct update rule NEVER applies to 'type': 'event'. Events must always be created as fresh, independent cards (see Task 2).
+  * ENTITY UPDATES: For all other types (character, relationship, location, item, concept, setting, promise), you must ONLY update an existing card if it represents the EXACT same entity. Preserve the existing baseline narrative and append the latest developments chronologically. If the total text approaches the 700-character budget, intellectually compress only the older, less critical details while keeping all sacred turning points verbatim. Do NOT create duplicate profile cards under altered or shortened names.
   * NO RECENT CHANGES? OMIT OUTPUT: If there is no new narrative progress, emotional shift, or factual change for an existing card (of any type), do NOT output it at all. Omit it from the output array to save tokens.
   * UPDATE COMPLIANCE (FOR ALL CARD TYPES): When updating the fields (especially "summary.full") of any existing card, you MUST strictly adhere to the [PROPORTIONAL NARRATIVE CONDENSING RULE] and [TOKEN-SAVING & STYLE CONSTRAINT] below to maintain style consistency and prevent narrative fragmentation.
   * CHARACTER NAME MATCHING: Specifically for characters, if they are referred to by a shortened name or nickname in the log (e.g., "하늘"), but their full name card (e.g., "강하늘") exists in the database, you MUST directly update the existing full name card ("강하늘"). Never output a new separate card under "하늘".
@@ -3678,7 +3682,7 @@ Task 2. SCENE EVENTS (사건 기록) & LARGE PROMISES (대형 약속/계약):
 =========================================
 [STRICT EVENT CARD RULES (사건 카드 수호 규칙)]
 - EVENT NAMING RULE: Never include turn markers (e.g. t12, turn 12), dates, or time indicators in the event "name" or "title". Keep it strictly as a clean, thematic title in the conversation language (e.g., '비밀의 방에서의 야간 비밀 회동', '헤르미온느의 약점 고백', '칼잡이의 습격과 대처').
-- EVENT DEDUPLICATION & REUSE: If the event being extracted is a continuation, update, or similar occurrence of an event that already exists in the provided Lore Database, you MUST reuse the EXACT same "name" of that existing event card so it merges cleanly, instead of inventing a new name.
+- EVENT INDEPENDENCE & IMMUTABILITY (NEVER OVERWRITE): Every scene event milestone MUST be created as a separate, distinct NEW card with its own unique descriptive title representing that specific scene. NEVER reuse, overwrite, or recycle the name of an existing event card, even if the scene takes place in the same setting or involves the same characters. Every event card is a permanent, immutable chronological snapshot.
 - EVENT SIGNIFICANCE CRITERIA (사건 추출의 실질성 원칙):
   * Focus on the SUBSTANCE of the interaction, not just the setting.
   * Even if the scene is set in a casual, daily-life environment (e.g., eating dinner, taking a walk, resting), if a significant emotional shift, a critical agreement, a major confession, or a narrative reveal actually occurs, you MUST extract it as an "event" card.
