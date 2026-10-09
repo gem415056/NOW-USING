@@ -102,8 +102,10 @@
             --icon_primary: #F0EFEB;
         }
 
-        /* reCAPTCHA v3 우하단 뱃지 완전 은닉 (클릭 방해 차단 & App Check 정상 작동) */
-        .grecaptcha-badge {
+        /* reCAPTCHA Enterprise 우하단 뱃지 완전 은닉 (클릭 방해 차단 & App Check 정상 작동) */
+        .grecaptcha-badge,
+        .grecaptcha-enterprise-badge,
+        [class*="grecaptcha"] {
             visibility: hidden !important;
             opacity: 0 !important;
             pointer-events: none !important;
@@ -5404,42 +5406,49 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         else if (panelId === 'ep-lore-panel-settings') loadCrackLoreSettingsTab();
     }
 
-    // Firebase SDK 및 App Check 초기화 엔진 (Tampermonkey 샌드박스 브릿징 & 안전 발급)
+    // Firebase SDK 및 App Check 초기화 엔진 (reCAPTCHA Enterprise SDK 적용 & Tampermonkey 샌드박스 브릿징)
     let geminiAppCheckApp = null;
     let cachedAppCheckToken = null;
     let cachedAppCheckExpiry = 0;
-    const RECAPTCHA_SITE_KEY = "6Lc_imwtAAAAADr3ojpxWjAb5ofGvBzD4rgEnfr4";
+    const RECAPTCHA_SITE_KEY = "6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO";
 
-    // 1. 브라우저 최상위 윈도우에 reCAPTCHA v3 스크립트 주입 및 샌드박스 브릿징
+    // 1. 브라우저 최상위 윈도우에 reCAPTCHA Enterprise 스크립트 주입 및 샌드박스 브릿징
     function ensureRecaptchaLoaded() {
         return new Promise((resolve) => {
             const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
 
-            // 이미 로드되어 있는 경우 즉시 브릿징
-            if (win.grecaptcha && typeof win.grecaptcha.ready === 'function') {
+            // 이미 Enterprise SDK가 로드되어 있는 경우 즉시 브릿징
+            const hasEnterpriseRecaptcha = (w) => w && w.grecaptcha && (w.grecaptcha.enterprise || typeof w.grecaptcha.ready === 'function' || typeof w.grecaptcha.execute === 'function');
+            if (hasEnterpriseRecaptcha(win)) {
                 window.grecaptcha = win.grecaptcha;
-                return resolve(win.grecaptcha);
+                if (win.grecaptcha.enterprise) {
+                    window.grecaptcha.enterprise = win.grecaptcha.enterprise;
+                }
+                return resolve(win.grecaptcha.enterprise || win.grecaptcha);
             }
 
-            // 스크립트 태그가 없으면 DOM에 삽입
-            if (!document.getElementById('recaptcha-v3-runtime-script')) {
+            // reCAPTCHA Enterprise 스크립트 태그가 없으면 DOM에 삽입
+            if (!document.getElementById('recaptcha-enterprise-runtime-script')) {
                 const script = document.createElement('script');
-                script.id = 'recaptcha-v3-runtime-script';
-                script.src = `https://www.google.com/recaptcha/api.js?render=${RECAPTCHA_SITE_KEY}`;
+                script.id = 'recaptcha-enterprise-runtime-script';
+                script.src = `https://www.google.com/recaptcha/enterprise.js?render=${RECAPTCHA_SITE_KEY}`;
                 script.async = true;
                 (document.head || document.documentElement).appendChild(script);
             }
 
-            // reCAPTCHA 엔진이 브라우저에 마운트될 때까지 최대 5초 대기
+            // reCAPTCHA Enterprise 엔진이 브라우저에 마운트될 때까지 최대 6초 대기
             let elapsed = 0;
             const timer = setInterval(() => {
                 elapsed += 100;
                 const currentWin = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-                if (currentWin.grecaptcha && typeof currentWin.grecaptcha.ready === 'function') {
+                if (hasEnterpriseRecaptcha(currentWin)) {
                     clearInterval(timer);
                     window.grecaptcha = currentWin.grecaptcha;
-                    resolve(currentWin.grecaptcha);
-                } else if (elapsed >= 5000) {
+                    if (currentWin.grecaptcha.enterprise) {
+                        window.grecaptcha.enterprise = currentWin.grecaptcha.enterprise;
+                    }
+                    resolve(currentWin.grecaptcha.enterprise || currentWin.grecaptcha);
+                } else if (elapsed >= 6000) {
                     clearInterval(timer);
                     resolve(null);
                 }
@@ -5447,7 +5456,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         });
     }
 
-    // 2. App Check 초기화 (grecaptcha 브릿징 후 activate)
+    // 2. App Check 초기화 (grecaptcha Enterprise 브릿징 후 ReCaptchaEnterpriseProvider로 activate)
     async function initializeFirebaseDynamically() {
         const firebaseScript = localStorage.getItem('pastel_api_firebase') || '';
         if (!firebaseScript.trim()) return null;
@@ -5457,6 +5466,9 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
             const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
             if (win.grecaptcha) {
                 window.grecaptcha = win.grecaptcha;
+                if (win.grecaptcha.enterprise) {
+                    window.grecaptcha.enterprise = win.grecaptcha.enterprise;
+                }
             }
 
             const config = parseFirebaseConfig(firebaseScript);
@@ -5470,8 +5482,9 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 if (geminiAppCheckApp && typeof firebase !== 'undefined' && typeof firebase.appCheck === 'function') {
                     try {
                         const appCheck = firebase.appCheck(geminiAppCheckApp);
+                        const ProviderClass = firebase.appCheck.ReCaptchaEnterpriseProvider || firebase.appCheck.ReCaptchaV3Provider;
                         appCheck.activate(
-                            new firebase.appCheck.ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+                            new ProviderClass(RECAPTCHA_SITE_KEY),
                             true
                         );
                     } catch (_) {}
@@ -5479,19 +5492,28 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 return geminiAppCheckApp;
             }
         } catch (e) {
-            console.warn("[Firebase 초기화 에러]:", e);
+            console.warn("[Firebase Enterprise 초기화 에러]:", e);
         }
         return null;
     }
 
-    // 3. 토큰 7일 영구 재사용(localStorage) 발급 및 실시간 콘솔 진단
+    // 3. 토큰 7일 영구 재사용(localStorage) 발급 및 실시간 콘솔 진단 (Enterprise 규격)
     async function getAppCheckToken() {
         const now = Date.now();
-        const storedToken = localStorage.getItem('pastel_appcheck_token_persistent');
-        const storedExpiry = parseInt(localStorage.getItem('pastel_appcheck_token_expiry') || '0', 10);
+
+        // 1차 메모리 캐시 확인
+        if (cachedAppCheckToken && now < cachedAppCheckExpiry) {
+            return cachedAppCheckToken;
+        }
+
+        // 2차 로컬 스토리지 확인 (7일 유효기간 검증)
+        const storedToken = localStorage.getItem('pastel_appcheck_token_enterprise');
+        const storedExpiry = parseInt(localStorage.getItem('pastel_appcheck_token_expiry_enterprise') || '0', 10);
 
         // 7일 만료 전까지는 브라우저를 껐다 켜도 reCAPTCHA 호출 없이 0초 만에 즉각 재사용 (무료 할당량 100% 보존)
         if (storedToken && now < storedExpiry) {
+            cachedAppCheckToken = storedToken;
+            cachedAppCheckExpiry = storedExpiry;
             return storedToken;
         }
 
@@ -5502,28 +5524,32 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
             if (targetApp && typeof firebase !== 'undefined' && firebase.appCheck) {
                 const tokenPromise = firebase.appCheck(targetApp).getToken(false);
                 const timeoutPromise = new Promise((_, reject) => 
-                    setTimeout(() => reject(new Error("AppCheck 토큰 발급 시간 초과(8초)")), 8000)
+                    setTimeout(() => reject(new Error("AppCheck Enterprise 토큰 발급 시간 초과(8초)")), 8000)
                 );
 
                 const tokenResult = await Promise.race([tokenPromise, timeoutPromise]);
                 if (tokenResult && tokenResult.token) {
                     const token = tokenResult.token;
-                    // 7일(안전 마진 적용 6.5일 = 156시간) 동안 localStorage에 영구 보존
-                    const expiry = now + (6.5 * 24 * 60 * 60 * 1000);
+                    // 7일(7일 = 168시간) 동안 localStorage 및 메모리에 보존
+                    const expiry = now + (7 * 24 * 60 * 60 * 1000);
+                    cachedAppCheckToken = token;
+                    cachedAppCheckExpiry = expiry;
+                    localStorage.setItem('pastel_appcheck_token_enterprise', token);
+                    localStorage.setItem('pastel_appcheck_token_expiry_enterprise', String(expiry));
                     localStorage.setItem('pastel_appcheck_token_persistent', token);
                     localStorage.setItem('pastel_appcheck_token_expiry', String(expiry));
-                    console.log("🔑 [PASTEL:AppCheck] 7일 토큰 신규 발급 완료:", token.slice(0, 15) + "...");
+                    console.log("🔑 [PASTEL:AppCheck] Enterprise 7일 토큰 신규 발급 완료:", token.slice(0, 15) + "...");
                     return token;
                 }
             }
         } catch (e) {
-            console.warn("[AppCheck 발급 경고]:", e.message || e);
+            console.warn("[AppCheck Enterprise 발급 경고]:", e.message || e);
         }
 
         // 만약 신규 발급이 일시 지연되더라도 기존 토큰이 남아있다면 폴백으로 재사용
         if (storedToken) return storedToken;
 
-        console.error("❌ [PASTEL:AppCheck] 토큰 발급 실패! Firebase 설정 확인 필요");
+        console.error("❌ [PASTEL:AppCheck] Enterprise 토큰 발급 실패! Firebase 설정 확인 필요");
         return null;
     }
 

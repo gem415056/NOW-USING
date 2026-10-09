@@ -1,0 +1,7 @@
+{
+  "name": "Crack & PASTELchat Script Suite",
+  "description": "Comprehensive workbench, script installer, and testing simulator for WRTN Crack & PASTELchat UserScripts (Lore Injector, Response Refiner, 3-in-1, 9-in-1).",
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
