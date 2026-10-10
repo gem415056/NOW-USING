@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name         PASTELchat × CRACK Native Bridge Engine
 // @namespace    https://pastelchat.com/
-// @version      2.1.9
+// @version      2.2.0
 // @description  PASTELchat Native UI Engine & Data Bridge for crack.wrtn.ai
 // @author       PASTELchat
 // @match        https://crack.wrtn.ai/*
@@ -442,137 +442,6 @@
             flex-direction: column;
             gap: 16px;
             box-sizing: border-box;
-        }
-
-        /* App Check 모바일 실시간 진단 플로팅 버튼 */
-        #ep-floating-diag-btn {
-            position: fixed;
-            bottom: 84px;
-            right: 14px;
-            z-index: 100065;
-            display: inline-flex;
-            align-items: center;
-            gap: 6px;
-            background: #1e293b;
-            color: #38bdf8;
-            border: 1.5px solid #0284c7;
-            border-radius: 9999px;
-            padding: 7px 13px;
-            font-size: 11px;
-            font-weight: 700;
-            box-shadow: 0 4px 16px rgba(0,0,0,0.35);
-            cursor: pointer;
-            user-select: none;
-            transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-            backdrop-filter: blur(8px);
-        }
-        #ep-floating-diag-btn:active {
-            transform: scale(0.95);
-        }
-        #ep-floating-diag-btn.has-error {
-            background: #7f1d1d !important;
-            color: #fef2f2 !important;
-            border-color: #ef4444 !important;
-            box-shadow: 0 0 16px rgba(239, 68, 68, 0.6) !important;
-            animation: ep-diag-pulse 1.6s infinite ease-in-out;
-        }
-        @keyframes ep-diag-pulse {
-            0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.06); }
-        }
-
-        /* 모바일 진단 모달창 */
-        #ep-diagnostic-modal-overlay {
-            position: fixed;
-            inset: 0;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 100085;
-            display: none;
-            align-items: center;
-            justify-content: center;
-            padding: 10px;
-            box-sizing: border-box;
-            backdrop-filter: blur(4px);
-        }
-        #ep-diagnostic-modal-overlay.visible {
-            display: flex;
-        }
-        .ep-diag-modal-content {
-            background: #0f172a;
-            color: #f1f5f9;
-            border: 1px solid #334155;
-            border-radius: 16px;
-            width: 100%;
-            max-width: 600px;
-            max-height: 88vh;
-            display: flex;
-            flex-direction: column;
-            box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5);
-            overflow: hidden;
-            font-size: 12px;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans KR", monospace;
-        }
-        .ep-diag-header {
-            padding: 12px 16px;
-            border-bottom: 1px solid #334155;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: #1e293b;
-        }
-        .ep-diag-body {
-            padding: 14px;
-            overflow-y: auto;
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-        }
-        .ep-diag-card {
-            background: #1e293b;
-            border: 1px solid #334155;
-            border-radius: 10px;
-            padding: 12px;
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-        .ep-diag-card-title {
-            font-weight: 700;
-            font-size: 12px;
-            color: #38bdf8;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-        }
-        .ep-diag-code-box {
-            background: #020617;
-            border: 1px solid #1e293b;
-            border-radius: 6px;
-            padding: 8px 10px;
-            font-family: monospace;
-            font-size: 11px;
-            color: #cbd5e1;
-            overflow-x: auto;
-            white-space: pre-wrap;
-            word-break: break-all;
-            max-height: 140px;
-        }
-        .ep-diag-btn {
-            background: #0284c7;
-            color: white;
-            border: none;
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 11px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: opacity 0.2s;
-        }
-        .ep-diag-btn:hover { opacity: 0.9; }
-        .ep-diag-btn-secondary {
-            background: #334155;
-            color: #f1f5f9;
         }
         .ep-epnote-modal {
             width: 600px !important;
@@ -1748,9 +1617,6 @@
                     <div class="menu-item" id="ep-menu-crack-clear-btn">
                         <span>크랙 데이터 전체 정리</span>
                     </div>
-                    <div class="menu-item" id="ep-menu-diagnostic-btn">
-                        <span>🩺 AppCheck & API 진단기</span>
-                    </div>
                 </div>
             `;
             document.body.appendChild(drawer);
@@ -2024,71 +1890,6 @@
                 </div>
             `;
             document.body.appendChild(loreModal);
-
-            // [B] 모바일 App Check 실시간 진단 플로팅 버튼 주입
-            if (!document.getElementById('ep-floating-diag-btn')) {
-                const diagBtn = document.createElement('button');
-                diagBtn.id = 'ep-floating-diag-btn';
-                diagBtn.type = 'button';
-                diagBtn.title = 'AppCheck & API 실시간 진단기 열기';
-                let hasErr = false;
-                let errStatus = '';
-                try {
-                    const raw = localStorage.getItem('pastel_last_api_error');
-                    if (raw) {
-                        const parsed = JSON.parse(raw);
-                        hasErr = true;
-                        errStatus = parsed.status;
-                    }
-                } catch (_) {}
-
-                if (hasErr) diagBtn.className = 'has-error';
-                diagBtn.innerHTML = `
-                    <span id="ep-diag-btn-icon">${hasErr ? '🚨' : '🛡️'}</span>
-                    <span id="ep-diag-btn-text">${hasErr ? `HTTP ${errStatus} 오류!` : 'AppCheck 진단'}</span>
-                `;
-                diagBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    openDiagnosticModal();
-                };
-                document.body.appendChild(diagBtn);
-            }
-
-            // [C] 모바일 진단 모달창 DOM 주입
-            if (!document.getElementById('ep-diagnostic-modal-overlay')) {
-                const diagModal = document.createElement('div');
-                diagModal.id = 'ep-diagnostic-modal-overlay';
-                diagModal.innerHTML = `
-                    <div class="ep-diag-modal-content">
-                        <div class="ep-diag-header">
-                            <span style="font-weight: bold; color: #38bdf8; font-size: 13px;">🩺 AppCheck & API 실시간 진단기</span>
-                            <div style="display: flex; gap: 6px; align-items: center;">
-                                <button id="ep-diag-copy-report-btn" class="ep-diag-btn" style="background:#0284c7; padding:4px 8px; font-size:10px;">📋 전체 진단 복사</button>
-                                <button id="ep-diag-close-btn" class="ep-diag-btn ep-diag-btn-secondary" style="padding:4px 8px; font-size:12px;">✕</button>
-                            </div>
-                        </div>
-                        <div class="ep-diag-body" id="ep-diag-dynamic-content">
-                            <!-- openDiagnosticModal() 에서 실시간 동적 렌더링 -->
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(diagModal);
-
-                diagModal.onclick = (e) => {
-                    if (e.target === diagModal) diagModal.classList.remove('visible');
-                };
-                const closeBtn = diagModal.querySelector('#ep-diag-close-btn');
-                if (closeBtn) closeBtn.onclick = () => diagModal.classList.remove('visible');
-
-                const copyReportBtn = diagModal.querySelector('#ep-diag-copy-report-btn');
-                if (copyReportBtn) {
-                    copyReportBtn.onclick = () => {
-                        const report = buildDiagnosticReportText();
-                        navigator.clipboard.writeText(report);
-                        alert("전체 진단 보고서가 클립보드에 복사되었습니다!");
-                    };
-                }
-            }
 
             bindDrawerEvents();
         }
@@ -3430,16 +3231,6 @@
                 }
             };
         }
-
-        // 4-3. 데이터 관리: AppCheck & API 실시간 진단기
-        const diagMenuBtn = document.getElementById('ep-menu-diagnostic-btn');
-        if (diagMenuBtn) {
-            diagMenuBtn.onclick = (e) => {
-                e.stopPropagation();
-                toggleDrawer(false);
-                openDiagnosticModal();
-            };
-        }
     }
 
     /* ==========================================================================
@@ -4255,14 +4046,6 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
 
             if (!res.ok) {
                 const errBody = await res.text();
-                recordApiDiagnosticError({
-                    url,
-                    status: res.status,
-                    statusText: res.statusText,
-                    errBody,
-                    appCheckToken,
-                    context: '로어 재생성 구간'
-                });
                 throw new Error(`API 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
             }
             const resData = await res.json();
@@ -4416,14 +4199,6 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
 
         if (!res.ok) {
             const errBody = await res.text();
-            recordApiDiagnosticError({
-                url,
-                status: res.status,
-                statusText: res.statusText,
-                errBody,
-                appCheckToken,
-                context: '메시지 로어 추출'
-            });
             throw new Error(`API 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
         }
         const resData = await res.json();
@@ -4546,18 +4321,7 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
                 clearTimeout(fetchTimeout);
             }
 
-            if (!res.ok) {
-                const errBody = await res.text();
-                recordApiDiagnosticError({
-                    url,
-                    status: res.status,
-                    statusText: res.statusText,
-                    errBody,
-                    appCheckToken,
-                    context: '백그라운드 로어 갱신'
-                });
-                return;
-            }
+            if (!res.ok) return;
             const resData = await res.json();
 
             // Gemini API 비용 정밀 누적 연산
@@ -4673,14 +4437,6 @@ async function mergeAndSaveLoreEntry(e, packName, chatId) {
 
         if (!res.ok) {
             const errBody = await res.text();
-            recordApiDiagnosticError({
-                url,
-                status: res.status,
-                statusText: res.statusText,
-                errBody,
-                appCheckToken,
-                context: '스토리 요약 갱신'
-            });
             throw new Error(`API 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
         }
         const resData = await res.json();
@@ -4924,14 +4680,6 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
 
                 if (!res.ok) {
                     const errBody = await res.text();
-                    recordApiDiagnosticError({
-                        url,
-                        status: res.status,
-                        statusText: res.statusText,
-                        errBody,
-                        appCheckToken,
-                        context: '로어 병합 요약'
-                    });
                     throw new Error(`AI 병합 통신 실패 (HTTP ${res.status}): ${errBody.slice(0, 150)}`);
                 }
                 const resData = await res.json();
@@ -5905,316 +5653,6 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
 
         console.error("❌ [PASTEL:AppCheck] Enterprise 토큰 발급 실패! Firebase 설정 확인 필요");
         return null;
-    }
-
-    // =========================================================================
-    // 모바일 최적화 App Check & API 401 실시간 진단 엔진
-    // =========================================================================
-    function decodeAppCheckJwt(token) {
-        if (!token || typeof token !== 'string') return null;
-        try {
-            const parts = token.split('.');
-            if (parts.length < 2) return null;
-            const base64 = parts[1].replace(/-/g, '+').replace(/_/g, '/');
-            const jsonStr = decodeURIComponent(atob(base64).split('').map(c => '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)).join(''));
-            return JSON.parse(jsonStr);
-        } catch (_) {
-            return null;
-        }
-    }
-
-    function recordApiDiagnosticError(data) {
-        try {
-            const errRecord = {
-                ...data,
-                time: new Date().toLocaleTimeString('ko-KR', { hour12: false }),
-                origin: window.location.origin,
-                hostname: window.location.hostname
-            };
-            localStorage.setItem('pastel_last_api_error', JSON.stringify(errRecord));
-            updateFloatingDiagnosticBadge(true, data.status);
-            console.error("🚨 [PASTEL:API 오류 기록]:", errRecord);
-        } catch (_) {}
-    }
-
-    function updateFloatingDiagnosticBadge(hasError, status) {
-        const btn = document.getElementById('ep-floating-diag-btn');
-        const textSpan = document.getElementById('ep-diag-btn-text');
-        const iconSpan = document.getElementById('ep-diag-btn-icon');
-        if (!btn || !textSpan) return;
-
-        if (hasError) {
-            btn.classList.add('has-error');
-            if (iconSpan) iconSpan.textContent = '🚨';
-            textSpan.textContent = status ? `HTTP ${status} 오류!` : 'API 오류 발생!';
-        } else {
-            btn.classList.remove('has-error');
-            if (iconSpan) iconSpan.textContent = '🛡️';
-            textSpan.textContent = 'AppCheck 진단';
-        }
-    }
-
-    function buildDiagnosticReportText() {
-        const hostname = window.location.hostname;
-        const origin = window.location.origin;
-        const fbScript = localStorage.getItem('pastel_api_firebase') || '';
-        const parsedConfig = parseFirebaseConfig(fbScript);
-        const storedToken = localStorage.getItem('pastel_appcheck_token_enterprise');
-        const jwtPayload = decodeAppCheckJwt(storedToken);
-        let lastErr = null;
-        try {
-            const raw = localStorage.getItem('pastel_last_api_error');
-            if (raw) lastErr = JSON.parse(raw);
-        } catch (_) {}
-
-        return `### PASTELchat AppCheck 진단 보고서
-- 일시: ${new Date().toLocaleString('ko-KR')}
-- 접속 도메인: ${hostname} (${origin})
-- Enterprise Site Key: ${RECAPTCHA_SITE_KEY}
-- Firebase Project: ${parsedConfig?.projectId || 'N/A'}
-- Firebase AuthDomain: ${parsedConfig?.authDomain || 'N/A'}
-- AppCheck 토큰: ${storedToken ? '보유 (' + storedToken.length + '자)' : '없음'}
-- JWT Payload: ${jwtPayload ? JSON.stringify(jwtPayload) : 'N/A'}
-
-### 최근 오류 정보:
-${lastErr ? `- 상태: HTTP ${lastErr.status} (${lastErr.statusText || 'Error'})
-- 발생 시각: ${lastErr.time}
-- 요청 맥락: ${lastErr.context || 'N/A'}
-- URL: ${lastErr.url}
-- X-Firebase-AppCheck 전송: ${lastErr.appCheckToken ? '전송됨' : '누락됨'}
-- 응답 본문:
-\`\`\`json
-${lastErr.errBody || '없음'}
-\`\`\`` : '최근 감지된 오류 없음'}`;
-    }
-
-    async function openDiagnosticModal() {
-        const overlay = document.getElementById('ep-diagnostic-modal-overlay');
-        const contentBox = document.getElementById('ep-diag-dynamic-content');
-        if (!overlay || !contentBox) return;
-
-        overlay.classList.add('visible');
-        contentBox.innerHTML = `<div style="text-align:center; padding:20px; color:#94a3b8;">🔍 실시간 환경 및 토큰 검사 중...</div>`;
-
-        const origin = window.location.origin;
-        const hostname = window.location.hostname;
-        const fbScript = localStorage.getItem('pastel_api_firebase') || '';
-        const parsedConfig = parseFirebaseConfig(fbScript);
-        const geminiKey = localStorage.getItem('pastel_api_gemini') || '';
-
-        const storedToken = localStorage.getItem('pastel_appcheck_token_enterprise');
-        const storedExpiry = parseInt(localStorage.getItem('pastel_appcheck_token_expiry_enterprise') || '0', 10);
-        const now = Date.now();
-        const hasCachedToken = Boolean(storedToken && now < storedExpiry);
-        const remainingHours = storedExpiry > now ? Math.round((storedExpiry - now) / (1000 * 60 * 60)) : 0;
-        const jwtPayload = decodeAppCheckJwt(storedToken);
-
-        let lastErr = null;
-        try {
-            const rawErr = localStorage.getItem('pastel_last_api_error');
-            if (rawErr) lastErr = JSON.parse(rawErr);
-        } catch (_) {}
-
-        const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
-        const hasGrecaptcha = Boolean(win.grecaptcha);
-        const hasEnterprise = Boolean(win.grecaptcha && win.grecaptcha.enterprise);
-        const hasFirebaseAppCheck = Boolean(typeof firebase !== 'undefined' && firebase.appCheck);
-
-        // 401 오류 분석 로직
-        let errorAdvice = '';
-        if (lastErr) {
-            const body = lastErr.errBody || '';
-            if (lastErr.status === 401) {
-                if (body.includes('Firebase App Check token is invalid') || body.includes('App Check token')) {
-                    errorAdvice = `
-                        <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 10px; color: #fecaca; margin-top: 6px; line-height: 1.5;">
-                            <strong style="color:#f87171;">⚠️ 401 원인 분석: Firebase App Check 토큰 거부됨</strong><br>
-                            1. <b>허용 도메인 확인</b>: Google Cloud 콘솔 reCAPTCHA Enterprise 키 설정에서 허용 도메인에 <code>${hostname}</code>이 등록되어 있는지 확인하십시오.<br>
-                            2. <b>Firebase App Check 등록 확인</b>: Firebase 콘솔 > App Check > 앱 목록(Web)에서 reCAPTCHA Enterprise 키로 <code>${RECAPTCHA_SITE_KEY}</code>가 정확히 등록되어 있는지 확인하십시오.<br>
-                            3. <b>아래 [🔄 토큰 강제 발급 테스트]</b> 버튼을 눌러 실시간 발급 테스트를 수행해 보십시오.
-                        </div>
-                    `;
-                } else if (body.includes('API_KEY_INVALID') || body.includes('API key not valid')) {
-                    errorAdvice = `
-                        <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 10px; color: #fecaca; margin-top: 6px;">
-                            <strong style="color:#f87171;">⚠️ 401 원인 분석: API Key 유효하지 않음</strong><br>
-                            Firebase 설정의 apiKey가 만료되었거나 비활성화되었습니다.
-                        </div>
-                    `;
-                } else if (body.includes('blocked') || body.includes('referer')) {
-                    errorAdvice = `
-                        <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 10px; color: #fecaca; margin-top: 6px;">
-                            <strong style="color:#f87171;">⚠️ 401 원인 분석: HTTP 리퍼러 제한</strong><br>
-                            GCP 콘솔의 API Key 제한에서 <code>${hostname}</code> 도메인이 허용되지 않았습니다.
-                        </div>
-                    `;
-                } else {
-                    errorAdvice = `
-                        <div style="background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 10px; color: #fecaca; margin-top: 6px;">
-                            <strong style="color:#f87171;">⚠️ HTTP 401 미승인 오류</strong><br>
-                            요청이 인증되지 않았습니다. 아래 응답 본문을 복사하여 확인하세요.
-                        </div>
-                    `;
-                }
-            }
-        }
-
-        contentBox.innerHTML = `
-            <!-- 1. 최근 API 오류 카드 -->
-            <div class="ep-diag-card" style="${lastErr ? 'border-color: #ef4444;' : ''}">
-                <div class="ep-diag-card-title" style="${lastErr ? 'color: #f87171;' : ''}">
-                    <span>${lastErr ? '🚨 최근 발생한 API 통신 오류' : '✅ 최근 통신 상태'}</span>
-                    ${lastErr ? `<button id="ep-diag-clear-err-btn" class="ep-diag-btn ep-diag-btn-secondary" style="padding:2px 8px; font-size:10px;">기록 삭제</button>` : ''}
-                </div>
-                ${lastErr ? `
-                    <div style="display:flex; flex-direction:column; gap:6px;">
-                        <div style="display:flex; justify-content:space-between; font-size:11px;">
-                            <span>상태: <strong style="color:#ef4444;">HTTP ${lastErr.status} (${lastErr.statusText || 'Error'})</strong></span>
-                            <span style="color:#94a3b8;">${lastErr.time || ''}</span>
-                        </div>
-                        <div style="font-size:11px; word-break:break-all;">
-                            <span style="color:#94a3b8;">URL:</span> <code>${lastErr.url}</code>
-                        </div>
-                        <div style="font-size:11px;">
-                            <span style="color:#94a3b8;">AppCheck 헤더:</span> ${lastErr.appCheckToken ? `<span style="color:#34d399;">전송됨 (${lastErr.appCheckToken.length}자)</span>` : '<span style="color:#ef4444;">누락됨</span>'}
-                        </div>
-                        <div style="color:#94a3b8; font-size:11px;">서버 원본 응답:</div>
-                        <div class="ep-diag-code-box" style="color:#fca5a5; max-height:120px;">${lastErr.errBody || '(응답 본문 없음)'}</div>
-                        ${errorAdvice}
-                    </div>
-                ` : `
-                    <div style="color:#94a3b8; font-size:11px;">최근 발생한 API 오류가 없습니다. 모든 통신이 정상입니다.</div>
-                `}
-            </div>
-
-            <!-- 2. App Check 실시간 토큰 상태 & 강제 발급 테스트 -->
-            <div class="ep-diag-card">
-                <div class="ep-diag-card-title">
-                    <span>🔑 App Check 토큰 상태 (Enterprise)</span>
-                    <button id="ep-diag-force-token-btn" class="ep-diag-btn" style="background:#0284c7;">🔄 토큰 즉시 강제 발급 테스트</button>
-                </div>
-                <div id="ep-diag-test-result" style="display:none; padding:8px; border-radius:6px; font-size:11px; margin-bottom:4px;"></div>
-                <div style="display:flex; flex-direction:column; gap:6px; font-size:11px;">
-                    <div>
-                        캐시 상태: ${hasCachedToken ? `<span style="color:#34d399; font-weight:bold;">✅ 7일 캐시 활성 (약 ${remainingHours}시간 남음)</span>` : '<span style="color:#f59e0b; font-weight:bold;">⚠️ 캐시된 토큰 없음</span>'}
-                    </div>
-                    <div>
-                        토큰 미리보기: <code style="color:#38bdf8;">${storedToken ? storedToken.slice(0, 20) + '...' + storedToken.slice(-10) : '(없음)'}</code>
-                    </div>
-                    ${jwtPayload ? `
-                        <div style="background:#020617; border:1px solid #1e293b; border-radius:6px; padding:6px 8px; margin-top:2px;">
-                            <div style="color:#94a3b8; font-size:10px; margin-bottom:2px;">디코딩된 JWT Payload 정보:</div>
-                            <div>• 발급자(iss): <code>${jwtPayload.iss || 'N/A'}</code></div>
-                            <div>• 대상(aud): <code>${jwtPayload.aud || 'N/A'}</code></div>
-                            <div>• 앱 ID(sub): <code>${jwtPayload.sub || 'N/A'}</code></div>
-                            <div>• 만료일: <code>${jwtPayload.exp ? new Date(jwtPayload.exp * 1000).toLocaleString('ko-KR') : 'N/A'}</code></div>
-                        </div>
-                    ` : ''}
-                    <div style="display:flex; gap:6px; margin-top:4px;">
-                        <button id="ep-diag-clear-cache-btn" class="ep-diag-btn ep-diag-btn-secondary" style="flex:1;">🗑️ 캐시 초기화</button>
-                        ${storedToken ? `<button id="ep-diag-copy-token-btn" class="ep-diag-btn" style="flex:1; background:#334155;">📋 토큰 전체 복사</button>` : ''}
-                    </div>
-                </div>
-            </div>
-
-            <!-- 3. 현재 브라우저 및 설정 점검 -->
-            <div class="ep-diag-card">
-                <div class="ep-diag-card-title">
-                    <span>⚙️ 현재 환경 및 Firebase 설정 정보</span>
-                </div>
-                <div style="display:flex; flex-direction:column; gap:4px; font-size:11px;">
-                    <div>• 현재 접속 도메인: <strong style="color:#38bdf8;">${hostname}</strong> (<code>${origin}</code>)</div>
-                    <div>• Enterprise Site Key: <code>${RECAPTCHA_SITE_KEY}</code></div>
-                    <div>• grecaptcha 로드: ${hasGrecaptcha ? '✅ 로드됨' : '❌ 없음'} / Enterprise: ${hasEnterprise ? '✅ 준비됨' : '❌ 미로드'}</div>
-                    <div>• Firebase SDK: ${hasFirebaseAppCheck ? '✅ AppCheck 로드됨' : '❌ 없음'}</div>
-                    <div style="margin-top:4px; border-top:1px dashed #334155; padding-top:4px;">
-                        • Firebase Config: ${parsedConfig ? `<span style="color:#34d399;">✅ 정상 파싱됨</span> (Project: <code>${parsedConfig.projectId || 'N/A'}</code>)` : '<span style="color:#ef4444;">❌ 설정 없음/파싱 실패</span>'}
-                    </div>
-                    <div>• Gemini 직접 Key: ${geminiKey ? '입력됨 (직접 키 모드)' : '미입력 (Firebase AppCheck 모드 동작)'}</div>
-                </div>
-            </div>
-        `;
-
-        // 모달 내부 버튼 이벤트 바인딩
-        const forceBtn = document.getElementById('ep-diag-force-token-btn');
-        const testResultBox = document.getElementById('ep-diag-test-result');
-        if (forceBtn && testResultBox) {
-            forceBtn.onclick = async () => {
-                forceBtn.disabled = true;
-                forceBtn.textContent = '⏳ 발급 요청 중...';
-                testResultBox.style.display = 'block';
-                testResultBox.style.background = '#1e293b';
-                testResultBox.style.color = '#38bdf8';
-                testResultBox.textContent = 'Google reCAPTCHA Enterprise 및 Firebase 서버와 실시간 통신 중...';
-
-                const startT = Date.now();
-                try {
-                    await initializeFirebaseDynamically();
-                    const targetApp = geminiAppCheckApp || (typeof firebase !== 'undefined' && firebase.apps && firebase.apps.length > 0 ? firebase.app() : null);
-                    if (!targetApp) throw new Error("Firebase App 인스턴스가 초기화되지 않았습니다. API 설정을 확인하세요.");
-                    if (!firebase.appCheck) throw new Error("firebase.appCheck 라이브러리가 로드되지 않았습니다.");
-
-                    const tokenResult = await firebase.appCheck(targetApp).getToken(true);
-                    const elapsed = Date.now() - startT;
-
-                    if (tokenResult && tokenResult.token) {
-                        const token = tokenResult.token;
-                        const expiry = Date.now() + (7 * 24 * 60 * 60 * 1000);
-                        cachedAppCheckToken = token;
-                        cachedAppCheckExpiry = expiry;
-                        localStorage.setItem('pastel_appcheck_site_key', RECAPTCHA_SITE_KEY);
-                        localStorage.setItem('pastel_appcheck_token_enterprise', token);
-                        localStorage.setItem('pastel_appcheck_token_expiry_enterprise', String(expiry));
-
-                        testResultBox.style.background = 'rgba(16, 185, 129, 0.2)';
-                        testResultBox.style.border = '1px solid #10b981';
-                        testResultBox.style.color = '#6ee7b7';
-                        testResultBox.innerHTML = `✅ <strong>토큰 강제 발급 성공!</strong> (${elapsed}ms 소요)<br>토큰: <code>${token.slice(0, 20)}...</code><br>7일간 캐시가 자동 갱신되었습니다.`;
-                        setTimeout(() => openDiagnosticModal(), 1200);
-                    } else {
-                        throw new Error("토큰 결과 객체가 비어있습니다.");
-                    }
-                } catch (testErr) {
-                    const elapsed = Date.now() - startT;
-                    testResultBox.style.background = 'rgba(239, 68, 68, 0.2)';
-                    testResultBox.style.border = '1px solid #ef4444';
-                    testResultBox.style.color = '#fca5a5';
-                    testResultBox.innerHTML = `❌ <strong>발급 실패 (${elapsed}ms)</strong>: ${testErr.message || testErr}`;
-                } finally {
-                    forceBtn.disabled = false;
-                    forceBtn.textContent = '🔄 토큰 즉시 강제 발급 테스트';
-                }
-            };
-        }
-
-        const clearCacheBtn = document.getElementById('ep-diag-clear-cache-btn');
-        if (clearCacheBtn) {
-            clearCacheBtn.onclick = () => {
-                localStorage.removeItem('pastel_appcheck_token_enterprise');
-                localStorage.removeItem('pastel_appcheck_token_expiry_enterprise');
-                cachedAppCheckToken = null;
-                cachedAppCheckExpiry = 0;
-                alert("App Check 캐시가 초기화되었습니다.");
-                openDiagnosticModal();
-            };
-        }
-
-        const copyTokenBtn = document.getElementById('ep-diag-copy-token-btn');
-        if (copyTokenBtn && storedToken) {
-            copyTokenBtn.onclick = () => {
-                navigator.clipboard.writeText(storedToken);
-                alert("App Check 토큰 전체가 클립보드에 복사되었습니다.");
-            };
-        }
-
-        const clearErrBtn = document.getElementById('ep-diag-clear-err-btn');
-        if (clearErrBtn) {
-            clearErrBtn.onclick = () => {
-                localStorage.removeItem('pastel_last_api_error');
-                updateFloatingDiagnosticBadge(false);
-                openDiagnosticModal();
-            };
-        }
     }
 
     // [유저 본문 100% 보존 & 로어만 정밀 은닉 엔진]
