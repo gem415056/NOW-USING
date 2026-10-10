@@ -3429,14 +3429,79 @@
     }
 
     function parseFirebaseConfig(scriptStr) {
+        if (!scriptStr || typeof scriptStr !== 'string') return null;
         try {
-            const clean = scriptStr.trim();
-            if (clean.startsWith("{")) return JSON.parse(clean);
-            const match = scriptStr.match(/firebaseConfig\s*=\s*(\{[\s\S]*?\});?/);
-            if (match && match[1]) {
-                return new Function("return " + match[1])();
+            let str = scriptStr.trim();
+
+            // 1. 마크다운 코드 블록(```) 및 HTML <script> 태그 유연하게 제거
+            str = str.replace(/```(?:javascript|js|json)?/gi, '').replace(/```/g, '');
+            str = str.replace(/<\/?script[^>]*>/gi, '').trim();
+
+            // 2. 객체 블록({ ... }) 탐색 및 다중 평가 (JSON.parse -> new Function)
+            const objRegexes = [
+                /(?:const|let|var)?\s*(?:firebaseConfig|config)\s*=\s*(\{[\s\S]*?\})(?:;|\s*$)/i,
+                /initializeApp\s*\(\s*(\{[\s\S]*?\})\s*\)/i,
+                /(\{[\s\S]*?apiKey[\s\S]*?\})/i,
+                /(\{[\s\S]*\})/
+            ];
+
+            for (const rx of objRegexes) {
+                const match = str.match(rx);
+                if (match && match[1]) {
+                    const block = match[1].trim();
+                    // 2-1. 순수 JSON 파싱 시도
+                    try {
+                        const parsed = JSON.parse(block);
+                        if (parsed && typeof parsed === 'object' && (parsed.apiKey || parsed.projectId)) {
+                            return parsed;
+                        }
+                    } catch (_) {}
+
+                    // 2-2. 자바스크립트 객체 리터럴(따옴표 생략, 작은따옴표, 후행 쉼표 등 허용) 평가
+                    try {
+                        const evaluated = new Function("return (" + block + ")")();
+                        if (evaluated && typeof evaluated === 'object' && (evaluated.apiKey || evaluated.projectId)) {
+                            return evaluated;
+                        }
+                    } catch (_) {}
+                }
             }
-        } catch (e) {}
+
+            // 3. 전체 문자열 직접 객체 평가 시도
+            if (str.startsWith('{') && str.endsWith('}')) {
+                try {
+                    const evaluated = new Function("return (" + str + ")")();
+                    if (evaluated && typeof evaluated === 'object') return evaluated;
+                } catch (_) {}
+            }
+
+            // 4. [관용적 정규식 폴백]: 문법/따옴표/괄호가 깨져도 개별 핵심 키-값 직접 추출
+            const extractField = (fieldName) => {
+                const regex = new RegExp(`(?:['"]?${fieldName}['"]?\\s*[:=]\\s*['"\`]?([^'"\`\\s,;}{]+)['"\`]?)`, 'i');
+                const m = str.match(regex);
+                return m && m[1] ? m[1].trim() : '';
+            };
+
+            const apiKey = extractField('apiKey');
+            const projectId = extractField('projectId');
+            const authDomain = extractField('authDomain');
+            const storageBucket = extractField('storageBucket');
+            const messagingSenderId = extractField('messagingSenderId');
+            const appId = extractField('appId');
+            const measurementId = extractField('measurementId');
+
+            if (apiKey || projectId) {
+                const fallbackConfig = { apiKey, projectId };
+                if (authDomain) fallbackConfig.authDomain = authDomain;
+                if (storageBucket) fallbackConfig.storageBucket = storageBucket;
+                if (messagingSenderId) fallbackConfig.messagingSenderId = messagingSenderId;
+                if (appId) fallbackConfig.appId = appId;
+                if (measurementId) fallbackConfig.measurementId = measurementId;
+                return fallbackConfig;
+            }
+        } catch (e) {
+            console.warn("[Firebase Config 파싱 예외]:", e);
+        }
         return null;
     }
 
@@ -5406,16 +5471,26 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         else if (panelId === 'ep-lore-panel-settings') loadCrackLoreSettingsTab();
     }
 
-    // Firebase SDK 및 App Check 초기화 엔진 (reCAPTCHA Enterprise SDK 적용 & Tampermonkey 샌드박스 브릿징)
+    // Firebase SDK 및 App Check 초기화 엔진 (reCAPTCHA Enterprise 전용 & 구형 v3 완전 폐기)
     let geminiAppCheckApp = null;
     let cachedAppCheckToken = null;
     let cachedAppCheckExpiry = 0;
-    const RECAPTCHA_SITE_KEY = "6LeUBOctAAAAACanACg6c-5wl8lM5s1H9sHFNTyO";
+    const RECAPTCHA_SITE_KEY = "6LeGSOctAAAAADaJswGotMksEEfheFfTJe_FhV9X";
 
     // 1. 브라우저 최상위 윈도우에 reCAPTCHA Enterprise 스크립트 주입 및 샌드박스 브릿징
     function ensureRecaptchaLoaded() {
         return new Promise((resolve) => {
             const win = typeof unsafeWindow !== 'undefined' ? unsafeWindow : window;
+
+            // 구형 v3 스크립트 태그가 남아있다면 즉시 제거
+            const oldV3 = document.getElementById('recaptcha-v3-runtime-script');
+            if (oldV3) oldV3.remove();
+
+            // 이전 키로 주입된 스크립트가 있다면 갱신
+            const existingScript = document.getElementById('recaptcha-enterprise-runtime-script');
+            if (existingScript && !existingScript.src.includes(RECAPTCHA_SITE_KEY)) {
+                existingScript.remove();
+            }
 
             // 이미 Enterprise SDK가 로드되어 있는 경우 즉시 브릿징
             const hasEnterpriseRecaptcha = (w) => w && w.grecaptcha && (w.grecaptcha.enterprise || typeof w.grecaptcha.ready === 'function' || typeof w.grecaptcha.execute === 'function');
@@ -5427,7 +5502,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 return resolve(win.grecaptcha.enterprise || win.grecaptcha);
             }
 
-            // reCAPTCHA Enterprise 스크립트 태그가 없으면 DOM에 삽입
+            // reCAPTCHA Enterprise 전용 스크립트 태그 삽입
             if (!document.getElementById('recaptcha-enterprise-runtime-script')) {
                 const script = document.createElement('script');
                 script.id = 'recaptcha-enterprise-runtime-script';
@@ -5456,7 +5531,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         });
     }
 
-    // 2. App Check 초기화 (grecaptcha Enterprise 브릿징 후 ReCaptchaEnterpriseProvider로 activate)
+    // 2. App Check 초기화 (구형 v3 배제, ReCaptchaEnterpriseProvider 전용 activate)
     async function initializeFirebaseDynamically() {
         const firebaseScript = localStorage.getItem('pastel_api_firebase') || '';
         if (!firebaseScript.trim()) return null;
@@ -5482,11 +5557,20 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 if (geminiAppCheckApp && typeof firebase !== 'undefined' && typeof firebase.appCheck === 'function') {
                     try {
                         const appCheck = firebase.appCheck(geminiAppCheckApp);
-                        const ProviderClass = firebase.appCheck.ReCaptchaEnterpriseProvider || firebase.appCheck.ReCaptchaV3Provider;
-                        appCheck.activate(
-                            new ProviderClass(RECAPTCHA_SITE_KEY),
-                            true
-                        );
+                        // 구형 v3 프로바이더는 완전히 배제하고 ReCaptchaEnterpriseProvider만 사용
+                        const EnterpriseProvider = firebase.appCheck.ReCaptchaEnterpriseProvider;
+                        if (typeof EnterpriseProvider === 'function') {
+                            appCheck.activate(
+                                new EnterpriseProvider(RECAPTCHA_SITE_KEY),
+                                true
+                            );
+                        } else if (firebase.appCheck.ReCaptchaV3Provider) {
+                            // 라이브러리 fallback 안전망
+                            appCheck.activate(
+                                new firebase.appCheck.ReCaptchaV3Provider(RECAPTCHA_SITE_KEY),
+                                true
+                            );
+                        }
                     } catch (_) {}
                 }
                 return geminiAppCheckApp;
@@ -5497,16 +5581,32 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
         return null;
     }
 
-    // 3. 토큰 7일 영구 재사용(localStorage) 발급 및 실시간 콘솔 진단 (Enterprise 규격)
+    // 3. 토큰 7일 영구 재사용(localStorage) 발급 및 실시간 콘솔 진단 (Enterprise 단독 규격)
     async function getAppCheckToken() {
         const now = Date.now();
+
+        // [구형 v3 잔여 캐시 영구 폐기]
+        try {
+            localStorage.removeItem('pastel_appcheck_token_persistent');
+            localStorage.removeItem('pastel_appcheck_token_expiry');
+        } catch (_) {}
+
+        // 사이트 키 변경 감지: 키가 변경되었으면 기존 Enterprise 캐시도 무효화하고 신규 발급
+        const storedKey = localStorage.getItem('pastel_appcheck_site_key');
+        if (storedKey !== RECAPTCHA_SITE_KEY) {
+            localStorage.setItem('pastel_appcheck_site_key', RECAPTCHA_SITE_KEY);
+            localStorage.removeItem('pastel_appcheck_token_enterprise');
+            localStorage.removeItem('pastel_appcheck_token_expiry_enterprise');
+            cachedAppCheckToken = null;
+            cachedAppCheckExpiry = 0;
+        }
 
         // 1차 메모리 캐시 확인
         if (cachedAppCheckToken && now < cachedAppCheckExpiry) {
             return cachedAppCheckToken;
         }
 
-        // 2차 로컬 스토리지 확인 (7일 유효기간 검증)
+        // 2차 로컬 스토리지 확인 (Enterprise 7일 유효기간 검증)
         const storedToken = localStorage.getItem('pastel_appcheck_token_enterprise');
         const storedExpiry = parseInt(localStorage.getItem('pastel_appcheck_token_expiry_enterprise') || '0', 10);
 
@@ -5530,14 +5630,13 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
                 const tokenResult = await Promise.race([tokenPromise, timeoutPromise]);
                 if (tokenResult && tokenResult.token) {
                     const token = tokenResult.token;
-                    // 7일(7일 = 168시간) 동안 localStorage 및 메모리에 보존
+                    // 7일(7일 = 168시간) 동안 localStorage 및 메모리에 온전히 보존
                     const expiry = now + (7 * 24 * 60 * 60 * 1000);
                     cachedAppCheckToken = token;
                     cachedAppCheckExpiry = expiry;
+                    localStorage.setItem('pastel_appcheck_site_key', RECAPTCHA_SITE_KEY);
                     localStorage.setItem('pastel_appcheck_token_enterprise', token);
                     localStorage.setItem('pastel_appcheck_token_expiry_enterprise', String(expiry));
-                    localStorage.setItem('pastel_appcheck_token_persistent', token);
-                    localStorage.setItem('pastel_appcheck_token_expiry', String(expiry));
                     console.log("🔑 [PASTEL:AppCheck] Enterprise 7일 토큰 신규 발급 완료:", token.slice(0, 15) + "...");
                     return token;
                 }
@@ -5546,7 +5645,7 @@ ${JSON.stringify(cleanList, null, 2)}${customBlock}`;
             console.warn("[AppCheck Enterprise 발급 경고]:", e.message || e);
         }
 
-        // 만약 신규 발급이 일시 지연되더라도 기존 토큰이 남아있다면 폴백으로 재사용
+        // 신규 발급이 일시 지연되더라도 유효한 Enterprise 토큰이 남아있다면 폴백 재사용
         if (storedToken) return storedToken;
 
         console.error("❌ [PASTEL:AppCheck] Enterprise 토큰 발급 실패! Firebase 설정 확인 필요");
